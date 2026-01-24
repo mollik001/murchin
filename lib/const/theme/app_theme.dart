@@ -35,9 +35,9 @@ class AppTextStyles {
   );
 
       static TextStyle bodySmall = GoogleFonts.roboto(
-    fontWeight: FontWeight.w500,
-    fontSize: 14.sp,
-    color: Colors.black,
+    fontWeight: FontWeight.w400,
+    fontSize: 12.sp,
+    color: Color(0xff848484),
   );
   
  

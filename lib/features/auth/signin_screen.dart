@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/const/widgets/custom_button.dart';
+import 'package:murchin/features/navbar/navbar_screen.dart';
 
 class SignInPage extends StatelessWidget {
   const SignInPage({super.key});
@@ -116,7 +117,7 @@ class SignInPage extends StatelessWidget {
                     CustomButton(
                       text: '',
                       onPressed: () {
-                        _handleGoogleSignIn();
+                        Get.offAll(CustomNavbar());
                       },
                       icon: Image.asset(
                         'assets/icons/google.png',

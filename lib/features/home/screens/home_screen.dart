@@ -5,6 +5,9 @@ import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/const/widgets/custom_appbar.dart';
+import 'package:murchin/features/home/controllers/home_controller.dart';
+import 'package:murchin/features/home/widgets/kalshi_card.dart';
+import 'package:murchin/features/home/widgets/polymarket_card.dart';
 
 class HomeScreen extends StatelessWidget {
   HomeScreen({super.key});
@@ -54,6 +57,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '68%', // AI higher than market
                           team: 'Chiefs',
                           bgColor: polymarketBgColor,
+                          borderColor: AppColors.notBlue,
                         ),
                         SizedBox(height: 20.h),
                         KalshiCard(
@@ -64,6 +68,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '72%', // AI higher than market
                           team: 'Over 100K',
                           bgColor: kalshiBgColor,
+                          borderColor: AppColors.blue,
                         ),
                         SizedBox(height: 20.h),
                         PolymarketCard(
@@ -74,6 +79,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '65%', // AI higher than market
                           team: 'Democratic',
                           bgColor: polymarketBgColor,
+                           borderColor: AppColors.notBlue,
                         ),
                         SizedBox(height: 20.h),
                         KalshiCard(
@@ -84,6 +90,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '82%', // AI higher than market
                           team: 'Rate Hold',
                           bgColor: kalshiBgColor,
+                          borderColor: AppColors.blue,
                         ),
                         SizedBox(height: 20.h),
                         PolymarketCard(
@@ -94,6 +101,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '58%', // AI higher than market
                           team: 'Over 300',
                           bgColor: polymarketBgColor,
+                           borderColor: AppColors.notBlue,
                         ),
                         SizedBox(height: 20.h),
                         KalshiCard(
@@ -104,6 +112,8 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '51%', // AI higher than market
                           team: 'Celtics',
                           bgColor: kalshiBgColor,
+                          borderColor: AppColors.blue,
+                          
                         ),
                       ],
                     );
@@ -118,6 +128,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '68%', // AI higher than market
                           team: 'Chiefs',
                           bgColor: polymarketBgColor,
+                           borderColor: AppColors.notBlue,
                         ),
                         SizedBox(height: 20.h),
                         PolymarketCard(
@@ -128,6 +139,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '65%', // AI higher than market
                           team: 'Democratic',
                           bgColor: polymarketBgColor,
+                           borderColor: AppColors.notBlue,
                         ),
                         SizedBox(height: 20.h),
                         PolymarketCard(
@@ -138,6 +150,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '58%', // AI higher than market
                           team: 'Over 300',
                           bgColor: polymarketBgColor,
+                           borderColor: AppColors.notBlue,
                         ),
                         SizedBox(height: 20.h),
                         PolymarketCard(
@@ -148,6 +161,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '67%', // AI higher than market
                           team: 'Over 3T',
                           bgColor: polymarketBgColor,
+                           borderColor: AppColors.notBlue,
                         ),
                         SizedBox(height: 20.h),
                         PolymarketCard(
@@ -158,6 +172,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '54%', // AI higher than market
                           team: 'Significant',
                           bgColor: polymarketBgColor,
+                           borderColor: AppColors.notBlue,
                         ),
                       ],
                     );
@@ -172,6 +187,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '72%', // AI higher than market
                           team: 'Over 100K',
                           bgColor: kalshiBgColor,
+                          borderColor: AppColors.blue,
                         ),
                         SizedBox(height: 20.h),
                         KalshiCard(
@@ -182,6 +198,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '82%', // AI higher than market
                           team: 'Rate Hold',
                           bgColor: kalshiBgColor,
+                          borderColor: AppColors.blue,
                         ),
                         SizedBox(height: 20.h),
                         KalshiCard(
@@ -192,6 +209,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '51%', // AI higher than market
                           team: 'Celtics',
                           bgColor: kalshiBgColor,
+                          borderColor: AppColors.blue,
                         ),
                         SizedBox(height: 20.h),
                         KalshiCard(
@@ -202,6 +220,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '62%', // AI higher than market
                           team: 'Over 90\$',
                           bgColor: kalshiBgColor,
+                          borderColor: AppColors.blue,
                         ),
                         SizedBox(height: 20.h),
                         KalshiCard(
@@ -212,6 +231,7 @@ class HomeScreen extends StatelessWidget {
                           aiPercentage: '74%', // AI higher than market
                           team: 'Over 2.5%',
                           bgColor: kalshiBgColor,
+                          borderColor: AppColors.blue,
                         ),
                       ],
                     );
@@ -229,48 +249,52 @@ class HomeScreen extends StatelessWidget {
   }
 
   // Search Bar
-  Widget _buildSearchBar() {
-    return Container(
-      width: double.infinity,
-      height: 50.h,
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(25.r),
-        border: Border.all(
-          color: const Color(0xffE6E6E6),
-          width: 1.w,
+Widget _buildSearchBar() {
+  return Container(
+    width: double.infinity,
+    height: 42.h,
+    decoration: BoxDecoration(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(25.r),
+      border: Border.all(
+        color: const Color(0xffE6E6E6),
+        width: 1.w,
+      ),
+    ),
+    child: Row(
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: 16.w, right: 12.w),
+          child: Image.asset(
+            'assets/icons/search.png',
+            width: 20.w,
+            height: 20.h,
+            fit: BoxFit.contain,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: 16.w, right: 12.w),
-            child: Image.asset(
-              'assets/icons/search.png',
-              width: 20.w,
-              height: 20.h,
-              fit: BoxFit.contain,
+        Expanded(
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Search',
+              hintStyle: AppTextStyles.bodyMedium?.copyWith(
+                color: const Color(0xff999999),
+                fontWeight: FontWeight.w400,
+                fontSize: 14.sp,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 12.h), // Fix vertical centering
+              isDense: true, // This helps with vertical alignment
+            ),
+            style: AppTextStyles.bodyMedium?.copyWith(
+              color: AppColors.gray800,
+              height: 1.0, // Set height to 1.0 to prevent extra vertical space
             ),
           ),
-          Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search',
-                hintStyle: AppTextStyles.bodyMedium?.copyWith(
-                  color: AppColors.gray500,
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              style: AppTextStyles.bodyMedium?.copyWith(
-                color: AppColors.gray800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   // Platform Tabs
   Widget _buildSeparatePlatformTabs() {
@@ -293,7 +317,7 @@ class HomeScreen extends StatelessWidget {
         child: GestureDetector(
           onTap: () => controller.selectPlatform(index),
           child: Container(
-            height: 45.h,
+            height: 29.h,
             decoration: BoxDecoration(
               color: isSelected ? AppColors.primary : unselectedBgColor,
               borderRadius: BorderRadius.circular(10.r),
@@ -314,304 +338,6 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// ========== CARD CLASSES ==========
 
-// Base Card Widget
-class BaseCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String date;
-  final String marketPercentage;
-  final String aiPercentage;
-  final String team;
-  final Color bgColor;
-  final String platform;
-  final String iconAsset;
 
-  const BaseCard({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.date,
-    required this.marketPercentage,
-    required this.aiPercentage,
-    required this.team,
-    required this.bgColor,
-    required this.platform,
-    required this.iconAsset,
-  });
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: AppColors.gray300,
-          width: 1.w,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row: Icon, Title, Bookmark
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Platform Icon - 44x44 size
-              Image.asset(
-                iconAsset,
-                width: 44.w,
-                height: 44.h,
-                fit: BoxFit.contain,
-              ),
-              SizedBox(width: 12.w),
-              
-              // Title (two lines)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: AppColors.gray900,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: AppColors.gray900,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Bookmark Icon
-              Image.asset(
-                'assets/icons/bookmark.png',
-                width: 20.w,
-                height: 20.h,
-                fit: BoxFit.contain,
-              ),
-            ],
-          ),
-          
-          SizedBox(height: 16.h),
-          
-          // Platform tag and date row - date right after tag with some gap
-          Row(
-            children: [
-              // Platform Tag
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(6.r),
-                  border: Border.all(
-                    color: bgColor.withOpacity(0.5),
-                    width: 1.w,
-                  ),
-                ),
-                child: Text(
-                  platform,
-                  style: AppTextStyles.bodySmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              
-              SizedBox(width: 12.w), // Gap between tag and date
-              
-              // Date - not at far end
-              Text(
-                date,
-                style: AppTextStyles.bodySmall?.copyWith(
-                  color: AppColors.gray600,
-                ),
-              ),
-            ],
-          ),
-          
-          SizedBox(height: 20.h),
-          
-          // Two tabs comparison - Centered content
-          Row(
-            children: [
-              // Left Tab: The Market
-              Expanded(
-                child: ComparisonTab(
-                  title: 'The Market',
-                  percentage: marketPercentage,
-                  team: team,
-                  percentageColor: AppColors.primary,
-                ),
-              ),
-              
-              SizedBox(width: 16.w),
-              
-              // Right Tab: AI Predicts
-              Expanded(
-                child: ComparisonTab(
-                  title: 'AI Predicts',
-                  percentage: aiPercentage,
-                  team: team,
-                  percentageColor: Colors.red,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Polymarket Card
-class PolymarketCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String date;
-  final String marketPercentage;
-  final String aiPercentage;
-  final String team;
-  final Color bgColor;
-
-  const PolymarketCard({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.date,
-    required this.marketPercentage,
-    required this.aiPercentage,
-    required this.team,
-    required this.bgColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return BaseCard(
-      title: title,
-      subtitle: subtitle,
-      date: date,
-      marketPercentage: marketPercentage,
-      aiPercentage: aiPercentage,
-      team: team,
-      bgColor: bgColor,
-      platform: 'Polymarket',
-      iconAsset: 'assets/icons/polymarket.png',
-    );
-  }
-}
-
-// Kalshi Card
-class KalshiCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String date;
-  final String marketPercentage;
-  final String aiPercentage;
-  final String team;
-  final Color bgColor;
-
-  const KalshiCard({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.date,
-    required this.marketPercentage,
-    required this.aiPercentage,
-    required this.team,
-    required this.bgColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return BaseCard(
-      title: title,
-      subtitle: subtitle,
-      date: date,
-      marketPercentage: marketPercentage,
-      aiPercentage: aiPercentage,
-      team: team,
-      bgColor: bgColor,
-      platform: 'Kalshi',
-      iconAsset: 'assets/icons/kalshi.png',
-    );
-  }
-}
-
-// Comparison Tab Widget - Centered content
-class ComparisonTab extends StatelessWidget {
-  final String title;
-  final String percentage;
-  final String team;
-  final Color percentageColor;
-
-  const ComparisonTab({
-    super.key,
-    required this.title,
-    required this.percentage,
-    required this.team,
-    required this.percentageColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: AppColors.gray100,
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: AppTextStyles.bodySmall?.copyWith(
-              color: AppColors.gray700,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            percentage,
-            style: AppTextStyles.headlineSmall?.copyWith(
-              color: percentageColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 22.sp,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 4.h),
-          Text(
-            team,
-            style: AppTextStyles.bodySmall?.copyWith(
-              color: AppColors.gray600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Home Controller
-class HomeController extends GetxController {
-  final selectedPlatform = 0.obs; // 0: All Platforms, 1: Polymarket, 2: Kalshi
-  
-  void selectPlatform(int index) {
-    selectedPlatform.value = index;
-  }
-}

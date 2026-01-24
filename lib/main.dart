@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
             useMaterial3: true,
           ),
           // Using GetX for navigation instead of home
-          home: CustomNavbar(),
+          home: LandingPage(),
          
         );
       },

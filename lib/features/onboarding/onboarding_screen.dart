@@ -1,22 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:get/get_instance/src/extension_instance.dart';
-import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
-import 'package:get/route_manager.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/const/widgets/custom_button.dart';
 import 'package:murchin/features/auth/signin_screen.dart';
 import 'package:murchin/features/onboarding/onboarding_controller.dart';
 
-class LandingPage extends StatelessWidget {
+class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
 
   @override
+  State<LandingPage> createState() => _LandingPageState();
+}
+
+class _LandingPageState extends State<LandingPage> {
+  late final LandingController controller;
+  bool _fontsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(LandingController());
+    _loadFonts();
+  }
+
+  Future<void> _loadFonts() async {
+    try {
+      // Ensure fonts are loaded before building text widgets
+      await Future.wait(
+        [
+              // Load font variants
+              GoogleFonts.roboto(),
+              Future.delayed(const Duration(milliseconds: 200)),
+            ]
+            as Iterable<Future<dynamic>>,
+      );
+    } catch (e) {
+      print("⚠️ Error loading fonts: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _fontsLoaded = true;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Initialize controller
-    final LandingController controller = Get.put(LandingController());
+    if (!_fontsLoaded) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Image.asset(
+            'assets/images/logo.png',
+            width: 200.w,
+            height: 200.h,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -35,7 +81,7 @@ class LandingPage extends StatelessWidget {
                   _buildSplashPage(),
 
                   // Page 2: Onboarding Screen
-                  _buildOnboardingPage(),
+                  _buildOnboardingPage(context),
                 ],
               ),
             ),
@@ -50,13 +96,13 @@ class LandingPage extends StatelessWidget {
     );
   }
 
-  // Splash Page (only asset, no text) - Auto changes after 3 seconds
+  // Splash Page (only asset, no text) - Auto changes after 2 seconds
   Widget _buildSplashPage() {
-    final LandingController controller = Get.find();
-
-    // Auto navigate after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      controller.nextPage();
+    // Auto navigate after 2 seconds
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && controller.currentPage.value == 0) {
+        controller.nextPage();
+      }
     });
 
     return Center(
@@ -70,11 +116,14 @@ class LandingPage extends StatelessWidget {
   }
 
   // Onboarding Page with vertical scroll
-  Widget _buildOnboardingPage() {
+  Widget _buildOnboardingPage(BuildContext context) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 30.h),
+        padding: EdgeInsets.symmetric(
+          horizontal: 30.w,
+          vertical: 50.h,
+        ), // Increased vertical padding from 30 to 50
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
@@ -86,20 +135,27 @@ class LandingPage extends StatelessWidget {
               fit: BoxFit.contain,
             ),
 
-            SizedBox(height: 30.h),
-
-            // Title
+            SizedBox(height: 40.h), // Increased from 30 to 40
+            // Title - with fallback font
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 30.w),
               child: Text(
                 'Smarter Investments through Artificial Intelligence',
-                style: AppTextStyles.headlineLarge,
+                style:
+                    GoogleFonts.roboto(
+                      fontSize: 24.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                      height: 1.3,
+                    ).copyWith(
+                      // Fallback if GoogleFonts fails
+                      fontFamilyFallback: ['Roboto', 'Arial', 'sans-serif'],
+                    ),
                 textAlign: TextAlign.center,
               ),
             ),
 
-            SizedBox(height: 30.h),
-
+            SizedBox(height: 40.h), // Increased from 30 to 40
             // Bottom Asset
             Image.asset(
               'assets/images/onboarding_image.png',
@@ -108,79 +164,38 @@ class LandingPage extends StatelessWidget {
               fit: BoxFit.contain,
             ),
 
-            SizedBox(height: 40.h),
-
-            // Features with icon assets (without container)
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: Image.asset(
-                          'assets/icons/tick.png',
-                          width: 24.w,
-                          height: 24.w,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      SizedBox(width: 15.w),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: 250.w),
-                        child: Text(
-                          'Kalshi, Polymarket Odds vs. AI Odds',
-                          style: AppTextStyles.headlineSmall,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: 15.h),
-
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: Image.asset(
-                          'assets/icons/tick.png',
-                          width: 24.w,
-                          height: 24.w,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      SizedBox(width: 15.w),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: 250.w),
-                        child: Text(
-                          'Sportsbook Odds vs. AI Odds: Parlays, Props, Micro-Bets',
-                          style: AppTextStyles.headlineSmall,
-                          maxLines: 2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            // ... rest of the code remains the same until the features section ...
+            SizedBox(height: 50.h), // Increased from 40 to 50
+            // Transparent Card with exported image from Figma
+            Container(
+              height: 84.h,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(
+                  0,
+                ), // No border radius if you want sharp corners
+              ),
+              child: Image.asset(
+                'assets/images/onboarding_features.png', // Your exported image from Figma
+                fit: BoxFit.contain, // Adjust based on your image aspect ratio
               ),
             ),
-            SizedBox(height: 50.h),
+
+            SizedBox(height: 60.h), // Increased from 50 to 60
+   
 
             // Continue Button
             CustomButton(
               borderRadius: 30,
               text: 'Continue',
               onPressed: () {
-               Get.offAll(SignInPage());
+                Get.offAll(() => const SignInPage());
               },
             ),
 
             // Extra space at bottom for better scrolling
-            SizedBox(height: 20.h),
+            SizedBox(height: 30.h), // Increased from 20 to 30
           ],
         ),
       ),
@@ -203,7 +218,7 @@ class LandingPage extends StatelessWidget {
               height: controller.currentPage.value == 0 ? 12.h : 6.h,
               decoration: BoxDecoration(
                 color: controller.currentPage.value == 0
-                    ? AppColors.primaryLight
+                    ? AppColors.primary
                     : AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(
                   controller.currentPage.value == 0 ? 6.w : 3.w,
@@ -224,7 +239,7 @@ class LandingPage extends StatelessWidget {
               height: controller.currentPage.value == 1 ? 12.h : 6.h,
               decoration: BoxDecoration(
                 color: controller.currentPage.value == 1
-                    ? AppColors.primaryLight
+                    ? AppColors.primary
                     : AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(
                   controller.currentPage.value == 1 ? 6.w : 3.w,

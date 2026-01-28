@@ -59,27 +59,13 @@ class EventsScreen extends StatelessWidget {
               
               SizedBox(height: 16.h),
               
-              // SINGLE Gradient Card - Make tappable too
-              GestureDetector(
-                onTap: () {
-                  Get.to(() => CardDetailScreen(
-                    title: 'Featured Event',
-                    subtitle: 'Premium Prediction',
-                    date: 'Feb 8, 2026',
-                    marketPercentage: '38%',
-                    aiPercentage: '65%',
-                    team: 'Featured Team',
-                    isPolymarket: true,
-                    bgColor: AppColors.primary,
-                  ));
-                },
-                child: _buildSingleGradientCard(),
-              ),
+              // SINGLE Gradient Card
+              _buildSingleGradientCard(),
               
               SizedBox(height: 24.h),
               
               // Cards List
-              _buildCardsList(),
+              _buildCardsList(context),
               
               SizedBox(height: 40.h),
             ],
@@ -165,7 +151,7 @@ class EventsScreen extends StatelessWidget {
                         width: 30.w, // Width of the underline
                         height: 2.h,
                         decoration: BoxDecoration(
-                          color: AppColors.primary, // You can change this color
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(1.r),
                         ),
                       ),
@@ -239,15 +225,14 @@ class EventsScreen extends StatelessWidget {
   }
 
   // Cards List
-  Widget _buildCardsList() {
-    // Sample data for cards - updated with team names
+  Widget _buildCardsList(BuildContext context) {
+    // Sample data for cards - updated with only market data
     final List<Map<String, dynamic>> cardsData = [
       {
         'title': 'Super Bowl Champion 2026',
         'subtitle': 'Championship Prediction',
         'topPick': 'Top pick : JD Vance',
         'marketPercent': '27%',
-        'aiPercent': '31%',
         'team': 'Chiefs',
         'platform': 'polymarket',
         'isPolymarket': true,
@@ -256,8 +241,7 @@ class EventsScreen extends StatelessWidget {
         'title': 'US Presidential Election 2024',
         'subtitle': 'Election Outcome',
         'topPick': 'Top pick : Kamala Harris',
-        'marketPercent': '42%',
-        'aiPercent': '45%',
+        'marketPercent': '27%',
         'team': 'Democratic',
         'platform': 'polymarket',
         'isPolymarket': true,
@@ -266,8 +250,7 @@ class EventsScreen extends StatelessWidget {
         'title': 'Bitcoin Price by End of 2024',
         'subtitle': 'Cryptocurrency Forecast',
         'topPick': 'Top pick : Above 70K',
-        'marketPercent': '52%',
-        'aiPercent': '56%',
+        'marketPercent': '27%',
         'team': 'Bull Market',
         'platform': 'kalshi',
         'isPolymarket': false,
@@ -276,8 +259,7 @@ class EventsScreen extends StatelessWidget {
         'title': 'Tesla Stock Performance',
         'subtitle': 'Stock Market Analysis',
         'topPick': 'Top pick : Will rise 20%',
-        'marketPercent': '33%',
-        'aiPercent': '41%',
+        'marketPercent': '27%',
         'team': 'Growth Stock',
         'platform': 'kalshi',
         'isPolymarket': false,
@@ -304,7 +286,7 @@ class EventsScreen extends StatelessWidget {
         children: filteredCards.map((cardData) {
           return Padding(
             padding: EdgeInsets.only(bottom: 16.h),
-            child: _buildEventCard(cardData),
+            child: _buildEventCard(cardData, context),
           );
         }).toList(),
       );
@@ -312,19 +294,21 @@ class EventsScreen extends StatelessWidget {
   }
 
   // Individual Event Card
-  Widget _buildEventCard(Map<String, dynamic> cardData) {
+  Widget _buildEventCard(Map<String, dynamic> cardData, BuildContext context) {
+    // Parse market percentage
+    final marketPercent = double.parse(cardData['marketPercent'].replaceAll('%', '')) / 100;
+    
     return GestureDetector(
       onTap: () {
         // Navigate to CardDetailScreen when tapped
         Get.to(() => CardDetailScreen(
           title: cardData['title'],
           subtitle: cardData['subtitle'],
-          date: 'Feb 8, 2026', // You can make this dynamic if needed
+          date: 'Feb 8, 2026',
           marketPercentage: cardData['marketPercent'],
-          aiPercentage: cardData['aiPercent'],
           team: cardData['team'],
           isPolymarket: cardData['isPolymarket'],
-          bgColor: cardData['platform'] == 'polymarket' ? polymarketBgColor : kalshiBgColor,
+          bgColor: cardData['platform'] == 'polymarket' ? polymarketBgColor : kalshiBgColor, aiPercentage: '31',
         ));
       },
       child: Container(
@@ -379,61 +363,33 @@ class EventsScreen extends StatelessWidget {
             Text(
               cardData['topPick'],
               style: AppTextStyles.bodySmall?.copyWith(
-                color: Color(0xff848484),
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w700
+                color: Color(0xffDC732D),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600
               ),
             ),
             
             SizedBox(height: 16.h),
             
-            // Bottom row with percentages (70% width total)
-            Container(
-              width: double.infinity,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  // Market percentage
-                  Container(
-                    width: 120.w, // Fixed width instead of Expanded
-                    padding: EdgeInsets.symmetric(vertical: 4.h, horizontal: 8.w),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3CB043), // #3CB043
-                      borderRadius: BorderRadius.circular(6.r),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Market : ${cardData['marketPercent']}',
-                        style: AppTextStyles.bodySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+            // Market percentage with slider
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Market text
+                Text(
+                  'Market : ${cardData['marketPercent']}',
+                  style: AppTextStyles.bodySmall?.copyWith(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.sp,
                   ),
-                  
-                  SizedBox(width: 8.w),
-                  
-                  // AI percentage
-                  Container(
-                    width: 120.w, // Fixed width instead of Expanded
-                    padding: EdgeInsets.symmetric(vertical: 4.h, horizontal: 8.w),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFD2400), // #FD2400
-                      borderRadius: BorderRadius.circular(6.r),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'AI : ${cardData['aiPercent']}',
-                        style: AppTextStyles.bodySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                
+                SizedBox(height: 8.h),
+                
+                // Market slider
+                _buildMarketSlider(marketPercent),
+              ],
             ),
           ],
         ),
@@ -441,7 +397,46 @@ class EventsScreen extends StatelessWidget {
     );
   }
 
-  // Platform Tag Widget (simplified - only one platform per card)
+// Market Slider Widget
+Widget _buildMarketSlider(double percentage) {
+  return Container(
+    height: 24.h, // Reduced from 32.h to 24.h
+    width: double.infinity,
+    decoration: BoxDecoration(
+      color: Colors.black.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(10.r),
+    ),
+    child: Stack(
+      children: [
+        // Filled portion
+        Container(
+          width: percentage * (Get.width - 72.w), // Adjust width based on screen
+          height: 24.h, // Reduced from 32.h to 24.h
+          decoration: BoxDecoration(
+            color: const Color(0xFF3CB043), // Green color for market
+            borderRadius: BorderRadius.circular(10.r),
+          ),
+          child: Stack(
+            children: [
+              // White vertical line at the end of filled portion
+              Positioned(
+                right: 6.w,
+                top: 4.h, // Adjusted top position for reduced height
+                child: Container(
+                  width: 2.w,
+                  height: 16.h,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  // Platform Tag Widget
   Widget _buildPlatformTag(String platform) {
     Color bgColor;
     Color borderColor;
@@ -449,12 +444,12 @@ class EventsScreen extends StatelessWidget {
     
     if (platform == 'polymarket') {
       bgColor = polymarketBgColor;
-      borderColor = AppColors.primary; // Using primary as notBlue
+      borderColor = AppColors.primary;
       displayText = 'Polymarket';
     } else {
       // kalshi
       bgColor = kalshiBgColor;
-      borderColor = const Color(0xFF007AFF); // Blue
+      borderColor = const Color(0xFF007AFF);
       displayText = 'Kalshi';
     }
     

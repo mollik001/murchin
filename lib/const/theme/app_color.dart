@@ -16,6 +16,7 @@ class AppColors {
   static const Color lighBlue = Color(0xFF6678F3);
   static const Color veryLightBlue = Color(0xFF4588C6);
   static const Color bgGrey = Color(0xFFBDC4D2);
+  static const Color notBlue = Color(0xFF194F46);
   
   // Gray Scale
   static const Color gray900 = Color(0xFF212529);

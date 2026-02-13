@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
+import 'package:murchin/features/events/screens/event_screen.dart';
 import 'package:murchin/features/home/screens/home_screen.dart';
 import 'package:murchin/features/navbar/navbar_controller.dart';
+import 'package:murchin/features/profile/screens/profile_screen.dart';
+import 'package:murchin/features/saved/screens/saved_screens.dart';
 
 class CustomNavbar extends StatelessWidget {
   CustomNavbar({super.key});
 
   final List<Widget> pages = [
 HomeScreen(),
-Placeholder(),
-Placeholder(),
-Placeholder(),
+EventsScreen(),
+SavedScreen(),
+ProfileScreen(),
   ];
 
   final List<String> normalIcons = const [

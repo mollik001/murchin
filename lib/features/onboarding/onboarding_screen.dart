@@ -255,10 +255,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:murchin/const/theme/app_theme.dart';
+import 'package:murchin/const/service/shared_preference_helper.dart';
+import 'package:murchin/features/navbar/navbar_screen.dart';
 import 'package:murchin/features/auth/signin_screen.dart';
 import 'package:murchin/features/onboarding/onboarding_controller.dart';
+import 'package:murchin/const/theme/app_theme.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -269,83 +270,64 @@ class LandingPage extends StatefulWidget {
 
 class _LandingPageState extends State<LandingPage> {
   late final LandingController controller;
-  bool _fontsLoaded = false;
 
   @override
   void initState() {
     super.initState();
     controller = Get.put(LandingController());
-    _loadFonts();
-
-    // Auto navigate to SignInPage after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-       // Get.offAll(() => const SignInPage());
-      }
-    });
+    _checkLoginAndNavigate();
   }
 
-  Future<void> _loadFonts() async {
-    try {
-      // Load font
-      await GoogleFonts.roboto();
-    } catch (e) {
-      print("⚠️ Error loading fonts: $e");
-    } finally {
-      if (mounted) {
-        setState(() {
-          _fontsLoaded = true;
-        });
-      }
+  Future<void> _checkLoginAndNavigate() async {
+    await Future.delayed(const Duration(seconds: 2));
+
+    final token = await SharedPreferencesHelper.getAccessToken();
+
+    if (!mounted) return;
+
+    if (token != null && token.isNotEmpty) {
+      print("✅ Token Found → Navigate To Home");
+      Get.offAll(() => CustomNavbar());
+    } else {
+      print("❌ No Token → Navigate To Sign In");
+      Get.offAll(() => SignInPage());
     }
   }
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: Colors.white,
-    body: Container(
-      padding: EdgeInsets.only(bottom: 60.h), // Add padding at bottom to push content up
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo
-            Image.asset(
-              'assets/images/logo.png',
-              width: 370.w,
-              height: 300.h,
-              fit: BoxFit.contain,
-            ),
-
-            // Text moved up using Transform.translate
-            Transform.translate(
-              offset: Offset(0, -50.h), // Move text up by 50 pixels
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6.w),
-                child: _fontsLoaded
-                    ? Text(
-                        'Smarter Investments through Artificial Intelligence',
-                        style: AppTextStyles.headlineSmall.copyWith(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14.sp,
-                        ),
-                        textAlign: TextAlign.center,
-                      )
-                    : Text(
-                        'Smarter Investments through Artificial Intelligence',
-                        style: AppTextStyles.headlineSmall.copyWith(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14.sp,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Container(
+        padding: EdgeInsets.only(bottom: 60.h),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/logo.png',
+                width: 370.w,
+                height: 300.h,
+                fit: BoxFit.contain,
               ),
-            ),
-          ],
+              Transform.translate(
+                offset: Offset(0, -50.h),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6.w),
+                  child: Text(
+                    'Smarter Investments through Artificial Intelligence',
+                    style: AppTextStyles.headlineSmall.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14.sp,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

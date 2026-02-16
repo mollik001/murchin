@@ -1,4 +1,3 @@
-// lib/features/home/widgets/polymarket_card.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:murchin/features/home/screens/card_details_screen.dart';
@@ -9,10 +8,14 @@ class PolymarketCard extends StatelessWidget {
   final String subtitle;
   final String date;
   final String marketPercentage;
-  final String aiPercentage;
+  final String? aiPercentage;
   final String team;
   final Color bgColor;
   final Color borderColor;
+  final List<String>? optionTitles;
+  final List<double>? marketProbs;
+  final List<double>? aiPercentages;
+  final String? aiExplanation;
 
   const PolymarketCard({
     super.key,
@@ -20,41 +23,49 @@ class PolymarketCard extends StatelessWidget {
     required this.subtitle,
     required this.date,
     required this.marketPercentage,
-    required this.aiPercentage,
+    this.aiPercentage,
     required this.team,
     required this.bgColor,
     required this.borderColor,
+    this.optionTitles,
+    this.marketProbs,
+    this.aiPercentages,
+    this.aiExplanation,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Navigate to card detail screen
-        Get.to(() => CardDetailScreen(
-          title: title,
-          subtitle: subtitle,
-          date: date,
-          marketPercentage: marketPercentage,
-          aiPercentage: aiPercentage,
-          team: team,
-          isPolymarket: true,
-          bgColor: bgColor,
-        ));
+        if (aiPercentage != null) {
+          Get.to(() => CardDetailScreen(
+                title: title,
+                subtitle: subtitle,
+                date: date,
+                marketPercentage: marketPercentage,
+                aiPercentage: aiPercentage!,
+                team: team,
+                isPolymarket: true,
+                bgColor: bgColor,
+                optionTitles: optionTitles,
+                marketProbs: marketProbs,
+                aiPercentages: aiPercentages,
+                aiExplanation: aiExplanation,
+              ));
+        }
       },
-child: BaseCard(
-  title: title,
-  subtitle: subtitle,
-  date: date,
-  marketPercentage: marketPercentage,
-  aiPercentage: aiPercentage,
-  team: team,
-  bgColor: bgColor,
-  platform: 'Polymarket',
-  iconAsset: 'assets/icons/polymarket.png',
-  borderColor: borderColor,
-  initiallySaved: false, // Add this - you can make it dynamic if needed
-),
+      child: BaseCard(
+        title: title,
+        subtitle: subtitle,
+        date: date,
+        marketPercentage: marketPercentage,
+        aiPercentage: aiPercentage,
+        team: team,
+        bgColor: bgColor,
+        borderColor: borderColor,
+        platform: 'Polymarket',
+        iconAsset: 'assets/icons/polymarket.png',
+      ),
     );
   }
 }

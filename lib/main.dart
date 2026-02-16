@@ -18,6 +18,7 @@ void main() async {
 }
 
 // Function to pre-load Google Fontsdo
+
 Future<void> _preloadGoogleFonts() async {
   try {
   

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SharedPreferencesHelper {
@@ -8,6 +9,9 @@ class SharedPreferencesHelper {
   static const String _userNameKey = 'user_name';
   static const String _userPhotoKey = 'user_photo';
 
+  /// ⭐ NEW → Events Cache Key
+  static const String _cachedEventsKey = 'cached_events_ai_v1';
+
   static SharedPreferences? _prefs;
 
   static Future<SharedPreferences> get _instance async {
@@ -15,6 +19,10 @@ class SharedPreferencesHelper {
     _prefs = await SharedPreferences.getInstance();
     return _prefs!;
   }
+
+  /// ===============================
+  /// AUTH STORAGE
+  /// ===============================
 
   static Future<bool> saveAccessToken(String token) async {
     final prefs = await _instance;
@@ -76,6 +84,57 @@ class SharedPreferencesHelper {
     return prefs.getString(_userPhotoKey);
   }
 
+  /// ===============================
+  /// ⭐ EVENTS CACHE STORAGE
+  /// ===============================
+
+  /// Save Events List (With Limit)
+  static Future<bool> saveCachedEvents(
+    List<Map<String, dynamic>> events, {
+    int limit = 100,
+  }) async {
+    try {
+      final prefs = await _instance;
+
+      final limitedList =
+          events.take(limit).map((e) => Map<String, dynamic>.from(e)).toList();
+
+      final jsonString = jsonEncode(limitedList);
+
+      return await prefs.setString(_cachedEventsKey, jsonString);
+    } catch (e) {
+      print("Save cache error: $e");
+      return false;
+    }
+  }
+
+  /// Get Cached Events
+  static Future<List<Map<String, dynamic>>> getCachedEvents() async {
+    try {
+      final prefs = await _instance;
+
+      final jsonString = prefs.getString(_cachedEventsKey);
+
+      if (jsonString == null) return [];
+
+      final List decoded = jsonDecode(jsonString);
+
+      return decoded.cast<Map<String, dynamic>>();
+    } catch (e) {
+      print("Get cache error: $e");
+      return [];
+    }
+  }
+
+  /// Clear Only Events Cache
+  static Future<bool> clearEventsCache() async {
+    final prefs = await _instance;
+    return await prefs.remove(_cachedEventsKey);
+  }
+
+  /// ===============================
+  /// CLEAR ALL
+  /// ===============================
   static Future<bool> clearAllData() async {
     final prefs = await _instance;
     await prefs.clear();

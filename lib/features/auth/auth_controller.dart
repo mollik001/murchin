@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import 'package:murchin/const/service/endpoint.dart';
 import 'package:murchin/const/service/shared_preference_helper.dart';
 import 'package:murchin/features/navbar/navbar_screen.dart';
 
@@ -43,7 +44,7 @@ class AuthController extends GetxController {
       final firebaseIdToken = await user.getIdToken();
 
       final url = Uri.parse(
-        'https://5108-2401-f40-1503-7-b817-4727-d299-219d.ngrok-free.app/api/accounts/google/auth/',
+        '${Urls.baseUrl}/api/accounts/google/auth/',
       );
 
       final response = await http.post(
@@ -59,6 +60,7 @@ class AuthController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
+        print(  "✅ Backend Login Success: ${data['user']['email']}");
 
         /// ✅ SAVE USING HELPER (CORRECT KEYS)
         await SharedPreferencesHelper.saveAccessToken(data['token'] ?? '');

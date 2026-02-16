@@ -4,9 +4,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/const/widgets/custom_appbar.dart';
 import 'package:murchin/const/widgets/custom_appbar_2.dart';
 import 'package:murchin/const/widgets/custom_button.dart';
+import 'package:murchin/features/home/controllers/home_controller.dart';
+import 'package:shimmer/shimmer.dart';
 
 class CardDetailScreen extends StatelessWidget {
   final String title;
@@ -17,8 +18,15 @@ class CardDetailScreen extends StatelessWidget {
   final String team;
   final bool isPolymarket;
   final Color bgColor;
+  final List<String>? optionTitles;  // All option titles
+  final List<double>? marketProbs;   // All market probabilities
+  final List<double>? aiPercentages; // All AI percentages (calculated from AI API response)
+  final String? aiExplanation;      // AI explanation from API
 
-   CardDetailScreen({
+  // Store original AI percentages to check if loading is needed
+  final List<double>? originalAiPercentages;
+
+  const CardDetailScreen({
     super.key,
     required this.title,
     required this.subtitle,
@@ -28,75 +36,132 @@ class CardDetailScreen extends StatelessWidget {
     required this.team,
     required this.isPolymarket,
     required this.bgColor,
-  });
-
-  // Color constant for Pickfair insights text
-  final Color pickfairTextColor = const Color(0xFF194F46);
-
-  // Sample candidate data
-  final List<Map<String, String>> candidates = [
-    {'initials': 'JV', 'name': 'JD Vance', 'party': 'Republican'},
-    {'initials': 'DT', 'name': 'Donald Trump', 'party': 'Republican'},
-    {'initials': 'RB', 'name': 'Ron DeSantis', 'party': 'Republican'},
-    {'initials': 'NH', 'name': 'Nikki Haley', 'party': 'Republican'},
-    {'initials': 'JB', 'name': 'Joe Biden', 'party': 'Democrat'},
-    {'initials': 'KH', 'name': 'Kamala Harris', 'party': 'Democrat'},
-    {'initials': 'EW', 'name': 'Elizabeth Warren', 'party': 'Democrat'},
-    {'initials': 'BS', 'name': 'Bernie Sanders', 'party': 'Democrat'},
-  ];
+    this.optionTitles,
+    this.marketProbs,
+    this.aiPercentages,
+    this.aiExplanation,
+  }) : originalAiPercentages = aiPercentages;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: CustomAppbar2(
-        title: '',
+    // Get the HomeController to listen for updates
+    final controller = Get.find<HomeController>();
 
-        onBackPressed: () => Get.back(),
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20.w),
-          child: Column(
-            children: [
-              SizedBox(height: 20.h),
+    // 🔥 Trigger AI fetch once when screen builds
+    if ((originalAiPercentages == null || originalAiPercentages!.isEmpty)) {
+      Future.microtask(() {
+        controller.fetchAIForEventByTitle(title);
+      });
+    }
 
-              // Mini Card (like from home page)
-              _buildMiniCard(),
+    return GetX<HomeController>(
+      builder: (ctrl) {
+        // Find the current event in the controller to get updated AI values
+        final currentEvent = ctrl.events.firstWhere(
+          (event) => event['title'] == title,
+          orElse: () => {
+            'title': title,
+            'subtitle': subtitle,
+            'date': date,
+            'marketPercentage': marketPercentage,
+            'aiPercentage': aiPercentage,
+            'team': team,
+            'optionTitles': optionTitles ?? [],
+            'marketProbs': marketProbs ?? [],
+            'aiPercentages': aiPercentages ?? [],
+            'aiExplanation': aiExplanation ?? '',
+          },
+        );
 
-              SizedBox(height: 30.h),
+        // Use the updated values from the controller if available
+        final rawOptionTitles = currentEvent['optionTitles'];
+        final rawMarketProbs = currentEvent['marketProbs'];
+        final rawAiPercentages = currentEvent['aiPercentages'];
+        final updatedAiExplanation = currentEvent['aiExplanation'] as String?;
 
-              // Gradient Info Card with #194F46 text
-              _buildGradientInfoCard(),
+        // Safely convert dynamic lists to the expected types
+        List<String>? updatedOptionTitles;
+        if (rawOptionTitles != null) {
+          if (rawOptionTitles is List<String>) {
+            updatedOptionTitles = rawOptionTitles;
+          } else if (rawOptionTitles is List<dynamic>) {
+            updatedOptionTitles = rawOptionTitles.cast<String>();
+          } else {
+            updatedOptionTitles = List<String>.from(rawOptionTitles);
+          }
+        }
 
-              SizedBox(height: 30.h),
+        List<double>? updatedMarketProbs;
+        if (rawMarketProbs != null) {
+          if (rawMarketProbs is List<double>) {
+            updatedMarketProbs = rawMarketProbs;
+          } else if (rawMarketProbs is List<dynamic>) {
+            updatedMarketProbs = rawMarketProbs.cast<double>();
+          } else {
+            updatedMarketProbs = List<double>.from(rawMarketProbs);
+          }
+        }
 
-              // Candidates Section
-              _buildCandidatesSection(),
+        List<double>? updatedAiPercentages;
+        if (rawAiPercentages != null) {
+          if (rawAiPercentages is List<double>) {
+            updatedAiPercentages = rawAiPercentages;
+          } else if (rawAiPercentages is List<dynamic>) {
+            updatedAiPercentages = rawAiPercentages.cast<double>();
+          } else {
+            updatedAiPercentages = List<double>.from(rawAiPercentages);
+          }
+        }
 
-              SizedBox(height: 30.h),
-
-              // View on Platform Button
-              CustomButton(
-                text: 'View on platform',
-                onPressed: () {
-                  // Handle platform navigation
-                  _viewOnPlatform();
-                },
-                backgroundColor: AppColors.primary,
-                borderRadius: 15.r,
-              ),
-
-              SizedBox(height: 40.h),
-            ],
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: CustomAppbar2(
+            title: '',
+            onBackPressed: () => Get.back(),
           ),
-        ),
-      ),
+          body: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Column(
+                children: [
+                  SizedBox(height: 20.h),
+
+                  // Mini Card (like from home page)
+                  _buildMiniCard(),
+
+                  SizedBox(height: 30.h),
+
+                  // Gradient Info Card with #194F46 text
+                  _buildGradientInfoCard(updatedAiExplanation),
+
+                  SizedBox(height: 30.h),
+
+                  // Options Section
+                  _buildOptionsSection(updatedOptionTitles, updatedMarketProbs, updatedAiPercentages),
+
+                  SizedBox(height: 30.h),
+
+                  // View on Platform Button
+                  CustomButton(
+                    text: 'View on platform',
+                    onPressed: () {
+                      _viewOnPlatform();
+                    },
+                    backgroundColor: AppColors.primary,
+                    borderRadius: 15.r,
+                  ),
+
+                  SizedBox(height: 70.h),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  // Mini Card (similar to home page card but simplified)
   Widget _buildMiniCard() {
     return Container(
       width: double.infinity,
@@ -109,11 +174,9 @@ class CardDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top row: Icon, Title, Bookmark
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Platform Icon
               Image.asset(
                 isPolymarket
                     ? 'assets/icons/polymarket.png'
@@ -123,29 +186,25 @@ class CardDetailScreen extends StatelessWidget {
                 fit: BoxFit.contain,
               ),
               SizedBox(width: 12.w),
-
-              // Title (two lines)
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: AppTextStyles.bodyLarge?.copyWith(
+                      style: AppTextStyles.bodyLarge.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
                       subtitle,
-                      style: AppTextStyles.bodyLarge?.copyWith(
+                      style: AppTextStyles.bodyLarge.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
               ),
-
-              // Bookmark Icon
               Image.asset(
                 'assets/icons/bookmark.png',
                 width: 20.w,
@@ -154,13 +213,9 @@ class CardDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-
           SizedBox(height: 16.h),
-
-          // Platform tag and date row
           Row(
             children: [
-              // Platform Tag
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
                 decoration: BoxDecoration(
@@ -173,19 +228,16 @@ class CardDetailScreen extends StatelessWidget {
                 ),
                 child: Text(
                   isPolymarket ? 'Polymarket' : 'Kalshi',
-                  style: AppTextStyles.bodySmall?.copyWith(
+                  style: AppTextStyles.bodySmall.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-
               SizedBox(width: 12.w),
-
-              // Date
               Text(
                 date,
-                style: AppTextStyles.bodySmall?.copyWith(
+                style: AppTextStyles.bodySmall.copyWith(
                   fontWeight: FontWeight.w400,
                   fontSize: 12.sp,
                   color: const Color(0xff848484),
@@ -198,8 +250,7 @@ class CardDetailScreen extends StatelessWidget {
     );
   }
 
-  // Gradient Info Card with #194F46 text
-  Widget _buildGradientInfoCard() {
+  Widget _buildGradientInfoCard(String? updatedAiExplanation) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -222,25 +273,21 @@ class CardDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon and title row
             Row(
               children: [
-                // AI Icon - always from assets/icons/ai.png
                 Image.asset(
                   'assets/icons/ai.png',
                   width: 20.w,
                   height: 20.h,
                   fit: BoxFit.contain,
-                  color: pickfairTextColor,
+                  color: AppColors.pickfairTextColor,
                 ),
                 SizedBox(width: 12.w),
-
-                // Title - always "Pickfair Insights"
                 Expanded(
                   child: Text(
                     'Pickfair Insights',
-                    style: AppTextStyles.headlineMedium?.copyWith(
-                      color: pickfairTextColor,
+                    style: AppTextStyles.headlineMedium.copyWith(
+                      color: AppColors.pickfairTextColor,
                       fontWeight: FontWeight.w700,
                       fontSize: 14.sp,
                     ),
@@ -248,28 +295,66 @@ class CardDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-
             SizedBox(height: 6.h),
-
-            // Description - always the same text
-            _buildDescriptionText(),
+            _buildDescriptionText(updatedAiExplanation),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDescriptionText() {
-    // Use the exact description provided
-    final description =
+  Widget _buildDescriptionText(String? updatedAiExplanation) {
+    bool isAiExplanationLoading = (updatedAiExplanation?.isEmpty ?? true);
+
+    if (isAiExplanationLoading) {
+      return Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              height: 16.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4.r),
+              ),
+              margin: EdgeInsets.only(bottom: 8.h),
+            ),
+            Container(
+              width: double.infinity,
+              height: 16.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4.r),
+              ),
+              margin: EdgeInsets.only(bottom: 8.h),
+            ),
+            Container(
+              width: 200.w,
+              height: 16.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4.r),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final explanation = updatedAiExplanation ?? aiExplanation;
+
+    final description = explanation ??
         'Our AI model predicts $team has a slightly higher chance '
         '($aiPercentage) than the market suggests ($marketPercentage). '
         'Historical data shows early frontrunners often maintain leads.';
 
     return Text(
       description,
-      style: AppTextStyles.bodyMedium?.copyWith(
-        color: pickfairTextColor,
+      style: AppTextStyles.bodyMedium.copyWith(
+        color: AppColors.pickfairTextColor,
         fontWeight: FontWeight.w500,
         fontSize: 14.sp,
         height: 1.6,
@@ -277,34 +362,59 @@ class CardDetailScreen extends StatelessWidget {
     );
   }
 
-  // Candidates Section
-  Widget _buildCandidatesSection() {
+  Widget _buildOptionsSection(
+    List<String>? updatedOptionTitles,
+    List<double>? updatedMarketProbs,
+    List<double>? updatedAiPercentages,
+  ) {
+    final titles = updatedOptionTitles ?? optionTitles;
+    final probs = updatedMarketProbs ?? marketProbs;
+    final aiPercents = updatedAiPercentages ?? aiPercentages;
+
+    List<Map<String, dynamic>> displayOptions = [];
+
+    if (titles != null && probs != null) {
+      for (int i = 0; i < titles.length; i++) {
+        if (i < probs.length && probs[i] > 0) {
+          double aiPercent = 0;
+          if (aiPercents != null && i < aiPercents.length) {
+            aiPercent = aiPercents[i];
+          }
+
+          displayOptions.add({
+            'title': titles[i],
+            'marketPercentage': probs[i],
+            'aiPercentage': aiPercent,
+          });
+        }
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section Title
         Text(
-          'Candidates',
-          style: AppTextStyles.headlineSmall?.copyWith(
+          'Options',
+          style: AppTextStyles.headlineSmall.copyWith(
             color: Colors.black,
             fontWeight: FontWeight.w600,
             fontSize: 16.sp,
           ),
         ),
-
         SizedBox(height: 16.h),
-
-        // Candidate Cards List
         Column(
-          children: candidates.map((candidate) {
+          children: displayOptions.asMap().entries.map((entry) {
+            int index = entry.key;
+            Map<String, dynamic> option = entry.value;
+            bool isOptionAiLoading = (updatedAiPercentages?.isEmpty ?? true);
+
             return Padding(
               padding: EdgeInsets.only(bottom: 12.h),
-              child: _buildCandidateCard(
-                initials: candidate['initials']!,
-                name: candidate['name']!,
-                party: candidate['party']!,
-                marketPercentage: marketPercentage,
-                aiPercentage: aiPercentage,
+              child: _buildOptionCard(
+                title: option['title'],
+                marketPercentage: option['marketPercentage'],
+                aiPercentage: option['aiPercentage'],
+                isAiLoading: isOptionAiLoading,
               ),
             );
           }).toList(),
@@ -313,173 +423,135 @@ class CardDetailScreen extends StatelessWidget {
     );
   }
 
-// Candidate Card Widget
-Widget _buildCandidateCard({
-  required String initials,
-  required String name,
-  required String party,
-  required String marketPercentage,
-  required String aiPercentage,
-}) {
-  return Container(
-    width: double.infinity,
-    padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 12.6),
-    decoration: BoxDecoration(
-      color: const Color(0xffF1F2F5),
-      borderRadius: BorderRadius.circular(10.r),
-      border: Border.all(
-        color: const Color(0xffE7E9EE),
-        width: 1.w,
+  Widget _buildOptionCard({
+    required String title,
+    required double marketPercentage,
+    required double aiPercentage,
+    required bool isAiLoading,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 12.6),
+      decoration: BoxDecoration(
+        color: const Color(0xffF1F2F5),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(
+          color: const Color(0xffE7E9EE),
+          width: 1.w,
+        ),
       ),
-    ),
-    child: Row(
-      children: [
-        // Circular initials container
-        Container(
-          width: 40.w,
-          height: 40.w,
-          decoration: BoxDecoration(
-            color: const Color(0xffD9D9D9),
-            borderRadius: BorderRadius.circular(20.w),
-          ),
-          child: Center(
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
             child: Text(
-              initials,
-              style: AppTextStyles.bodyMedium?.copyWith(
+              title,
+              style: AppTextStyles.bodyMedium.copyWith(
                 color: Colors.black,
                 fontWeight: FontWeight.w700,
                 fontSize: 16.sp,
               ),
             ),
           ),
-        ),
-
-        SizedBox(width: 12.w),
-
-        // Name and Party
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                style: AppTextStyles.bodyMedium?.copyWith(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16.sp,
+          SizedBox(width: 16.w),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Market',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.sp,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              SizedBox(height: 4.h),
-              Text(
-                party,
-                style: AppTextStyles.bodySmall?.copyWith(
-                  color: AppColors.gray600,
-                  fontWeight: FontWeight.w400,
-                  fontSize: 12.sp,
+                SizedBox(height: 4.h),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3CB043),
+                    borderRadius: BorderRadius.circular(6.r),
+                    border: Border.all(
+                      color: const Color(0xFF3CB043),
+                      width: 1.w,
+                    ),
+                  ),
+                  child: Text(
+                    '${marketPercentage.round()}%',
+                    style: AppTextStyles.headlineSmall.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16.sp,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-
-        SizedBox(width: 16.w),
-
-        // Market Percentage - Centered
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center, // Changed to center
-          children: [
-            Text(
-              'Market',
-              style: AppTextStyles.bodySmall?.copyWith(
-                color: Colors.black,
-                fontWeight: FontWeight.w600,
-                fontSize: 12.sp,
-              ),
-              textAlign: TextAlign.center, // Add text alignment
-            ),
-            SizedBox(height: 4.h),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-              decoration: BoxDecoration(
-                color: const Color(0xFF3CB043),
-                borderRadius: BorderRadius.circular(6.r),
-                border: Border.all(
-                  color: const Color(0xFF3CB043),
-                  width: 1.w,
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'AI',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.sp,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              child: Text(
-                marketPercentage,
-                style: AppTextStyles.headlineSmall?.copyWith(
-                 color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16.sp,
-                ),
-                textAlign: TextAlign.center, // Center text inside container
-              ),
+                SizedBox(height: 4.h),
+                isAiLoading
+                    ? Shimmer.fromColors(
+                        baseColor: Colors.grey[300]!,
+                        highlightColor: Colors.grey[100]!,
+                        child: Container(
+                          width: 40.w,
+                          height: 24.h,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6.r),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffFD2400),
+                          borderRadius: BorderRadius.circular(6.r),
+                          border: Border.all(
+                            color: const Color(0xffFD2400),
+                            width: 1.w,
+                          ),
+                        ),
+                        child: Text(
+                          '${aiPercentage.round()}%',
+                          style: AppTextStyles.headlineSmall.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16.sp,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
 
-        SizedBox(width: 12.w),
-
-        // AI Percentage - Centered
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center, // Changed to center
-          children: [
-            Text(
-              'AI',
-              style: AppTextStyles.bodySmall?.copyWith(
-               color: Colors.black,
-                fontWeight: FontWeight.w600,
-                fontSize: 12.sp,
-              ),
-              textAlign: TextAlign.center, // Add text alignment
-            ),
-            SizedBox(height: 4.h),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-              decoration: BoxDecoration(
-                color: Color(0xffFD2400),
-                borderRadius: BorderRadius.circular(6.r),
-                border: Border.all(
-                  color: Color(0xffFD2400),
-                  width: 1.w,
-                ),
-              ),
-              child: Text(
-                aiPercentage,
-                style: AppTextStyles.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16.sp,
-                ),
-                textAlign: TextAlign.center, // Center text inside container
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-
-  // Handle platform navigation
   void _viewOnPlatform() {
-    // Navigate to platform URL or screen
     print('View on ${isPolymarket ? 'Polymarket' : 'Kalshi'}');
-    
-    // Example: Open URL
-    // if (isPolymarket) {
-    //   // Open Polymarket URL
-    // } else {
-    //   // Open Kalshi URL
-    // }
-    
-    // Or show a dialog/snackbar
+
     Get.snackbar(
       'Platform Redirect',
       'Redirecting to ${isPolymarket ? 'Polymarket' : 'Kalshi'}...',

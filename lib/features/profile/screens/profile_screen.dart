@@ -11,6 +11,7 @@ import 'package:murchin/const/widgets/custom_appbar.dart';
 import 'package:murchin/const/widgets/custom_button.dart';
 import 'package:murchin/features/auth/signin_screen.dart';
 import 'package:murchin/features/profile/screens/terms_screen.dart';
+import 'package:murchin/const/service/shared_preference_helper.dart'; 
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,9 +27,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ImagePicker _picker = ImagePicker(); // Declare at class level
   
   // Edit profile variables
-  String _name = 'Nusrat Jahan';
-  String _email = 'nusrat@example.com';
+  String _name = '';
+  String _email = '';
   File? _selectedProfileImage; // Store selected image at class level
+  String? _profileImageUrl; // Store profile image URL from SharedPreferences
+
+  //final ProfileController _profileController = Get.find<ProfileController>();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  // Load user data from SharedPreferences
+  Future<void> _loadUserData() async {
+    String? name = await SharedPreferencesHelper.getUserName();
+    String? email = await SharedPreferencesHelper.getUserEmail();
+    String? photoUrl = await SharedPreferencesHelper.getUserPhoto();
+    
+    setState(() {
+      _name = name ?? 'User';
+      _email = email ?? 'user@example.com';
+      _profileImageUrl = photoUrl;
+    });
+  }
 
   // Function to show three dots popup
   void _showThreeDotsPopup() {
@@ -216,10 +239,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             width: 100.w,
                                             height: 100.w,
                                           )
-                                        : Image.asset(
-                                            'assets/images/dp.png',
-                                            fit: BoxFit.cover,
-                                          ),
+                                        : _profileImageUrl != null
+                                            ? Image.network(
+                                                _profileImageUrl!,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) {
+                                                  return Image.asset(
+                                                    'assets/images/dp.png',
+                                                    fit: BoxFit.cover,
+                                                  );
+                                                },
+                                              )
+                                            : Image.asset(
+                                                'assets/images/dp.png',
+                                                fit: BoxFit.cover,
+                                              ),
                                   ),
                                 ),
                                 // Edit Icon overlay
@@ -325,7 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Save Button
                     CustomButton(
                       text: 'Save Changes',
-                      onPressed: () {
+                      onPressed: () async {
                         // Update profile information
                         if (nameController.text.trim().isEmpty) {
                           Get.snackbar(
@@ -336,6 +370,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             colorText: Colors.white,
                           );
                           return;
+                        }
+                        
+                        // Save to SharedPreferences
+                        await SharedPreferencesHelper.saveUserName(nameController.text.trim());
+                        
+                        // Update profile image if changed
+                        if (_tempSelectedImage != null) {
+                          // In a real app, you'd upload this to your server
+                          // For now, we'll just update the local state
+                         // _profileController.updateProfileImage(_tempSelectedImage!);
                         }
                         
                         // Update the main state
@@ -367,6 +411,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     },
   );
 }
+  
   // Function to show image picker options
   Future<void> _showImagePickerOptions(BuildContext context, Function(File?) onImageSelected) async {
     showModalBottomSheet(
@@ -626,10 +671,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Delete Button
                     Expanded(
                       child: GestureDetector(
-                        onTap: () {
+                        onTap: () async {
                           // Handle delete account logic here
+                         // await _profileController.deleteAccount();
                           Navigator.of(context).pop();
-                          Get.offAll((SignInPage()));
+                          Get.offAll(() =>  SignInPage());
                           Get.snackbar(
                             'Account Deleted',
                             'Your account has been deleted',
@@ -758,10 +804,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Logout Button
                     Expanded(
                       child: GestureDetector(
-                        onTap: () {
+                        onTap: () async {
                           // Handle logout logic here
+                        //  await _profileController.logout();
                           Navigator.of(context).pop();
-                          Get.offAll((SignInPage()));
+                          Get.offAll(() =>  SignInPage());
                           Get.snackbar(
                             'Logged out',
                             'You have been successfully logged out',
@@ -857,10 +904,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 width: 60.w,
                                 height: 60.w,
                               )
-                            : Image.asset(
-                                'assets/images/dp.png',
-                                fit: BoxFit.cover,
-                              ),
+                            : _profileImageUrl != null
+                                ? Image.network(
+                                    _profileImageUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Image.asset(
+                                        'assets/images/dp.png',
+                                        fit: BoxFit.cover,
+                                      );
+                                    },
+                                  )
+                                : Image.asset(
+                                    'assets/images/dp.png',
+                                    fit: BoxFit.cover,
+                                  ),
                       ),
                     ),
                     
@@ -919,7 +977,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   // Navigate to terms and privacy policy screen
                   print('Terms and Privacy Policy tapped');
-                  Get.to(() => TermsPrivacyScreen());
+                  Get.to(() => const TermsPrivacyScreen());
                 },
                 child: Container(
                   width: double.infinity,

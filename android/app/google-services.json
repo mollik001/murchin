@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "551130124635",
+    "project_id": "murchin-95714",
+    "storage_bucket": "murchin-95714.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:551130124635:android:a0678f9b38b2a9b9a04a7e",
+        "android_client_info": {
+          "package_name": "com.example.murchin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "551130124635-uf4079or5gmbhujeknr6ico8lttbnjuu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.murchin",
+            "certificate_hash": "f42405f8a5361bedea0373cc4167d5d4542f3d30"
+          }
+        },
+        {
+          "client_id": "551130124635-2p84ikom6bkaoqm9p09k3eup5qvo9il2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwWNOxDuN-4QwO-BxxRAcdUxEer9pmSbo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "551130124635-2p84ikom6bkaoqm9p09k3eup5qvo9il2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

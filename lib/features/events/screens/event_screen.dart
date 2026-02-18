@@ -18,23 +18,60 @@ class EventsScreen extends StatelessWidget {
   final Color polymarketBgColor = const Color(0xff607D3B); // Green
   final Color kalshiBgColor = const Color(0xFF6678F3); // Blue
 
-  // Categories list
-  final List<String> categories = [
-    'Trending',
-    'Breaking',
-    'New',
-    'Politics',
-    'Sports',
-    'Crypto',
-    'Finance',
-    'Geopolitics',
-    'Earnings',
-    'Tech',
-    'Culture',
-    'World',
-    'Economy',
-    'Elections',
-  ];
+  // Categories list - will be updated based on selected platform
+  List<String> get categories {
+    final selectedPlatform = controller.selectedPlatform.value;
+    if (selectedPlatform == 1) {
+      // Polymarket categories
+      return [
+        'Trending',
+        'Politics',
+        'Sports',
+        'Crypto',
+        'Finance',
+        'Geopolitics',
+        'Tech',
+        'Culture',
+        'World',
+        'Economy',
+        'Climate & Science',
+      ];
+    } else if (selectedPlatform == 2) {
+      // Kalshi categories
+      return [
+        'Trending',
+        'Politics',
+        'Sports',
+        'Culture',
+        'Crypto',
+        'Climate',
+        'Economics',
+        'Companies',
+        'Financials',
+        'Tech & Science',
+      ];
+    } else {
+      // All platforms - combined unique categories
+      return [
+        'Trending',
+        'Politics',
+        'Sports',
+        'Culture',
+        'Crypto',
+        'Climate',
+        'Climate & Science',
+        'Economics',
+        'Companies',
+        'Financials',
+        'Tech & Science',
+        'Finance',
+        'Geopolitics',
+        'Tech',
+        'World',
+        'Economy',
+      ];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,9 +159,13 @@ class EventsScreen extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
       child: Obx(() {
+        // This will rebuild when selectedPlatform changes
+        final currentCategories = categories;
+        final selectedCategory = controller.selectedCategory.value;
+        
         return Row(
-          children: categories.map((category) {
-            final isSelected = controller.selectedCategory.value == category;
+          children: currentCategories.map((category) {
+            final isSelected = selectedCategory == category;
             return Padding(
               padding: EdgeInsets.only(right: 16.w),
               child: GestureDetector(
@@ -144,11 +185,11 @@ class EventsScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    
+
                     // Underline (only for selected)
                     if (isSelected)
                       Container(
-                        width: 30.w, // Width of the underline
+                        width: 30.w,
                         height: 2.h,
                         decoration: BoxDecoration(
                           color: AppColors.primary,
@@ -478,11 +519,12 @@ Widget _buildMarketSlider(double percentage) {
 class EventsController extends GetxController {
   final selectedPlatform = 0.obs; // 0: All Platforms, 1: Polymarket, 2: Kalshi
   final selectedCategory = 'Trending'.obs; // Default selected category
-  
+
   void selectPlatform(int index) {
     selectedPlatform.value = index;
+    selectedCategory.value = 'Trending'; // Reset category when platform changes
   }
-  
+
   void selectCategory(String category) {
     selectedCategory.value = category;
   }

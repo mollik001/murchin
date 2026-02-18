@@ -18,6 +18,7 @@ class BaseCard extends StatefulWidget {
   final String platform;
   final String iconAsset;
   final bool initiallySaved;
+  final VoidCallback? onSaved;
 
   const BaseCard({
     super.key,
@@ -32,6 +33,7 @@ class BaseCard extends StatefulWidget {
     required this.platform,
     required this.iconAsset,
     this.initiallySaved = false,
+    this.onSaved,
   });
 
   @override
@@ -49,6 +51,9 @@ class _BaseCardState extends State<BaseCard> {
 
   void _toggleSaved() {
     setState(() => isSaved = !isSaved);
+
+    // Call the callback if provided
+    widget.onSaved?.call();
 
     if (isSaved) {
       Get.snackbar(

@@ -83,10 +83,36 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _buildSearchBar(),
           ),
           SizedBox(height: 30.h),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: _buildSeparatePlatformTabs(),
-          ),
+          Obx(() => controller.isSearching.value
+              ? Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Search Results',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: controller.clearSearch,
+                        child: const Text(
+                          'Clear',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: _buildSeparatePlatformTabs(),
+                )),
           SizedBox(height: 30.h),
           Expanded(
             child: Obx(() {
@@ -95,8 +121,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              // Polymarket tab
-              if (controller.selectedPlatform.value == 1) {
+              // Search results or Polymarket tab
+              if (controller.isSearching.value ||
+                  controller.selectedPlatform.value == 1) {
                 return ListView.builder(
                   controller: scrollController,
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -105,9 +132,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     // In ListView.builder for Polymarket tab
                     if (index < controller.events.length) {
                       final e = controller.events[index];
-                      return Padding(
+                      final eventId = e['event_id'] as int?;
+                      return Obx(() => Padding(
                         padding: EdgeInsets.only(bottom: 20.h),
                         child: PolymarketCard(
+                          eventId: eventId,
                           title: e['title'],
                           subtitle: formatPrettyDate(e['endDate']),
                           date: formatPrettyDate(e['endDate']),
@@ -116,12 +145,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           team: e['team'],
                           bgColor: polymarketBgColor,
                           borderColor: AppColors.notBlue,
+                          isSaved: eventId != null && controller.isEventSaved(eventId),
                           optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
                           marketProbs: e['marketProbs'] != null ? List<double>.from(e['marketProbs']) : null,
                           aiPercentages: e['aiPercentages'] != null ? List<double>.from(e['aiPercentages']) : null,
                           aiExplanation: e['aiExplanation'] as String?,
                         ),
-                      );
+                      ));
                     } else {
                       // pagination spinner only
                       return controller.isPageLoading.value
@@ -173,24 +203,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   ...controller.events
                       .take(3)
                       .map(
-                        (e) => Padding(
-                          padding: EdgeInsets.only(bottom: 20.h),
-                          child: PolymarketCard(
-                            title: e['title'],
-                            subtitle: formatPrettyDate(e['endDate']),
-                            date: formatPrettyDate(e['endDate']),
-                            marketPercentage: e['marketPercentage'],
-                            aiPercentage: e['aiPercentage'],
-                            team: e['team'],
-                            bgColor: polymarketBgColor,
-                            borderColor: AppColors.notBlue,
-                            
-                            optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
-                            marketProbs: e['marketProbs'] != null ? List<double>.from(e['marketProbs']) : null,
-                            aiPercentages: e['aiPercentages'] != null ? List<double>.from(e['aiPercentages']) : null,
-                            aiExplanation: e['aiExplanation'] as String?,
-                          ),
-                        ),
+                        (e) {
+                          final eventId = e['event_id'] as int?;
+                          return Obx(() => Padding(
+                            padding: EdgeInsets.only(bottom: 20.h),
+                            child: PolymarketCard(
+                              eventId: eventId,
+                              title: e['title'],
+                              subtitle: formatPrettyDate(e['endDate']),
+                              date: formatPrettyDate(e['endDate']),
+                              marketPercentage: e['marketPercentage'],
+                              aiPercentage: e['aiPercentage'],
+                              team: e['team'],
+                              bgColor: polymarketBgColor,
+                              borderColor: AppColors.notBlue,
+                              isSaved: eventId != null && controller.isEventSaved(eventId),
+                              optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
+                              marketProbs: e['marketProbs'] != null ? List<double>.from(e['marketProbs']) : null,
+                              aiPercentages: e['aiPercentages'] != null ? List<double>.from(e['aiPercentages']) : null,
+                              aiExplanation: e['aiExplanation'] as String?,
+                            ),
+                          ));
+                        },
                       ),
                   KalshiCard(
                     title: 'Bitcoin Price',
@@ -223,29 +257,62 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      height: 42.h,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(25.r),
-        border: Border.all(color: const Color(0xffE6E6E6)),
-      ),
-      child: Row(
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: 16.w, right: 12.w),
-            child: Image.asset('assets/icons/search.png', width: 20.w),
-          ),
-          const Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search',
-                border: InputBorder.none,
+    final hasText = controller.searchController.text.isNotEmpty;
+
+    return Obx(() {
+      final isSearching = controller.isSearching.value;
+      return Container(
+        height: 42.h,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(25.r),
+          border: Border.all(color: const Color(0xffE6E6E6)),
+        ),
+        child: Row(
+          children: [
+            Padding(
+              padding: EdgeInsets.only(left: 16.w, right: 12.w),
+              child: Image.asset('assets/icons/search.png', width: 20.w),
+            ),
+            Expanded(
+              child: TextField(
+                controller: controller.searchController,
+                decoration: InputDecoration(
+                  hintText: isSearching ? 'Searching...' : 'Search',
+                  border: InputBorder.none,
+                ),
+                onChanged: controller.onSearchQueryChanged,
               ),
             ),
-          ),
-        ],
-      ),
-    );
+            if (hasText && !isSearching)
+              GestureDetector(
+                onTap: controller.clearSearch,
+                child: Padding(
+                  padding: EdgeInsets.only(right: 12.w),
+                  child: Icon(
+                    Icons.clear,
+                    size: 18.sp,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            if (isSearching)
+              Padding(
+                padding: EdgeInsets.only(right: 12.w),
+                child: SizedBox(
+                  width: 16.w,
+                  height: 16.w,
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildSeparatePlatformTabs() {

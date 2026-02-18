@@ -9,7 +9,7 @@ import 'package:murchin/const/widgets/custom_button.dart';
 import 'package:murchin/features/home/controllers/home_controller.dart';
 import 'package:shimmer/shimmer.dart';
 
-class CardDetailScreen extends StatelessWidget {
+class CardDetailScreen extends StatefulWidget {
   final String title;
   final String subtitle;
   final String date;
@@ -18,13 +18,10 @@ class CardDetailScreen extends StatelessWidget {
   final String team;
   final bool isPolymarket;
   final Color bgColor;
-  final List<String>? optionTitles;  // All option titles
-  final List<double>? marketProbs;   // All market probabilities
-  final List<double>? aiPercentages; // All AI percentages (calculated from AI API response)
-  final String? aiExplanation;      // AI explanation from API
-
-  // Store original AI percentages to check if loading is needed
-  final List<double>? originalAiPercentages;
+  final List<String>? optionTitles;
+  final List<double>? marketProbs;
+  final List<double>? aiPercentages;
+  final String? aiExplanation;
 
   const CardDetailScreen({
     super.key,
@@ -40,67 +37,54 @@ class CardDetailScreen extends StatelessWidget {
     this.marketProbs,
     this.aiPercentages,
     this.aiExplanation,
-  }) : originalAiPercentages = aiPercentages;
+  });
+
+  @override
+  State<CardDetailScreen> createState() => _CardDetailScreenState();
+}
+
+class _CardDetailScreenState extends State<CardDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Trigger AI fetch when screen loads
+    Future.microtask(() {
+      Get.find<HomeController>().fetchAIForEventByTitle(widget.title);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Get the HomeController to listen for updates
     final controller = Get.find<HomeController>();
 
-    // 🔥 Trigger AI fetch once when screen builds
-    if ((originalAiPercentages == null || originalAiPercentages!.isEmpty)) {
-      Future.microtask(() {
-        controller.fetchAIForEventByTitle(title);
-      });
-    }
-
-    return GetX<HomeController>(
+    return GetBuilder<HomeController>(
       builder: (ctrl) {
-        // Find the current event in the controller to get updated AI values
-        final currentEvent = ctrl.events.firstWhere(
-          (event) => event['title'] == title,
-          orElse: () => {
-            'title': title,
-            'subtitle': subtitle,
-            'date': date,
-            'marketPercentage': marketPercentage,
-            'aiPercentage': aiPercentage,
-            'team': team,
-            'optionTitles': optionTitles ?? [],
-            'marketProbs': marketProbs ?? [],
-            'aiPercentages': aiPercentages ?? [],
-            'aiExplanation': aiExplanation ?? '',
-          },
+        // Find the current event - check saved events first, then home events
+        Map<String, dynamic>? currentEvent;
+
+        final savedEventIndex = ctrl.savedPolymarketEvents.indexWhere(
+          (event) => event['title'] == widget.title,
         );
 
-        // Use the updated values from the controller if available
-        final rawOptionTitles = currentEvent['optionTitles'];
-        final rawMarketProbs = currentEvent['marketProbs'];
-        final rawAiPercentages = currentEvent['aiPercentages'];
+        final homeEventIndex = ctrl.allEvents.indexWhere(
+          (event) => event['title'] == widget.title,
+        );
+
+        if (savedEventIndex != -1) {
+          currentEvent = ctrl.savedPolymarketEvents[savedEventIndex];
+        } else if (homeEventIndex != -1) {
+          currentEvent = ctrl.allEvents[homeEventIndex];
+        } else {
+          currentEvent = {
+            'title': widget.title,
+            'aiPercentage': widget.aiPercentage,
+            'aiExplanation': widget.aiExplanation ?? '',
+            'aiPercentages': widget.aiPercentages ?? [],
+          };
+        }
+
         final updatedAiExplanation = currentEvent['aiExplanation'] as String?;
-
-        // Safely convert dynamic lists to the expected types
-        List<String>? updatedOptionTitles;
-        if (rawOptionTitles != null) {
-          if (rawOptionTitles is List<String>) {
-            updatedOptionTitles = rawOptionTitles;
-          } else if (rawOptionTitles is List<dynamic>) {
-            updatedOptionTitles = rawOptionTitles.cast<String>();
-          } else {
-            updatedOptionTitles = List<String>.from(rawOptionTitles);
-          }
-        }
-
-        List<double>? updatedMarketProbs;
-        if (rawMarketProbs != null) {
-          if (rawMarketProbs is List<double>) {
-            updatedMarketProbs = rawMarketProbs;
-          } else if (rawMarketProbs is List<dynamic>) {
-            updatedMarketProbs = rawMarketProbs.cast<double>();
-          } else {
-            updatedMarketProbs = List<double>.from(rawMarketProbs);
-          }
-        }
+        final rawAiPercentages = currentEvent['aiPercentages'];
 
         List<double>? updatedAiPercentages;
         if (rawAiPercentages != null) {
@@ -126,32 +110,18 @@ class CardDetailScreen extends StatelessWidget {
               child: Column(
                 children: [
                   SizedBox(height: 20.h),
-
-                  // Mini Card (like from home page)
                   _buildMiniCard(),
-
                   SizedBox(height: 30.h),
-
-                  // Gradient Info Card with #194F46 text
                   _buildGradientInfoCard(updatedAiExplanation),
-
                   SizedBox(height: 30.h),
-
-                  // Options Section
-                  _buildOptionsSection(updatedOptionTitles, updatedMarketProbs, updatedAiPercentages),
-
+                  _buildOptionsSection(updatedAiPercentages),
                   SizedBox(height: 30.h),
-
-                  // View on Platform Button
                   CustomButton(
                     text: 'View on platform',
-                    onPressed: () {
-                      _viewOnPlatform();
-                    },
+                    onPressed: _viewOnPlatform,
                     backgroundColor: AppColors.primary,
                     borderRadius: 15.r,
                   ),
-
                   SizedBox(height: 70.h),
                 ],
               ),
@@ -178,7 +148,7 @@ class CardDetailScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Image.asset(
-                isPolymarket
+                widget.isPolymarket
                     ? 'assets/icons/polymarket.png'
                     : 'assets/icons/kalshi.png',
                 width: 44.w,
@@ -191,13 +161,13 @@ class CardDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      widget.title,
                       style: AppTextStyles.bodyLarge.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
-                      subtitle,
+                      widget.subtitle,
                       style: AppTextStyles.bodyLarge.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -219,15 +189,15 @@ class CardDetailScreen extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
                 decoration: BoxDecoration(
-                  color: bgColor,
+                  color: widget.bgColor,
                   borderRadius: BorderRadius.circular(6.r),
                   border: Border.all(
-                    color: isPolymarket ? AppColors.notBlue : AppColors.blue,
+                    color: widget.isPolymarket ? AppColors.notBlue : AppColors.blue,
                     width: 1.w,
                   ),
                 ),
                 child: Text(
-                  isPolymarket ? 'Polymarket' : 'Kalshi',
+                  widget.isPolymarket ? 'Polymarket' : 'Kalshi',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -236,7 +206,7 @@ class CardDetailScreen extends StatelessWidget {
               ),
               SizedBox(width: 12.w),
               Text(
-                date,
+                widget.date,
                 style: AppTextStyles.bodySmall.copyWith(
                   fontWeight: FontWeight.w400,
                   fontSize: 12.sp,
@@ -344,11 +314,11 @@ class CardDetailScreen extends StatelessWidget {
       );
     }
 
-    final explanation = updatedAiExplanation ?? aiExplanation;
+    final explanation = updatedAiExplanation ?? widget.aiExplanation;
 
     final description = explanation ??
-        'Our AI model predicts $team has a slightly higher chance '
-        '($aiPercentage) than the market suggests ($marketPercentage). '
+        'Our AI model predicts ${widget.team} has a slightly higher chance '
+        '(${widget.aiPercentage}) than the market suggests (${widget.marketPercentage}). '
         'Historical data shows early frontrunners often maintain leads.';
 
     return Text(
@@ -362,22 +332,18 @@ class CardDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOptionsSection(
-    List<String>? updatedOptionTitles,
-    List<double>? updatedMarketProbs,
-    List<double>? updatedAiPercentages,
-  ) {
-    final titles = updatedOptionTitles ?? optionTitles;
-    final probs = updatedMarketProbs ?? marketProbs;
-    final aiPercents = updatedAiPercentages ?? aiPercentages;
+  Widget _buildOptionsSection(List<double>? updatedAiPercentages) {
+    final titles = widget.optionTitles ?? [];
+    final probs = widget.marketProbs ?? [];
+    final aiPercents = updatedAiPercentages ?? widget.aiPercentages ?? [];
 
     List<Map<String, dynamic>> displayOptions = [];
 
-    if (titles != null && probs != null) {
+    if (titles.isNotEmpty && probs.isNotEmpty) {
       for (int i = 0; i < titles.length; i++) {
         if (i < probs.length && probs[i] > 0) {
           double aiPercent = 0;
-          if (aiPercents != null && i < aiPercents.length) {
+          if (aiPercents.isNotEmpty && i < aiPercents.length) {
             aiPercent = aiPercents[i];
           }
 
@@ -404,7 +370,6 @@ class CardDetailScreen extends StatelessWidget {
         SizedBox(height: 16.h),
         Column(
           children: displayOptions.asMap().entries.map((entry) {
-            int index = entry.key;
             Map<String, dynamic> option = entry.value;
             bool isOptionAiLoading = (updatedAiPercentages?.isEmpty ?? true);
 
@@ -550,11 +515,9 @@ class CardDetailScreen extends StatelessWidget {
   }
 
   void _viewOnPlatform() {
-    print('View on ${isPolymarket ? 'Polymarket' : 'Kalshi'}');
-
     Get.snackbar(
       'Platform Redirect',
-      'Redirecting to ${isPolymarket ? 'Polymarket' : 'Kalshi'}...',
+      'Redirecting to ${widget.isPolymarket ? 'Polymarket' : 'Kalshi'}...',
       snackPosition: SnackPosition.BOTTOM,
     );
   }

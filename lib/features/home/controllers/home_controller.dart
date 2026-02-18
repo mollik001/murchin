@@ -1,19 +1,31 @@
 import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murchin/const/service/endpoint.dart';
+import 'package:murchin/const/service/shared_preference_helper.dart';
 
 class HomeController extends GetxController {
-  final selectedPlatform = 0.obs;
+  final selectedPlatform = 0.obs; // 0: All, 1: Polymarket, 2: Kalshi
 
   final isLoading = false.obs;
   final isPageLoading = false.obs;
+  final isSearching = false.obs;
 
   final RxList<Map<String, dynamic>> _events = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> _searchResults =
+      <Map<String, dynamic>>[].obs;
 
-  List<Map<String, dynamic>> get events => _events;
+  List<Map<String, dynamic>> get events =>
+      isSearching.value ? _searchResults : _events;
+
+  List<Map<String, dynamic>> get allEvents => _events;
+
+  List<Map<String, dynamic>> get savedPolymarketEvents => _savedPolymarketEvents;
+
+  List<Map<String, dynamic>> get savedKalshiEvents => _savedKalshiEvents;
 
   set events(List<Map<String, dynamic>> newEvents) {
     _events.assignAll(newEvents);
@@ -36,11 +48,17 @@ class HomeController extends GetxController {
 
   static const String _pageCachePrefix = 'cached_page_';
 
+  Timer? _debounceTimer;
+  final TextEditingController searchController = TextEditingController();
+
   @override
   void onInit() {
     super.onInit();
 
     loadCachedEvents();
+
+    // Fetch saved events to populate saved event IDs
+    fetchSavedEvents();
 
     Future.delayed(Duration.zero, () {
       loadCachedAIData().then((hasValidCache) async {
@@ -64,28 +82,96 @@ class HomeController extends GetxController {
 
   Future<void> fetchAIForEventByTitle(String title) async {
     try {
-      final idx = events.indexWhere((e) => e['title'] == title);
-      if (idx == -1) return;
+      // Check if event is in saved Polymarket events first
+      final savedIdx = _savedPolymarketEvents.indexWhere((e) => e['title'] == title);
+      
+      if (savedIdx != -1) {
+        final e = _savedPolymarketEvents[savedIdx];
 
-      final e = events[idx];
+        // Skip if explanation already exists
+        if (e['aiExplanation'] != null && e['aiExplanation'].toString().isNotEmpty) {
+          return;
+        }
 
-      final filtered = _buildFilteredOptions(e);
+        final filtered = _buildFilteredOptions(e);
 
-      final aiData = await fetchAIValue(
-        eventName: e['title'],
-        options: filtered['options'],
-        marketPredictions: filtered['marketProbs'],
-        baseEvent: e,
-        originalIndices: filtered['originalIndices'],
-      );
+        final aiData = await fetchAIValue(
+          eventName: e['title'],
+          options: filtered['options'],
+          marketPredictions: filtered['marketProbs'],
+          baseEvent: e,
+          originalIndices: filtered['originalIndices'],
+        );
 
-      List<Map<String, dynamic>> newEvents = List.from(_events);
-      newEvents[idx] = aiData;
+        List<Map<String, dynamic>> newList = List.from(_savedPolymarketEvents);
+        newList[savedIdx] = aiData;
+        _savedPolymarketEvents.assignAll(newList);
+        update();
 
-      _events.assignAll(newEvents);
-      update();
+        print("Detail AI fetched for $title (saved events)");
+        return;
+      }
 
-      print("Detail AI refreshed for $title");
+      // Check if event is in search results
+      bool isInSearch = isSearching.value && _searchResults.any((e) => e['title'] == title);
+
+      if (isInSearch) {
+        // Update search results
+        final idx = _searchResults.indexWhere((e) => e['title'] == title);
+        if (idx == -1) return;
+
+        final e = _searchResults[idx];
+
+        // Skip if explanation already exists
+        if (e['aiExplanation'] != null && e['aiExplanation'].toString().isNotEmpty) {
+          return;
+        }
+
+        final filtered = _buildFilteredOptions(e);
+
+        final aiData = await fetchAIValue(
+          eventName: e['title'],
+          options: filtered['options'],
+          marketPredictions: filtered['marketProbs'],
+          baseEvent: e,
+          originalIndices: filtered['originalIndices'],
+        );
+
+        List<Map<String, dynamic>> newResults = List.from(_searchResults);
+        newResults[idx] = aiData;
+        _searchResults.assignAll(newResults);
+        update();
+
+        print("Detail AI fetched for $title (search results)");
+      } else {
+        // Update main events list
+        final idx = _events.indexWhere((e) => e['title'] == title);
+        if (idx == -1) return;
+
+        final e = _events[idx];
+
+        // Skip if explanation already exists
+        if (e['aiExplanation'] != null && e['aiExplanation'].toString().isNotEmpty) {
+          return;
+        }
+
+        final filtered = _buildFilteredOptions(e);
+
+        final aiData = await fetchAIValue(
+          eventName: e['title'],
+          options: filtered['options'],
+          marketPredictions: filtered['marketProbs'],
+          baseEvent: e,
+          originalIndices: filtered['originalIndices'],
+        );
+
+        List<Map<String, dynamic>> newEvents = List.from(_events);
+        newEvents[idx] = aiData;
+        _events.assignAll(newEvents);
+        update();
+
+        print("Detail AI fetched for $title (main events)");
+      }
     } catch (e) {
       print("Detail AI fetch error: $e");
     }
@@ -95,39 +181,39 @@ class HomeController extends GetxController {
   // 🔥 NEW — SHARED FILTER LOGIC
   // =========================================================
 
-Map<String, dynamic> _buildFilteredOptions(Map<String, dynamic> e) {
-  List<String> filteredOptions = [];
-  List<double> filteredMarketProbs = [];
-  List<int> originalIndices = [];
+  Map<String, dynamic> _buildFilteredOptions(Map<String, dynamic> e) {
+    List<String> filteredOptions = [];
+    List<double> filteredMarketProbs = [];
+    List<int> originalIndices = [];
 
-  for (int j = 0; j < e['optionTitles'].length; j++) {
-    final marketProb = e['marketProbs'][j] as double;
-    if (marketProb <= 0) continue; // Skip 0% values
-    filteredOptions.add(e['optionTitles'][j]);
-    filteredMarketProbs.add(marketProb);
-    originalIndices.add(j);
+    for (int j = 0; j < e['optionTitles'].length; j++) {
+      final marketProb = e['marketProbs'][j] as double;
+      if (marketProb <= 0) continue; // Skip 0% values
+      filteredOptions.add(e['optionTitles'][j]);
+      filteredMarketProbs.add(marketProb);
+      originalIndices.add(j);
+    }
+
+    // Keep the market leader at index 0
+    String highestMarketTeam = e['team'];
+    int highestMarketIndex = filteredOptions.indexOf(highestMarketTeam);
+
+    if (highestMarketIndex != -1 && highestMarketIndex != 0) {
+      final topOption = filteredOptions.removeAt(highestMarketIndex);
+      final topProb = filteredMarketProbs.removeAt(highestMarketIndex);
+      final topIndex = originalIndices.removeAt(highestMarketIndex);
+
+      filteredOptions.insert(0, topOption);
+      filteredMarketProbs.insert(0, topProb);
+      originalIndices.insert(0, topIndex);
+    }
+
+    return {
+      "options": filteredOptions,
+      "marketProbs": filteredMarketProbs,
+      "originalIndices": originalIndices,
+    };
   }
-
-  // Keep the market leader at index 0
-  String highestMarketTeam = e['team'];
-  int highestMarketIndex = filteredOptions.indexOf(highestMarketTeam);
-
-  if (highestMarketIndex != -1 && highestMarketIndex != 0) {
-    final topOption = filteredOptions.removeAt(highestMarketIndex);
-    final topProb = filteredMarketProbs.removeAt(highestMarketIndex);
-    final topIndex = originalIndices.removeAt(highestMarketIndex);
-
-    filteredOptions.insert(0, topOption);
-    filteredMarketProbs.insert(0, topProb);
-    originalIndices.insert(0, topIndex);
-  }
-
-  return {
-    "options": filteredOptions,
-    "marketProbs": filteredMarketProbs,
-    "originalIndices": originalIndices,
-  };
-}
 
   // ================= EXISTING CODE BELOW =================
 
@@ -138,8 +224,7 @@ Map<String, dynamic> _buildFilteredOptions(Map<String, dynamic> e) {
     if (cached != null) {
       final List decoded = jsonDecode(cached);
 
-      final List<Map<String, dynamic>> eventsWithDefaults =
-          decoded.map((e) {
+      final List<Map<String, dynamic>> eventsWithDefaults = decoded.map((e) {
         final event = Map<String, dynamic>.from(e);
 
         if (!event.containsKey('aiPercentages')) {
@@ -190,68 +275,69 @@ Map<String, dynamic> _buildFilteredOptions(Map<String, dynamic> e) {
 
         List<Map<String, dynamic>> tempEvents = [];
 
-       for (var event in eventsList) {
-  final outcomes = event['question_outcome'] as List<dynamic>?;
+        for (var event in eventsList) {
+          final outcomes = event['question_outcome'] as List<dynamic>?;
 
-  if (event['title'] == null || event['title'].toString().isEmpty) continue;
-  if (outcomes == null || outcomes.isEmpty) continue;
+          if (event['title'] == null || event['title'].toString().isEmpty)
+            continue;
+          if (outcomes == null || outcomes.isEmpty) continue;
 
-  // Filter out outcomes that are invalid (empty title or missing probability)
-  final validOutcomes = outcomes.where((o) {
-    final title = o['group_item_title']?.toString() ?? '';
-    final probStr = o['probability']?.toString() ?? '';
-    final prob = double.tryParse(probStr) ?? -1;
-    return title.isNotEmpty && prob >= 0;
-  }).toList();
+          // Filter out outcomes that are invalid (empty title or missing probability)
+          final validOutcomes = outcomes.where((o) {
+            final title = o['group_item_title']?.toString() ?? '';
+            final probStr = o['probability']?.toString() ?? '';
+            final prob = double.tryParse(probStr) ?? -1;
+            return title.isNotEmpty && prob >= 0;
+          }).toList();
 
-  if (validOutcomes.isEmpty) continue; // skip if no valid outcomes
+          if (validOutcomes.isEmpty) continue; // skip if no valid outcomes
 
-  String highestTeam = '';
-  double highestProb = -1;
+          String highestTeam = '';
+          double highestProb = -1;
 
-List<String> optionTitles = [];
-List<double> marketProbs = [];
+          List<String> optionTitles = [];
+          List<double> marketProbs = [];
 
-for (var outcome in validOutcomes) {
-  final prob = double.tryParse(outcome['probability'].toString()) ?? 0;
-  final title = outcome['group_item_title'] ?? '';
+          for (var outcome in validOutcomes) {
+            final prob =
+                double.tryParse(outcome['probability'].toString()) ?? 0;
+            final title = outcome['group_item_title'] ?? '';
 
-  // Skip 0% values here for the event itself
-  if (prob <= 0) continue;
+            // Skip 0% values here for the event itself
+            if (prob <= 0) continue;
 
-  optionTitles.add(title);
-  marketProbs.add(prob);
+            optionTitles.add(title);
+            marketProbs.add(prob);
 
-  if (prob > highestProb) {
-    highestProb = prob;
-    highestTeam = title;
-  }
-}
+            if (prob > highestProb) {
+              highestProb = prob;
+              highestTeam = title;
+            }
+          }
 
-// Skip event entirely if no options left
-if (optionTitles.isEmpty) continue;
+          // Skip event entirely if no options left
+          if (optionTitles.isEmpty) continue;
 
-int roundedPercentage = highestProb.floor();
-if (highestProb - roundedPercentage >= 0.5) {
-  roundedPercentage += 1;
-}
+          int roundedPercentage = highestProb.floor();
+          if (highestProb - roundedPercentage >= 0.5) {
+            roundedPercentage += 1;
+          }
 
-final marketPercentage = '${roundedPercentage}%';
+          final marketPercentage = '${roundedPercentage}%';
 
-tempEvents.add({
-  'title': event['title'],
-  'endDate': event['end_date'] ?? '',
-  'team': highestTeam,
-  'marketPercentage': marketPercentage,
-  'aiPercentage': null,
-  'aiExplanation': '',
-  'optionTitles': optionTitles,
-  'marketProbs': marketProbs,
-  'aiPercentages': [],
-});
-
-}
-
+          tempEvents.add({
+            'event_id': event['event_id'],
+            'title': event['title'],
+            'endDate': event['end_date'] ?? '',
+            'team': highestTeam,
+            'marketPercentage': marketPercentage,
+            'aiPercentage': null,
+            'aiExplanation': '',
+            'optionTitles': optionTitles,
+            'marketProbs': marketProbs,
+            'aiPercentages': [],
+          });
+        }
 
         if (url != null) {
           _events.addAll(tempEvents);
@@ -283,8 +369,9 @@ tempEvents.add({
             baseEvent: e,
             originalIndices: filtered['originalIndices'],
           ).then((aiData) async {
-            final idx =
-                events.indexWhere((ev) => ev['title'] == aiData['title']);
+            final idx = events.indexWhere(
+              (ev) => ev['title'] == aiData['title'],
+            );
 
             if (idx != -1 && !_cachedEventIndexes.contains(idx)) {
               List<Map<String, dynamic>> newEvents = List.from(_events);
@@ -327,8 +414,7 @@ tempEvents.add({
     List<int>? originalIndices,
   }) async {
     try {
-      var request =
-          http.MultipartRequest('POST', Uri.parse(aiUrl));
+      var request = http.MultipartRequest('POST', Uri.parse(aiUrl));
 
       request.fields['event_name'] = eventName;
       request.fields['options'] = options.join(',');
@@ -338,8 +424,7 @@ tempEvents.add({
             .map((prob) => (prob / 100).toString())
             .toList();
 
-        request.fields['market_prediction'] =
-            decimalPredictions.join(',');
+        request.fields['market_prediction'] = decimalPredictions.join(',');
       }
 
       final streamed = await request.send();
@@ -353,14 +438,18 @@ tempEvents.add({
 
         if (probs.isEmpty) return baseEvent;
 
-        List<double> aiPercentages =
-            probs.map((e) => (double.tryParse(e.toString()) ?? 0) * 100).toList();
+        List<double> aiPercentages = probs
+            .map((e) => (double.tryParse(e.toString()) ?? 0) * 100)
+            .toList();
 
-        List<String> optionTitles =
-            List<String>.from(baseEvent['optionTitles']);
+        List<String> optionTitles = List<String>.from(
+          baseEvent['optionTitles'],
+        );
 
-        List<double> finalAiPercentages =
-            List<double>.filled(optionTitles.length, 0.0);
+        List<double> finalAiPercentages = List<double>.filled(
+          optionTitles.length,
+          0.0,
+        );
 
         if (originalIndices != null && originalIndices.isNotEmpty) {
           int safeLength = originalIndices.length < aiPercentages.length
@@ -381,16 +470,14 @@ tempEvents.add({
 
         double aiValueForMarket = 0;
 
-        if (marketIndex != -1 &&
-            marketIndex < finalAiPercentages.length) {
+        if (marketIndex != -1 && marketIndex < finalAiPercentages.length) {
           aiValueForMarket = finalAiPercentages[marketIndex];
         }
 
         return {
           ...baseEvent,
           'aiPercentage': '${aiValueForMarket.round()}%',
-          'aiExplanation':
-              explanations.isNotEmpty ? explanations.first : '',
+          'aiExplanation': explanations.isNotEmpty ? explanations.first : '',
           'aiPercentages': finalAiPercentages,
         };
       }
@@ -408,6 +495,387 @@ tempEvents.add({
     if (nextPageUrl != null && !isPageLoading.value) {
       await fetchPolymarketEvents(url: nextPageUrl);
     }
+  }
+
+  // ================= SEARCH =================
+
+  Future<void> searchPolymarketEvents(String query) async {
+    if (query.trim().isEmpty) {
+      isSearching.value = false;
+      _searchResults.clear();
+      return;
+    }
+
+    try {
+      isSearching.value = true;
+      isPageLoading.value = true;
+
+      final url =
+          '${Urls.baseUrl}/api/trade/title-search/?query=${Uri.encodeComponent(query)}';
+      print("Searching for: $query");
+      print("API URL: $url");
+
+      final response = await http.get(Uri.parse(url));
+
+      print("Search response status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final polymarketEvents = data['polymarket_events'] as List<dynamic>?;
+
+        if (polymarketEvents == null || polymarketEvents.isEmpty) {
+          print("No search results found for: $query");
+          _searchResults.clear();
+          isPageLoading.value = false;
+          return;
+        }
+
+        List<Map<String, dynamic>> tempEvents = [];
+
+        for (var event in polymarketEvents) {
+          final outcomes = event['question_outcome'] as List<dynamic>?;
+
+          if (event['title'] == null || event['title'].toString().isEmpty)
+            continue;
+          if (outcomes == null || outcomes.isEmpty) continue;
+
+          final validOutcomes = outcomes.where((o) {
+            final title = o['group_item_title']?.toString() ?? '';
+            final probStr = o['probability']?.toString() ?? '';
+            final prob = double.tryParse(probStr) ?? -1;
+            return title.isNotEmpty && prob >= 0;
+          }).toList();
+
+          if (validOutcomes.isEmpty) continue;
+
+          String highestTeam = '';
+          double highestProb = -1;
+
+          List<String> optionTitles = [];
+          List<double> marketProbs = [];
+
+          for (var outcome in validOutcomes) {
+            final prob =
+                double.tryParse(outcome['probability'].toString()) ?? 0;
+            final title = outcome['group_item_title'] ?? '';
+
+            if (prob <= 0) continue;
+
+            optionTitles.add(title);
+            marketProbs.add(prob);
+
+            if (prob > highestProb) {
+              highestProb = prob;
+              highestTeam = title;
+            }
+          }
+
+          if (optionTitles.isEmpty) continue;
+
+          int roundedPercentage = highestProb.floor();
+          if (highestProb - roundedPercentage >= 0.5) {
+            roundedPercentage += 1;
+          }
+
+          final marketPercentage = '${roundedPercentage}%';
+
+          tempEvents.add({
+            'event_id': event['event_id'],
+            'title': event['title'],
+            'endDate': event['end_date'] ?? '',
+            'team': highestTeam,
+            'marketPercentage': marketPercentage,
+            'aiPercentage': null,
+            'aiExplanation': '',
+            'optionTitles': optionTitles,
+            'marketProbs': marketProbs,
+            'aiPercentages': [],
+          });
+        }
+
+        _searchResults.assignAll(tempEvents);
+        print("Found ${tempEvents.length} search results for: $query");
+
+        // Fetch AI predictions for search results (limited to first 5)
+        int aiFetchCount = 0;
+        for (int i = 0; i < tempEvents.length && i < 5; i++) {
+          final e = tempEvents[i];
+          final filtered = _buildFilteredOptions(e);
+
+          fetchAIValue(
+            eventName: e['title'],
+            options: filtered['options'],
+            marketPredictions: filtered['marketProbs'],
+            baseEvent: e,
+            originalIndices: filtered['originalIndices'],
+          ).then((aiData) {
+            final idx = _searchResults.indexWhere(
+              (ev) => ev['title'] == aiData['title'],
+            );
+
+            if (idx != -1) {
+              List<Map<String, dynamic>> newResults = List.from(_searchResults);
+              newResults[idx] = aiData;
+              _searchResults.assignAll(newResults);
+              update();
+            }
+          });
+        }
+      } else {
+        print("Search API error: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Search error: $e");
+    } finally {
+      isPageLoading.value = false;
+    }
+  }
+
+  void onSearchQueryChanged(String query) {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      searchPolymarketEvents(query);
+    });
+  }
+
+  void clearSearch() {
+    searchController.clear();
+    _debounceTimer?.cancel();
+    isSearching.value = false;
+    _searchResults.clear();
+  }
+
+  // ================= SAVE EVENT =================
+
+  final RxSet<int> _savedEventIds = <int>{}.obs;
+
+  bool isEventSaved(int eventId) => _savedEventIds.contains(eventId);
+
+  void addSavedEventId(int eventId) => _savedEventIds.add(eventId);
+
+  void removeSavedEventId(int eventId) => _savedEventIds.remove(eventId);
+
+  Future<bool> saveEvent({
+    required int eventId,
+    required String marketPlace,
+  }) async {
+    try {
+      final url = '${Urls.baseUrl}/api/trade/saved-event/';
+      print("=== Save Event API ===");
+      print("URL: $url");
+
+      // Get token from SharedPreferencesHelper
+      final token = await SharedPreferencesHelper.getAccessToken();
+      print("Token: ${token?.substring(0, 20)}...");
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'event_id': eventId,
+          'market_place': marketPlace,
+        }),
+      );
+
+      print("Request Body: {event_id: $eventId, market_place: $marketPlace}");
+      print("Response Status: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+      print("=====================");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print("Event saved successfully!");
+        addSavedEventId(eventId);
+        return true;
+      } else {
+        print("Failed to save event: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print("Save event error: $e");
+      return false;
+    }
+  }
+
+  // ================= FETCH SAVED EVENTS =================
+
+  final RxList<Map<String, dynamic>> _savedPolymarketEvents =
+      <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> _savedKalshiEvents =
+      <Map<String, dynamic>>[].obs;
+  final isLoadingSaved = false.obs;
+
+  Future<void> fetchSavedEvents() async {
+    try {
+      isLoadingSaved.value = true;
+      final url = '${Urls.baseUrl}/api/trade/saved-event-list/';
+      print("=== Fetch Saved Events ===");
+      print("URL: $url");
+
+      // Get token from SharedPreferencesHelper
+      final token = await SharedPreferencesHelper.getAccessToken();
+      print("Token: ${token?.substring(0, 20)}...");
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print("Response Status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print("Response Body: $data");
+
+        final polymarketEvents = data['polymarket_events'] as List<dynamic>?;
+        final kalshiEvents = data['kalshi_events'] as List<dynamic>?;
+
+        // Clear and populate saved event IDs
+        _savedEventIds.clear();
+
+        // Process Polymarket events
+        if (polymarketEvents != null && polymarketEvents.isNotEmpty) {
+          _savedPolymarketEvents.assignAll(
+            _processSavedEvents(polymarketEvents, 'Polymarket'),
+          );
+          // Add event IDs to saved set
+          for (var event in polymarketEvents) {
+            final eventId = event['event_id'] as int?;
+            if (eventId != null) {
+              _savedEventIds.add(eventId);
+            }
+          }
+          print("Found ${_savedPolymarketEvents.length} saved Polymarket events");
+
+          // Fetch AI predictions for saved events (limited to first 5)
+          for (int i = 0; i < _savedPolymarketEvents.length && i < 5; i++) {
+            final e = _savedPolymarketEvents[i];
+            final filtered = _buildFilteredOptions(e);
+
+            fetchAIValue(
+              eventName: e['title'],
+              options: filtered['options'],
+              marketPredictions: filtered['marketProbs'],
+              baseEvent: e,
+              originalIndices: filtered['originalIndices'],
+            ).then((aiData) {
+              final idx = _savedPolymarketEvents.indexWhere(
+                (ev) => ev['title'] == aiData['title'],
+              );
+
+              if (idx != -1) {
+                List<Map<String, dynamic>> newList = List.from(_savedPolymarketEvents);
+                newList[idx] = aiData;
+                _savedPolymarketEvents.assignAll(newList);
+                update(); // Force UI refresh
+                print("AI data updated for saved event: ${aiData['title']}");
+              }
+            });
+          }
+        } else {
+          _savedPolymarketEvents.clear();
+        }
+
+        // Process Kalshi events
+        if (kalshiEvents != null && kalshiEvents.isNotEmpty) {
+          _savedKalshiEvents.assignAll(
+            _processSavedEvents(kalshiEvents, 'Kalshi'),
+          );
+          print("Found ${_savedKalshiEvents.length} saved Kalshi events");
+        } else {
+          _savedKalshiEvents.clear();
+        }
+      } else {
+        print("Failed to fetch saved events: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Fetch saved events error: $e");
+    } finally {
+      isLoadingSaved.value = false;
+    }
+  }
+
+  List<Map<String, dynamic>> _processSavedEvents(
+    List<dynamic> events,
+    String marketPlace,
+  ) {
+    List<Map<String, dynamic>> processedEvents = [];
+
+    for (var event in events) {
+      final outcomes = event['question_outcome'] as List<dynamic>?;
+
+      if (event['title'] == null || event['title'].toString().isEmpty)
+        continue;
+      if (outcomes == null || outcomes.isEmpty) continue;
+
+      final validOutcomes = outcomes.where((o) {
+        final title = o['group_item_title']?.toString() ?? '';
+        final probStr = o['probability']?.toString() ?? '';
+        final prob = double.tryParse(probStr) ?? -1;
+        return title.isNotEmpty && prob >= 0;
+      }).toList();
+
+      if (validOutcomes.isEmpty) continue;
+
+      String highestTeam = '';
+      double highestProb = -1;
+
+      List<String> optionTitles = [];
+      List<double> marketProbs = [];
+
+      for (var outcome in validOutcomes) {
+        final prob = double.tryParse(outcome['probability'].toString()) ?? 0;
+        final title = outcome['group_item_title'] ?? '';
+
+        if (prob <= 0) continue;
+
+        optionTitles.add(title);
+        marketProbs.add(prob);
+
+        if (prob > highestProb) {
+          highestProb = prob;
+          highestTeam = title;
+        }
+      }
+
+      if (optionTitles.isEmpty) continue;
+
+      int roundedPercentage = highestProb.floor();
+      if (highestProb - roundedPercentage >= 0.5) {
+        roundedPercentage += 1;
+      }
+
+      final marketPercentage = '${roundedPercentage}%';
+
+      processedEvents.add({
+        'event_id': event['event_id'],
+        'title': event['title'],
+        'endDate': event['end_date'] ?? '',
+        'team': highestTeam,
+        'marketPercentage': marketPercentage,
+        'aiPercentage': null,
+        'aiExplanation': '',
+        'optionTitles': optionTitles,
+        'marketProbs': marketProbs,
+        'aiPercentages': [],
+        'market_place': marketPlace,
+      });
+    }
+
+    return processedEvents;
+  }
+
+  @override
+  void onClose() {
+    searchController.dispose();
+    _debounceTimer?.cancel();
+    super.onClose();
   }
 
   // ================= CACHE =================
@@ -436,21 +904,19 @@ tempEvents.add({
       final cachedAIDataJson = prefs.getString(_cacheKey);
 
       if (cachedAIDataJson != null) {
-        final cachedAIData =
-            jsonDecode(cachedAIDataJson) as List<dynamic>;
+        final cachedAIData = jsonDecode(cachedAIDataJson) as List<dynamic>;
 
-        for (int i = 0;
-            i < events.length &&
-                i < cachedAIData.length &&
-                i < _maxCachedEvents;
-            i++) {
-          final cachedEvent =
-              cachedAIData[i] as Map<String, dynamic>;
+        for (
+          int i = 0;
+          i < events.length && i < cachedAIData.length && i < _maxCachedEvents;
+          i++
+        ) {
+          final cachedEvent = cachedAIData[i] as Map<String, dynamic>;
 
           events[i] = {
             ...events[i],
             'aiPercentage': cachedEvent['aiPercentage'],
-            'aiExplanation': cachedEvent['aiExplanation'],
+            'aiExplanation': '', // Don't load cached explanation
           };
 
           _cachedEventIndexes.add(i);
@@ -465,16 +931,13 @@ tempEvents.add({
     try {
       List<Map<String, dynamic>> aiDataToCache = [];
 
-      for (int i = 0;
-          i < events.length && i < _maxCachedEvents;
-          i++) {
+      for (int i = 0; i < events.length && i < _maxCachedEvents; i++) {
         final event = events[i];
 
-        if (event['aiPercentage'] != null &&
-            event['aiExplanation'] != null) {
+        if (event['aiPercentage'] != null) {
           aiDataToCache.add({
             'aiPercentage': event['aiPercentage'],
-            'aiExplanation': event['aiExplanation'],
+            'aiExplanation': '', // Don't cache explanation
           });
         }
       }
@@ -483,8 +946,9 @@ tempEvents.add({
 
       await prefs.setString(_cacheKey, jsonEncode(aiDataToCache));
       await prefs.setString(
-          _cacheTimestampKey,
-          DateTime.now().toIso8601String());
+        _cacheTimestampKey,
+        DateTime.now().toIso8601String(),
+      );
     } catch (e) {
       print("Error saving AI data to cache: $e");
     }

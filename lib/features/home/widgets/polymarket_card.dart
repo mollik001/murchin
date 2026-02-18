@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:murchin/features/home/controllers/home_controller.dart';
 import 'package:murchin/features/home/screens/card_details_screen.dart';
 import 'package:murchin/features/home/widgets/custom_card.dart';
 
 class PolymarketCard extends StatelessWidget {
+  final int? eventId;
   final String title;
   final String subtitle;
   final String date;
@@ -16,9 +18,13 @@ class PolymarketCard extends StatelessWidget {
   final List<double>? marketProbs;
   final List<double>? aiPercentages;
   final String? aiExplanation;
+  final bool isSaved;
+  final VoidCallback? onSaved;
+  final Map<String, dynamic>? eventRef;
 
   const PolymarketCard({
     super.key,
+    this.eventId,
     required this.title,
     required this.subtitle,
     required this.date,
@@ -31,26 +37,43 @@ class PolymarketCard extends StatelessWidget {
     this.marketProbs,
     this.aiPercentages,
     this.aiExplanation,
+    this.isSaved = false,
+    this.onSaved,
+    this.eventRef,
   });
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.find<HomeController>();
+
     return GestureDetector(
       onTap: () {
-        if (aiPercentage != null) {
+        final effectiveAiPercentage = eventRef != null 
+            ? (eventRef!['aiPercentage'] as String?) ?? aiPercentage 
+            : aiPercentage;
+        
+        if (effectiveAiPercentage != null) {
           Get.to(() => CardDetailScreen(
                 title: title,
                 subtitle: subtitle,
                 date: date,
                 marketPercentage: marketPercentage,
-                aiPercentage: aiPercentage!,
+                aiPercentage: effectiveAiPercentage,
                 team: team,
                 isPolymarket: true,
                 bgColor: bgColor,
-                optionTitles: optionTitles,
-                marketProbs: marketProbs,
-                aiPercentages: aiPercentages,
-                aiExplanation: aiExplanation,
+                optionTitles: eventRef != null 
+                    ? (eventRef!['optionTitles'] as List<String>?) ?? optionTitles 
+                    : optionTitles,
+                marketProbs: eventRef != null 
+                    ? (eventRef!['marketProbs'] as List<double>?) ?? marketProbs 
+                    : marketProbs,
+                aiPercentages: eventRef != null 
+                    ? (eventRef!['aiPercentages'] as List<double>?) ?? aiPercentages 
+                    : aiPercentages,
+                aiExplanation: eventRef != null 
+                    ? (eventRef!['aiExplanation'] as String?) ?? aiExplanation 
+                    : aiExplanation,
               ));
         }
       },
@@ -59,12 +82,21 @@ class PolymarketCard extends StatelessWidget {
         subtitle: subtitle,
         date: date,
         marketPercentage: marketPercentage,
-        aiPercentage: aiPercentage,
+        aiPercentage: eventRef != null 
+            ? (eventRef!['aiPercentage'] as String?) ?? aiPercentage 
+            : aiPercentage,
         team: team,
         bgColor: bgColor,
         borderColor: borderColor,
         platform: 'Polymarket',
         iconAsset: 'assets/icons/polymarket.png',
+        initiallySaved: isSaved,
+        onSaved: onSaved ??
+            () {
+              if (eventId != null) {
+                controller.saveEvent(eventId: eventId!, marketPlace: 'Polymarket');
+              }
+            },
       ),
     );
   }

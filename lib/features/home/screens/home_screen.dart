@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/const/widgets/custom_appbar.dart';
 import 'package:murchin/features/home/controllers/home_controller.dart';
 import 'package:murchin/features/home/widgets/polymarket_card.dart';
@@ -19,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final HomeController controller = Get.put(HomeController());
   final ScrollController scrollController = ScrollController();
+  final ScrollController kalshiScrollController = ScrollController();
 
   final Color unselectedBgColor = const Color(0xFFBDC4D2);
   final Color polymarketBgColor = const Color(0xFF607D3B);
@@ -36,11 +36,21 @@ class _HomeScreenState extends State<HomeScreen> {
         controller.loadNextPage();
       }
     });
+
+    kalshiScrollController.addListener(() {
+      if (kalshiScrollController.position.pixels >=
+              kalshiScrollController.position.maxScrollExtent - 200 &&
+          controller.kalshiNextPageUrl != null &&
+          !controller.isLoading.value) {
+        controller.loadKalshiNextPage();
+      }
+    });
   }
 
   @override
   void dispose() {
     scrollController.dispose();
+    kalshiScrollController.dispose();
     super.dispose();
   }
 
@@ -165,33 +175,47 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }
 
-              // Kalshi tab (static)
+              // Kalshi tab (dynamic)
               if (controller.selectedPlatform.value == 2) {
-                return ListView(
+                if (controller.kalshiEvents.isEmpty && controller.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return ListView.builder(
+                  controller: kalshiScrollController,
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  children: [
-                    KalshiCard(
-                      title: 'Bitcoin Price',
-                      subtitle: 'End of 2025',
-                      date: 'Mar 15, 2025',
-                      marketPercentage: '45',
-                      aiPercentage: '72%',
-                      team: 'Over 100K',
-                      bgColor: kalshiBgColor,
-                      borderColor: AppColors.blue,
-                    ),
-                    SizedBox(height: 20.h),
-                    KalshiCard(
-                      title: 'Fed Rate Decision',
-                      subtitle: 'March 2024 Meeting',
-                      date: 'Mar 20, 2024',
-                      marketPercentage: '60',
-                      aiPercentage: '82%',
-                      team: 'Rate Hold',
-                      bgColor: kalshiBgColor,
-                      borderColor: AppColors.blue,
-                    ),
-                  ],
+                  itemCount: controller.kalshiEvents.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index < controller.kalshiEvents.length) {
+                      final e = controller.kalshiEvents[index];
+                      final eventId = e['event_id'] as String?;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: 20.h),
+                        child: KalshiCard(
+                          eventId: eventId,
+                          title: e['title'],
+                          subtitle: formatPrettyDate(e['endDate']),
+                          date: formatPrettyDate(e['endDate']),
+                          marketPercentage: e['marketPercentage'],
+                          aiPercentage: e['aiPercentage'],
+                          team: e['team'],
+                          bgColor: kalshiBgColor,
+                          borderColor: AppColors.blue,
+                          isSaved: false, // TODO: Implement Kalshi save functionality
+                          optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
+                          marketProbs: e['marketProbs'] != null ? List<double>.from(e['marketProbs']) : null,
+                          aiPercentages: e['aiPercentages'] != null ? List<double>.from(e['aiPercentages']) : null,
+                          aiExplanation: e['aiExplanation'] as String?,
+                        ),
+                      );
+                    } else {
+                      return controller.isPageLoading.value
+                          ? const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          : const SizedBox();
+                    }
+                  },
                 );
               }
 
@@ -199,7 +223,6 @@ class _HomeScreenState extends State<HomeScreen> {
               return ListView(
                 padding: EdgeInsets.symmetric(horizontal: 20.w),
                 children: [
-
                   ...controller.events
                       .take(3)
                       .map(
@@ -226,27 +249,32 @@ class _HomeScreenState extends State<HomeScreen> {
                           ));
                         },
                       ),
-                  KalshiCard(
-                    title: 'Bitcoin Price',
-                    subtitle: 'End of 2025',
-                    date: 'Mar 15, 2025',
-                    marketPercentage: '45',
-                    aiPercentage: '72%',
-                    team: 'Over 100K',
-                    bgColor: kalshiBgColor,
-                    borderColor: AppColors.blue,
-                  ),
-                  SizedBox(height: 20.h),
-                  KalshiCard(
-                    title: 'Fed Rate Decision',
-                    subtitle: 'March 2024 Meeting',
-                    date: 'Mar 20, 2024',
-                    marketPercentage: '60',
-                    aiPercentage: '82%',
-                    team: 'Rate Hold',
-                    bgColor: kalshiBgColor,
-                    borderColor: AppColors.blue,
-                  ),
+                  ...controller.kalshiEvents
+                      .take(3)
+                      .map(
+                        (e) {
+                          final eventId = e['event_id'] as String?;
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: 20.h),
+                            child: KalshiCard(
+                              eventId: eventId,
+                              title: e['title'],
+                              subtitle: formatPrettyDate(e['endDate']),
+                              date: formatPrettyDate(e['endDate']),
+                              marketPercentage: e['marketPercentage'],
+                              aiPercentage: e['aiPercentage'],
+                              team: e['team'],
+                              bgColor: kalshiBgColor,
+                              borderColor: AppColors.blue,
+                              isSaved: false, // TODO: Implement Kalshi save functionality
+                              optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
+                              marketProbs: e['marketProbs'] != null ? List<double>.from(e['marketProbs']) : null,
+                              aiPercentages: e['aiPercentages'] != null ? List<double>.from(e['aiPercentages']) : null,
+                              aiExplanation: e['aiExplanation'] as String?,
+                            ),
+                          );
+                        },
+                      ),
                 ],
               );
             }),

@@ -17,11 +17,15 @@ class HomeController extends GetxController {
   final RxList<Map<String, dynamic>> _events = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> _searchResults =
       <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> _kalshiEvents =
+      <Map<String, dynamic>>[].obs;
 
   List<Map<String, dynamic>> get events =>
       isSearching.value ? _searchResults : _events;
 
   List<Map<String, dynamic>> get allEvents => _events;
+
+  List<Map<String, dynamic>> get kalshiEvents => _kalshiEvents;
 
   List<Map<String, dynamic>> get savedPolymarketEvents => _savedPolymarketEvents;
 
@@ -32,6 +36,7 @@ class HomeController extends GetxController {
   }
 
   String? nextPageUrl;
+  String? kalshiNextPageUrl;
 
   bool sendMarketPrediction = true;
 
@@ -41,6 +46,10 @@ class HomeController extends GetxController {
   static const String _cacheTimestampKey = 'cached_ai_values_timestamp';
   static const Duration _cacheDuration = Duration(hours: 12);
   static const int _maxCachedEvents = 100;
+
+  static const String _kalshiCacheKey = 'cached_kalshi_ai_values';
+  static const String _kalshiCacheTimestampKey = 'cached_kalshi_ai_timestamp';
+  static const String _kalshiEventsCacheKey = 'cached_kalshi_events';
 
   bool _isLoadingCache = false;
 
@@ -56,17 +65,32 @@ class HomeController extends GetxController {
     super.onInit();
 
     loadCachedEvents();
+    
+    // Load cached Kalshi events immediately
+    loadCachedKalshiEvents();
 
     // Fetch saved events to populate saved event IDs
     fetchSavedEvents();
 
     Future.delayed(Duration.zero, () {
+      // Load Polymarket with AI cache check
       loadCachedAIData().then((hasValidCache) async {
         if (hasValidCache) {
           loadEventsWithCachedAI();
           await fetchPolymarketEvents(backgroundOnly: true);
         } else {
           await fetchPolymarketEvents();
+        }
+      });
+      
+      // Load Kalshi with AI cache check
+      loadCachedKalshiEventsData().then((hasValidCache) async {
+        if (hasValidCache) {
+          // Has valid AI cache, just fetch fresh events in background
+          await fetchKalshiEvents(backgroundOnly: true);
+        } else {
+          // No valid cache, fetch fresh events
+          await fetchKalshiEvents();
         }
       });
     });
@@ -401,6 +425,314 @@ class HomeController extends GetxController {
           isPageLoading.value = false;
         }
       }
+    }
+  }
+
+  // ================= KALSHI EVENTS =================
+
+  Future<void> fetchKalshiEvents({
+    String? url,
+    bool backgroundOnly = false,
+  }) async {
+    final requestUrl = url ?? Urls.kalshiEventListUrl;
+
+    try {
+      if (url == null && !backgroundOnly) {
+        isLoading.value = true;
+      } else if (!backgroundOnly) {
+        isPageLoading.value = true;
+      }
+
+      final response = await http.get(Uri.parse(requestUrl));
+
+      print("Kalshi API Response Status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final eventsList = data['results']?['events'] as List<dynamic>?;
+
+        if (eventsList == null || eventsList.isEmpty) {
+          print("No Kalshi events found");
+          if (url == null) {
+            isLoading.value = false;
+          } else {
+            isPageLoading.value = false;
+          }
+          return;
+        }
+
+        List<Map<String, dynamic>> tempEvents = [];
+
+        for (var event in eventsList) {
+          final outcomes = event['outcomes'] as List<dynamic>?;
+
+          if (event['title'] == null || event['title'].toString().isEmpty)
+            continue;
+          if (outcomes == null || outcomes.isEmpty) continue;
+
+          // Process outcomes to find the highest probability_yes (excluding 0 and 100)
+          String highestTeam = '';
+          double highestProb = -1;
+
+          List<String> optionTitles = [];
+          List<double> marketProbs = [];
+
+          // Check if we have multiple outcomes or just one
+          if (outcomes.length == 1) {
+            // Single outcome - use it directly
+            final outcome = outcomes[0];
+            final probYes = double.tryParse(outcome['probability_yes'].toString()) ?? -1;
+            final titleYes = outcome['group_item_title_yes']?.toString() ?? '';
+
+            if (probYes > 0 && probYes < 100 && titleYes.isNotEmpty) {
+              highestTeam = titleYes;
+              highestProb = probYes;
+              optionTitles.add(titleYes);
+              marketProbs.add(probYes);
+            }
+          } else {
+            // Multiple outcomes - find the highest probability_yes (excluding 0 and 100)
+            for (var outcome in outcomes) {
+              final probYes = double.tryParse(outcome['probability_yes'].toString()) ?? -1;
+              final titleYes = outcome['group_item_title_yes']?.toString() ?? '';
+
+              // Skip 0 and 100 values as they are invalid
+              if (probYes <= 0 || probYes >= 100) continue;
+              if (titleYes.isEmpty) continue;
+
+              optionTitles.add(titleYes);
+              marketProbs.add(probYes);
+
+              if (probYes > highestProb) {
+                highestProb = probYes;
+                highestTeam = titleYes;
+              }
+            }
+          }
+
+          // Skip event entirely if no valid options left
+          if (optionTitles.isEmpty) {
+            print("Skipping event '${event['title']}' - no valid options");
+            continue;
+          }
+
+          int roundedPercentage = highestProb.floor();
+          if (highestProb - roundedPercentage >= 0.5) {
+            roundedPercentage += 1;
+          }
+
+          final marketPercentage = '${roundedPercentage}%';
+
+          // For single outcome events, also store the NO probability
+          double? probabilityNo;
+          String? titleNo;
+          if (outcomes.length == 1) {
+            final outcome = outcomes[0];
+            probabilityNo = double.tryParse(outcome['probability_no'].toString());
+            titleNo = outcome['group_item_title_no']?.toString();
+          }
+
+          tempEvents.add({
+            'event_id': event['event_ticker'],
+            'series_ticker': event['series_ticker'] ?? '',
+            'title': event['title'],
+            'endDate': event['end_date'] ?? '',
+            'team': highestTeam,
+            'marketPercentage': marketPercentage,
+            'aiPercentage': null,
+            'aiExplanation': '',
+            'optionTitles': optionTitles,
+            'marketProbs': marketProbs,
+            'aiPercentages': [],
+            'market_place': 'Kalshi',
+            'probability_no': probabilityNo,
+            'title_no': titleNo,
+          });
+          
+          print("Kalshi event added: ${event['title']} | Market: $marketPercentage | Team: $highestTeam | Options: $optionTitles");
+        }
+
+        print("Processed ${tempEvents.length} Kalshi events");
+
+        if (url != null) {
+          _kalshiEvents.addAll(tempEvents);
+        } else {
+          _kalshiEvents.assignAll(tempEvents);
+        }
+
+        kalshiNextPageUrl = data['next'];
+
+        if (url == null) {
+          cacheKalshiEvents(_kalshiEvents);
+        }
+
+        // Load cached AI values and merge them with fresh events
+        await _loadKalshiCachedAIValues();
+
+        // Fetch AI predictions for Kalshi events
+        for (int i = 0; i < tempEvents.length; i++) {
+          final e = tempEvents[i];
+
+          final filtered = _buildFilteredOptions(e);
+
+          print("Kalshi AI fetch: ${e['title']} with options: ${filtered['options']}");
+          print("Kalshi market probs: ${filtered['marketProbs']}");
+
+          fetchAIValue(
+            eventName: e['title'],
+            options: filtered['options'],
+            marketPredictions: filtered['marketProbs'],
+            baseEvent: e,
+            originalIndices: filtered['originalIndices'],
+          ).then((aiData) async {
+            print("Kalshi AI received for: ${aiData['title']}");
+            print("Kalshi AI percentage: ${aiData['aiPercentage']}");
+            
+            final idx = _kalshiEvents.indexWhere(
+              (ev) => ev['event_id'] == aiData['event_id'],
+            );
+
+            if (idx != -1) {
+              // Check if AI data is different from current
+              final currentEvent = _kalshiEvents[idx];
+              if (currentEvent['aiPercentage'] == aiData['aiPercentage']) {
+                return; // Already has this AI data
+              }
+
+              List<Map<String, dynamic>> newEvents = List.from(_kalshiEvents);
+              newEvents[idx] = aiData;
+
+              _kalshiEvents.assignAll(newEvents);
+              update();
+
+              print("Kalshi AI updated at index $idx");
+              
+              // Save AI data to cache
+              await saveKalshiAIDataToCache();
+            } else {
+              print("Kalshi AI update failed - event not found: ${aiData['event_id']}");
+            }
+          });
+        }
+      }
+    } catch (e) {
+      print("Error in fetchKalshiEvents: $e");
+    } finally {
+      if (!backgroundOnly) {
+        if (url == null) {
+          isLoading.value = false;
+        } else {
+          isPageLoading.value = false;
+        }
+      }
+    }
+  }
+
+  // ================= CACHE KALSHI EVENTS =================
+
+  Future<void> cacheKalshiEvents(List<Map<String, dynamic>> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    // Cache only first 100 events
+    final eventsToCache = list.length > _maxCachedEvents ? list.take(_maxCachedEvents).toList() : list;
+    await prefs.setString(_kalshiEventsCacheKey, jsonEncode(eventsToCache));
+  }
+
+  Future<bool> loadCachedKalshiEventsData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final timestampStr = prefs.getString(_kalshiCacheTimestampKey);
+
+      if (timestampStr == null) return false;
+
+      final timestamp = DateTime.parse(timestampStr);
+      final difference = DateTime.now().difference(timestamp);
+
+      return difference <= _cacheDuration;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> loadCachedKalshiEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString(_kalshiEventsCacheKey);
+
+    if (cached != null) {
+      final List decoded = jsonDecode(cached);
+
+      final List<Map<String, dynamic>> eventsWithDefaults = decoded.map((e) {
+        final event = Map<String, dynamic>.from(e);
+
+        if (!event.containsKey('aiPercentages')) {
+          event['aiPercentages'] = [];
+        }
+        return event;
+      }).toList();
+
+      _kalshiEvents.assignAll(eventsWithDefaults);
+      print("Loaded ${_kalshiEvents.length} cached Kalshi events");
+    }
+  }
+
+  Future<void> _loadKalshiCachedAIValues() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedAIDataJson = prefs.getString(_kalshiCacheKey);
+
+      if (cachedAIDataJson != null) {
+        final cachedAIData = jsonDecode(cachedAIDataJson) as List<dynamic>;
+
+        // Merge cached AI values into current events list
+        for (int i = 0; i < _kalshiEvents.length && i < cachedAIData.length && i < _maxCachedEvents; i++) {
+          final cachedEvent = cachedAIData[i] as Map<String, dynamic>;
+
+          _kalshiEvents[i] = {
+            ..._kalshiEvents[i],
+            'aiPercentage': cachedEvent['aiPercentage'],
+            'aiExplanation': '', // Don't load cached explanation
+          };
+        }
+        
+        update();
+        print("Loaded cached Kalshi AI values for ${cachedAIData.length} events");
+      }
+    } catch (e) {
+      print("Error loading Kalshi cached AI values: $e");
+    }
+  }
+
+  Future<void> saveKalshiAIDataToCache() async {
+    try {
+      List<Map<String, dynamic>> aiDataToCache = [];
+
+      for (int i = 0; i < _kalshiEvents.length && i < _maxCachedEvents; i++) {
+        final event = _kalshiEvents[i];
+
+        if (event['aiPercentage'] != null) {
+          aiDataToCache.add({
+            'aiPercentage': event['aiPercentage'],
+            'aiExplanation': '', // Don't cache explanation
+          });
+        }
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setString(_kalshiCacheKey, jsonEncode(aiDataToCache));
+      await prefs.setString(
+        _kalshiCacheTimestampKey,
+        DateTime.now().toIso8601String(),
+      );
+    } catch (e) {
+      print("Error saving Kalshi AI data to cache: $e");
+    }
+  }
+
+  // ================= KALSHI PAGINATION =================
+
+  Future<void> loadKalshiNextPage() async {
+    if (kalshiNextPageUrl != null && !isPageLoading.value) {
+      await fetchKalshiEvents(url: kalshiNextPageUrl);
     }
   }
 

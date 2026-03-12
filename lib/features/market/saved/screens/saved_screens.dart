@@ -1,14 +1,14 @@
-// lib/features/saved/screens/saved_screen.dart
+// lib/features/market/saved/screens/saved_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/const/widgets/custom_appbar.dart';
-import 'package:murchin/features/home/controllers/home_controller.dart';
-import 'package:murchin/features/home/screens/card_details_screen.dart';
-import 'package:murchin/features/home/widgets/polymarket_card.dart';
-import 'package:murchin/features/home/widgets/kalshi_card.dart';
+import 'package:murchin/features/market/home/controllers/home_controller.dart';
+import 'package:murchin/features/market/home/screens/card_details_screen.dart';
+import 'package:murchin/features/market/home/widgets/polymarket_card.dart';
+import 'package:murchin/features/market/home/widgets/kalshi_card.dart';
 import 'package:shimmer/shimmer.dart';
 
 class SavedScreen extends StatefulWidget {
@@ -61,38 +61,45 @@ class _SavedScreenState extends State<SavedScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(imageAsset: 'assets/images/name.png'),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20.w),
-          child: Column(
-            children: [
-              SizedBox(height: 20.h),
+      body: RefreshIndicator(
+        onRefresh: _refreshSavedEvents,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Column(
+              children: [
+                SizedBox(height: 20.h),
 
-              // Title
-              Container(
-                width: double.infinity,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Saved Events',
-                  style: AppTextStyles.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16.sp,
+                // Title
+                Container(
+                  width: double.infinity,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Saved Events',
+                    style: AppTextStyles.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16.sp,
+                    ),
                   ),
                 ),
-              ),
 
-              SizedBox(height: 14.h),
+                SizedBox(height: 14.h),
 
-              // Saved Cards List
-              _buildSavedCardsList(),
+                // Saved Cards List
+                _buildSavedCardsList(),
 
-              SizedBox(height: 40.h),
-            ],
+                SizedBox(height: 40.h),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _refreshSavedEvents() async {
+    await controller.fetchSavedEvents();
   }
 
   Widget _buildSavedCardsList() {

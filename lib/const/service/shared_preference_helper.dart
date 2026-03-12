@@ -8,6 +8,8 @@ class SharedPreferencesHelper {
   static const String _userEmailKey = 'user_email';
   static const String _userNameKey = 'user_name';
   static const String _userPhotoKey = 'user_photo';
+  static const String _sportsbookModeKey = 'sportsbook_mode';
+  static const String _lastVisitedSectionKey = 'last_visited_section';
 
   /// ⭐ NEW → Events Cache Key
   static const String _cachedEventsKey = 'cached_events_ai_v1';
@@ -82,6 +84,38 @@ class SharedPreferencesHelper {
   static Future<String?> getUserPhoto() async {
     final prefs = await _instance;
     return prefs.getString(_userPhotoKey);
+  }
+
+  static Future<bool> saveSportsbookMode(bool isSportsbook) async {
+    final prefs = await _instance;
+    return await prefs.setBool(_sportsbookModeKey, isSportsbook);
+  }
+
+  static Future<bool?> getSportsbookMode() async {
+    final prefs = await _instance;
+    return prefs.getBool(_sportsbookModeKey);
+  }
+
+  /// ===============================
+  /// LAST VISITED SECTION STORAGE
+  /// ===============================
+
+  /// Save last visited section ('sports' or 'market')
+  static Future<bool> saveLastVisitedSection(String section) async {
+    final prefs = await _instance;
+    return await prefs.setString(_lastVisitedSectionKey, section);
+  }
+
+  /// Get last visited section
+  static Future<String?> getLastVisitedSection() async {
+    final prefs = await _instance;
+    return prefs.getString(_lastVisitedSectionKey);
+  }
+
+  /// Clear last visited section
+  static Future<bool> clearLastVisitedSection() async {
+    final prefs = await _instance;
+    return await prefs.remove(_lastVisitedSectionKey);
   }
 
   /// ===============================

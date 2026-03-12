@@ -1,4 +1,4 @@
-// lib/features/card_detail/screens/card_detail_screen.dart
+// lib/features/market/home/screens/card_details_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -6,7 +6,7 @@ import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/const/widgets/custom_appbar_2.dart';
 import 'package:murchin/const/widgets/custom_button.dart';
-import 'package:murchin/features/home/controllers/home_controller.dart';
+import 'package:murchin/features/market/home/controllers/home_controller.dart';
 import 'package:shimmer/shimmer.dart';
 
 class CardDetailScreen extends StatefulWidget {
@@ -18,6 +18,8 @@ class CardDetailScreen extends StatefulWidget {
   final String team;
   final bool isPolymarket;
   final Color bgColor;
+  final int? eventId;
+  final String? eventIdString;
   final List<String>? optionTitles;
   final List<double>? marketProbs;
   final List<double>? aiPercentages;
@@ -33,6 +35,8 @@ class CardDetailScreen extends StatefulWidget {
     required this.team,
     required this.isPolymarket,
     required this.bgColor,
+    this.eventId,
+    this.eventIdString,
     this.optionTitles,
     this.marketProbs,
     this.aiPercentages,
@@ -44,95 +48,214 @@ class CardDetailScreen extends StatefulWidget {
 }
 
 class _CardDetailScreenState extends State<CardDetailScreen> {
+  bool _isFetchingAI = false;
+  String? _freshAiExplanation;
+  String? _freshAiPercentage;
+  List<double>? _freshAiPercentages;
+  bool _isAiLoading = true;
+  bool _isSaving = false;
+  bool _isSaved = false;
+
   @override
   void initState() {
     super.initState();
-    // Trigger AI fetch when screen loads
-    Future.microtask(() {
-      Get.find<HomeController>().fetchAIForEventByTitle(widget.title);
+    // Check if event is already saved
+    final controller = Get.find<HomeController>();
+    if (widget.eventId != null) {
+      _isSaved = controller.isEventSaved(widget.eventId!);
+    } else if (widget.eventIdString != null) {
+      _isSaved = controller.isKalshiEventSaved(widget.eventIdString!);
+    }
+    // Always fetch fresh AI data when detail screen opens (never use cache)
+    Future.microtask(() => _fetchFreshAIData());
+  }
+
+  Future<void> _fetchFreshAIData() async {
+    if (_isFetchingAI) return;
+    _isFetchingAI = true;
+
+    try {
+      final controller = Get.find<HomeController>();
+
+      // Build options and market predictions from widget data
+      final optionTitles = widget.optionTitles ?? [];
+      final marketProbs = widget.marketProbs ?? [];
+
+      // Filter out 0% and 100% values
+      List<String> filteredOptions = [];
+      List<double> filteredMarketProbs = [];
+      List<int> originalIndices = [];
+
+      for (int j = 0; j < optionTitles.length && j < marketProbs.length; j++) {
+        final prob = marketProbs[j];
+        if (prob <= 0) continue;
+        filteredOptions.add(optionTitles[j]);
+        filteredMarketProbs.add(prob);
+        originalIndices.add(j);
+      }
+
+      // Keep market leader at index 0
+      if (widget.team.isNotEmpty) {
+        int leaderIndex = filteredOptions.indexOf(widget.team);
+        if (leaderIndex > 0) {
+          final topOption = filteredOptions.removeAt(leaderIndex);
+          final topProb = filteredMarketProbs.removeAt(leaderIndex);
+          final topIndex = originalIndices.removeAt(leaderIndex);
+          filteredOptions.insert(0, topOption);
+          filteredMarketProbs.insert(0, topProb);
+          originalIndices.insert(0, topIndex);
+        }
+      }
+
+      print("Fetching fresh AI for: ${widget.title}");
+      print("Options: $filteredOptions");
+      print("Market probs: $filteredMarketProbs");
+
+      // Fetch fresh AI data from API
+      final aiData = await controller.fetchAIValue(
+        eventName: widget.title,
+        options: filteredOptions,
+        marketPredictions: filteredMarketProbs,
+        baseEvent: {
+          'title': widget.title,
+          'optionTitles': widget.optionTitles ?? [],
+          'marketProbs': widget.marketProbs ?? [],
+          'team': widget.team,
+        },
+        originalIndices: originalIndices,
+      );
+
+      print("Fresh AI received:");
+      print("AI Percentage: ${aiData['aiPercentage']}");
+      print("AI Explanation: ${aiData['aiExplanation']}");
+      print("AI Percentages: ${aiData['aiPercentages']}");
+
+      // Store fresh AI data
+      setState(() {
+        _freshAiExplanation = aiData['aiExplanation'] as String?;
+        _freshAiPercentage = aiData['aiPercentage'] as String?;
+        final rawPercentages = aiData['aiPercentages'];
+        if (rawPercentages != null && rawPercentages is List) {
+          _freshAiPercentages = List<double>.from(rawPercentages);
+        }
+        _isAiLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching fresh AI data: $e");
+      setState(() {
+        _isAiLoading = false;
+      });
+    } finally {
+      _isFetchingAI = false;
+    }
+  }
+
+  Future<void> _toggleSaveEvent() async {
+    if (_isSaving) return;
+
+    // Check if we have an event ID to save
+    if (widget.eventId == null && widget.eventIdString == null) {
+      Get.snackbar(
+        'Error',
+        'Event ID not available',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.9),
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final controller = Get.find<HomeController>();
+    
+    // Save event
+    bool success = false;
+    if (widget.eventId != null) {
+      success = await controller.saveEvent(
+        eventId: widget.eventId!,
+        marketPlace: widget.isPolymarket ? 'Polymarket' : 'Kalshi',
+      );
+    } else if (widget.eventIdString != null) {
+      success = await controller.saveEvent(
+        eventIdString: widget.eventIdString!,
+        marketPlace: widget.isPolymarket ? 'Polymarket' : 'Kalshi',
+      );
+    }
+
+    if (success && mounted) {
+      setState(() {
+        _isSaved = !_isSaved;
+      });
+      
+      // Refresh saved events list in Saved screen
+      await controller.fetchSavedEvents();
+      
+      Get.snackbar(
+        _isSaved ? 'Saved' : 'Removed',
+        _isSaved ? 'Event saved to your list' : 'Event removed from saved list',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: _isSaved ? AppColors.primary.withOpacity(0.9) : Colors.red.withOpacity(0.9),
+        colorText: Colors.white,
+      );
+    } else if (mounted) {
+      Get.snackbar(
+        'Error',
+        'Failed to save event',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.9),
+        colorText: Colors.white,
+      );
+    }
+
+    setState(() {
+      _isSaving = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<HomeController>();
+    // Use fresh AI data if available, otherwise use widget data
+    final aiExplanation = _freshAiExplanation ?? widget.aiExplanation ?? '';
+    final aiPercentage = _freshAiPercentage ?? widget.aiPercentage ?? 'N/A';
+    final aiPercentages = _freshAiPercentages ?? widget.aiPercentages ?? [];
 
-    return GetBuilder<HomeController>(
-      builder: (ctrl) {
-        // Find the current event - check saved events first, then home events
-        Map<String, dynamic>? currentEvent;
-
-        final savedEventIndex = ctrl.savedPolymarketEvents.indexWhere(
-          (event) => event['title'] == widget.title,
-        );
-
-        final homeEventIndex = ctrl.allEvents.indexWhere(
-          (event) => event['title'] == widget.title,
-        );
-
-        if (savedEventIndex != -1) {
-          currentEvent = ctrl.savedPolymarketEvents[savedEventIndex];
-        } else if (homeEventIndex != -1) {
-          currentEvent = ctrl.allEvents[homeEventIndex];
-        } else {
-          currentEvent = {
-            'title': widget.title,
-            'aiPercentage': widget.aiPercentage,
-            'aiExplanation': widget.aiExplanation ?? '',
-            'aiPercentages': widget.aiPercentages ?? [],
-          };
-        }
-
-        final updatedAiExplanation = currentEvent['aiExplanation'] as String?;
-        final rawAiPercentages = currentEvent['aiPercentages'];
-
-        List<double>? updatedAiPercentages;
-        if (rawAiPercentages != null) {
-          if (rawAiPercentages is List<double>) {
-            updatedAiPercentages = rawAiPercentages;
-          } else if (rawAiPercentages is List<dynamic>) {
-            updatedAiPercentages = rawAiPercentages.cast<double>();
-          } else {
-            updatedAiPercentages = List<double>.from(rawAiPercentages);
-          }
-        }
-
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: CustomAppbar2(
-            title: '',
-            onBackPressed: () => Get.back(),
-          ),
-          body: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
-              child: Column(
-                children: [
-                  SizedBox(height: 20.h),
-                  _buildMiniCard(),
-                  SizedBox(height: 30.h),
-                  _buildGradientInfoCard(updatedAiExplanation),
-                  SizedBox(height: 30.h),
-                  _buildOptionsSection(updatedAiPercentages),
-                  SizedBox(height: 30.h),
-                  CustomButton(
-                    text: 'View on platform',
-                    onPressed: _viewOnPlatform,
-                    backgroundColor: AppColors.primary,
-                    borderRadius: 15.r,
-                  ),
-                  SizedBox(height: 70.h),
-                ],
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: CustomAppbar2(
+        title: '',
+        onBackPressed: () => Get.back(),
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20.w),
+          child: Column(
+            children: [
+              SizedBox(height: 20.h),
+              _buildMiniCard(isAiLoading: _isAiLoading),
+              SizedBox(height: 30.h),
+              _buildGradientInfoCard(aiExplanation),
+              SizedBox(height: 30.h),
+              _buildOptionsSection(aiPercentages, isAiLoading: _isAiLoading),
+              SizedBox(height: 30.h),
+              CustomButton(
+                text: 'View on platform',
+                onPressed: _viewOnPlatform,
+                backgroundColor: AppColors.primary,
+                borderRadius: 15.r,
               ),
-            ),
+              SizedBox(height: 70.h),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildMiniCard() {
+  Widget _buildMiniCard({required bool isAiLoading}) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.w),
@@ -166,20 +289,30 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    Text(
-                      widget.subtitle,
-                      style: AppTextStyles.bodyLarge.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
                   ],
                 ),
               ),
-              Image.asset(
-                'assets/icons/bookmark.png',
-                width: 20.w,
-                height: 20.h,
-                fit: BoxFit.contain,
+              GestureDetector(
+                onTap: _toggleSaveEvent,
+                child: _isSaving
+                    ? SizedBox(
+                        width: 20.w,
+                        height: 20.h,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
+                        ),
+                      )
+                    : Image.asset(
+                        _isSaved
+                            ? 'assets/icons/bookmark_active.png'
+                            : 'assets/icons/bookmark.png',
+                        width: 20.w,
+                        height: 20.h,
+                        fit: BoxFit.contain,
+                      ),
               ),
             ],
           ),
@@ -205,14 +338,27 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                 ),
               ),
               SizedBox(width: 12.w),
-              Text(
-                widget.date,
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 12.sp,
-                  color: const Color(0xff848484),
-                ),
-              ),
+              isAiLoading
+                  ? Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Container(
+                        width: 100.w,
+                        height: 16.h,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4.r),
+                        ),
+                      ),
+                    )
+                  : Text(
+                      widget.date,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        fontWeight: FontWeight.w400,
+                        fontSize: 12.sp,
+                        color: const Color(0xff848484),
+                      ),
+                    ),
             ],
           ),
         ],
@@ -274,9 +420,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
   }
 
   Widget _buildDescriptionText(String? updatedAiExplanation) {
-    bool isAiExplanationLoading = (updatedAiExplanation?.isEmpty ?? true);
-
-    if (isAiExplanationLoading) {
+    if (_isAiLoading) {
       return Shimmer.fromColors(
         baseColor: Colors.grey[300]!,
         highlightColor: Colors.grey[100]!,
@@ -332,7 +476,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
     );
   }
 
-  Widget _buildOptionsSection(List<double>? updatedAiPercentages) {
+  Widget _buildOptionsSection(List<double>? updatedAiPercentages, {required bool isAiLoading}) {
     final titles = widget.optionTitles ?? [];
     final probs = widget.marketProbs ?? [];
     final aiPercents = updatedAiPercentages ?? widget.aiPercentages ?? [];
@@ -371,7 +515,6 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
         Column(
           children: displayOptions.asMap().entries.map((entry) {
             Map<String, dynamic> option = entry.value;
-            bool isOptionAiLoading = (updatedAiPercentages?.isEmpty ?? true);
 
             return Padding(
               padding: EdgeInsets.only(bottom: 12.h),
@@ -379,7 +522,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                 title: option['title'],
                 marketPercentage: option['marketPercentage'],
                 aiPercentage: option['aiPercentage'],
-                isAiLoading: isOptionAiLoading,
+                isAiLoading: isAiLoading,
               ),
             );
           }).toList(),

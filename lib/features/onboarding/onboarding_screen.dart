@@ -256,9 +256,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:murchin/const/service/shared_preference_helper.dart';
-import 'package:murchin/features/navbar/navbar_screen.dart';
 import 'package:murchin/features/auth/signin_screen.dart';
+import 'package:murchin/features/market/navbar/market_navbar_screen.dart';
 import 'package:murchin/features/onboarding/onboarding_controller.dart';
+import 'package:murchin/features/sports/navbar/sports_navbar_screen.dart';
+import 'package:murchin/features/selection/selection_screen.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 
 class LandingPage extends StatefulWidget {
@@ -288,7 +290,25 @@ class _LandingPageState extends State<LandingPage> {
 
     if (token != null && token.isNotEmpty) {
       print("✅ Token Found → Navigate To Home");
-      Get.offAll(() => CustomNavbar());
+      // Check last visited section first
+      String? lastSection = await SharedPreferencesHelper.getLastVisitedSection();
+      
+      if (lastSection == 'sports') {
+        Get.offAll(() => SportsNavbarScreen());
+      } else if (lastSection == 'market') {
+        Get.offAll(() => MarketNavbarScreen());
+      } else {
+        // Fallback to sportsbook_mode preference for backward compatibility
+        bool? isSportsbook = await SharedPreferencesHelper.getSportsbookMode();
+        if (isSportsbook == true) {
+          Get.offAll(() => SportsNavbarScreen());
+        } else if (isSportsbook == false) {
+          Get.offAll(() => MarketNavbarScreen());
+        } else {
+          // Default to SelectionScreen if no preference saved
+          Get.offAll(() => const SelectionScreen());
+        }
+      }
     } else {
       print("❌ No Token → Navigate To Sign In");
       Get.offAll(() => SignInPage());
@@ -299,27 +319,30 @@ class _LandingPageState extends State<LandingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Container(
-        padding: EdgeInsets.only(bottom: 60.h),
+      body: SafeArea(
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(
-                'assets/images/logo.png',
-                width: 370.w,
-                height: 300.h,
-                fit: BoxFit.contain,
+              const Spacer(),
+              Center(
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 280.w,
+                  height: 220.h,
+                  fit: BoxFit.contain,
+                ),
               ),
-              Transform.translate(
-                offset: Offset(0, -50.h),
+              const Spacer(),
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6.w),
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 60.h),
                   child: Text(
-                    'Smarter Investments through Artificial Intelligence',
+                    'Smarter Investments through\nArtificial Intelligence',
                     style: AppTextStyles.headlineSmall.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16.sp,
+                      color: const Color(0xFF254577),
                     ),
                     textAlign: TextAlign.center,
                   ),

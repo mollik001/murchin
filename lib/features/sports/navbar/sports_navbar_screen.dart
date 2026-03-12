@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/features/market/events/screens/event_screen.dart';
-import 'package:murchin/features/market/home/screens/home_screen.dart';
+import 'package:murchin/features/sports/home/screens/sports_home_screen.dart';
+import 'package:murchin/features/sports/events/screens/sports_events_screen.dart';
 import 'package:murchin/features/navbar/navbar_controller.dart';
 import 'package:murchin/features/profile/screens/profile_screen.dart';
-import 'package:murchin/features/market/saved/screens/saved_screens.dart';
+import 'package:murchin/features/sports/saved/screens/sports_saved_screen.dart';
 
-class CustomNavbar extends StatelessWidget {
-  CustomNavbar({super.key});
+class SportsNavbarScreen extends StatelessWidget {
+  SportsNavbarScreen({super.key});
 
   final List<Widget> pages = [
-    const HomeScreen(),
-    const EventScreen(),
-    const SavedScreen(),
+    const SportsHomeScreen(),
+    const SportsEventsScreen(),
+    const SportsSavedScreen(),
     const ProfileScreen(),
   ];
 
@@ -57,7 +57,7 @@ class CustomNavbar extends StatelessWidget {
         ],
       ),
       child: SafeArea(
-        top: false, // 👈 only care about bottom
+        top: false,
         child: SizedBox(
           height: 72.h,
           child: Row(

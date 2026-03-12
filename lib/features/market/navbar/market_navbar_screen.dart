@@ -8,8 +8,8 @@ import 'package:murchin/features/navbar/navbar_controller.dart';
 import 'package:murchin/features/profile/screens/profile_screen.dart';
 import 'package:murchin/features/market/saved/screens/saved_screens.dart';
 
-class CustomNavbar extends StatelessWidget {
-  CustomNavbar({super.key});
+class MarketNavbarScreen extends StatelessWidget {
+  MarketNavbarScreen({super.key});
 
   final List<Widget> pages = [
     const HomeScreen(),
@@ -57,7 +57,7 @@ class CustomNavbar extends StatelessWidget {
         ],
       ),
       child: SafeArea(
-        top: false, // 👈 only care about bottom
+        top: false,
         child: SizedBox(
           height: 72.h,
           child: Row(

@@ -5,7 +5,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:murchin/const/service/endpoint.dart';
 import 'package:murchin/const/service/shared_preference_helper.dart';
-import 'package:murchin/features/navbar/navbar_screen.dart';
+import 'package:murchin/features/market/navbar/market_navbar_screen.dart';
+import 'package:murchin/features/selection/selection_screen.dart';
+import 'package:murchin/features/sports/navbar/sports_navbar_screen.dart';
 
 class AuthController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -76,7 +78,8 @@ class AuthController extends GetxController {
 
         loginSuccess.value = true;
 
-        Get.offAll(() => CustomNavbar());
+        // Always show selection screen on new login (after sign out/sign in)
+        Get.offAll(() => const SelectionScreen());
 
         print("✅ Login + Save Success");
       } else {

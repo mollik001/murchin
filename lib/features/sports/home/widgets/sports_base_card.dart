@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/features/home/screens/comparison_card.dart';
+import 'package:murchin/features/sports/home/widgets/sports_comparison_tab.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 
-class BaseCard extends StatefulWidget {
+class SportsBaseCard extends StatefulWidget {
   final String title;
   final String subtitle;
   final String date;
@@ -20,7 +20,7 @@ class BaseCard extends StatefulWidget {
   final bool initiallySaved;
   final VoidCallback? onSaved;
 
-  const BaseCard({
+  const SportsBaseCard({
     super.key,
     required this.title,
     required this.subtitle,
@@ -37,10 +37,10 @@ class BaseCard extends StatefulWidget {
   });
 
   @override
-  State<BaseCard> createState() => _BaseCardState();
+  State<SportsBaseCard> createState() => _SportsBaseCardState();
 }
 
-class _BaseCardState extends State<BaseCard> {
+class _SportsBaseCardState extends State<SportsBaseCard> {
   late bool isSaved;
 
   @override
@@ -51,8 +51,6 @@ class _BaseCardState extends State<BaseCard> {
 
   void _toggleSaved() {
     setState(() => isSaved = !isSaved);
-
-    // Call the callback if provided
     widget.onSaved?.call();
 
     if (isSaved) {
@@ -94,9 +92,15 @@ class _BaseCardState extends State<BaseCard> {
                     Text(widget.title,
                         style: AppTextStyles.bodyLarge
                             ?.copyWith(fontWeight: FontWeight.w700)),
-                    Text(widget.subtitle,
-                        style: AppTextStyles.bodyLarge
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    if (widget.subtitle.isNotEmpty) ...[
+                      SizedBox(height: 4.h),
+                      Text(widget.subtitle,
+                          style: AppTextStyles.bodyMedium?.copyWith(
+                            color: const Color(0xff848484),
+                            fontWeight: FontWeight.w400,
+                            fontSize: 14.sp,
+                          )),
+                    ],
                   ],
                 ),
               ),
@@ -130,11 +134,15 @@ class _BaseCardState extends State<BaseCard> {
                         color: Colors.white, fontWeight: FontWeight.w600)),
               ),
               SizedBox(width: 12.w),
-              Text(widget.date,
-                  style: AppTextStyles.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w400,
-                      fontSize: 12.sp,
-                      color: const Color(0xff848484))),
+              Expanded(
+                child: Text(widget.date,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w400,
+                        fontSize: 12.sp,
+                        color: const Color(0xff848484))),
+              ),
             ],
           ),
           SizedBox(height: 20.h),
@@ -152,8 +160,8 @@ class _BaseCardState extends State<BaseCard> {
                               borderRadius: BorderRadius.circular(8.r)),
                         ),
                       )
-                    : ComparisonTab(
-                        title: 'The Market',
+                    : SportsComparisonTab(
+                        title: 'Sportsbook',
                         percentage: widget.marketPercentage,
                         team: widget.team,
                         percentageColor: const Color(0xff4588C6),
@@ -189,7 +197,7 @@ class _BaseCardState extends State<BaseCard> {
                               ),
                             ),
                           )
-                        : ComparisonTab(
+                        : SportsComparisonTab(
                             title: 'AI Predicts',
                             percentage: widget.aiPercentage!,
                             team: widget.team,

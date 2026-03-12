@@ -5,13 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:murchin/const/service/shared_preference_helper.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/const/widgets/custom_appbar.dart';
 import 'package:murchin/const/widgets/custom_button.dart';
 import 'package:murchin/features/auth/signin_screen.dart';
+import 'package:murchin/features/market/navbar/market_navbar_screen.dart';
+import 'package:murchin/features/profile/controllers/profile_controller.dart';
 import 'package:murchin/features/profile/screens/terms_screen.dart';
-import 'package:murchin/const/service/shared_preference_helper.dart'; 
+import 'package:murchin/features/selection/selection_screen.dart';
+import 'package:murchin/features/sports/navbar/sports_navbar_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -32,12 +36,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   File? _selectedProfileImage; // Store selected image at class level
   String? _profileImageUrl; // Store profile image URL from SharedPreferences
 
-  //final ProfileController _profileController = Get.find<ProfileController>();
+  // Toggle between Sportsbook and Market
+  bool _isSportsbookMode = true;
+
+  final ProfileController _profileController = Get.put(ProfileController());
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadModePreference();
+  }
+
+  Future<void> _loadModePreference() async {
+    bool? isSportsbook = await SharedPreferencesHelper.getSportsbookMode();
+    setState(() {
+      _isSportsbookMode = isSportsbook ?? true;
+    });
+  }
+
+  Future<void> _toggleMode(bool value) async {
+    setState(() {
+      _isSportsbookMode = value;
+    });
+    await SharedPreferencesHelper.saveSportsbookMode(value);
+    
+    // Also save last visited section
+    await SharedPreferencesHelper.saveLastVisitedSection(value ? 'sports' : 'market');
+
+    // Navigate to the other screen based on mode
+    if (value) {
+      Get.offAll(() => SportsNavbarScreen());
+    } else {
+      Get.offAll(() => MarketNavbarScreen());
+    }
   }
 
   // Load user data from SharedPreferences
@@ -806,9 +838,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: GestureDetector(
                         onTap: () async {
                           // Handle logout logic here
-                        //  await _profileController.logout();
+                          await _profileController.logout();
                           Navigator.of(context).pop();
-                          Get.offAll(() =>  SignInPage());
+                          Get.offAll(() => SignInPage());
                           Get.snackbar(
                             'Logged out',
                             'You have been successfully logged out',
@@ -963,6 +995,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Icon(
                           Icons.more_horiz,
                           size: 24.w,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              SizedBox(height: 24.h),
+              
+              // Mode Toggle (Sportsbook vs Market)
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(
+                    color: AppColors.gray300 ?? const Color(0xFFE6E6E6),
+                    width: 1.w,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Sportsbook Label
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _toggleMode(true),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(vertical: 10.h),
+                          decoration: BoxDecoration(
+                            color: _isSportsbookMode ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Sportsbook',
+                              style: AppTextStyles.bodyMedium?.copyWith(
+                                color: _isSportsbookMode ? Colors.white : AppColors.gray600,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Market Label
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _toggleMode(false),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(vertical: 10.h),
+                          decoration: BoxDecoration(
+                            color: !_isSportsbookMode ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Market',
+                              style: AppTextStyles.bodyMedium?.copyWith(
+                                color: !_isSportsbookMode ? Colors.white : AppColors.gray600,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),

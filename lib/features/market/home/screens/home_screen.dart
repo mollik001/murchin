@@ -1,12 +1,12 @@
-// lib/features/home/screens/home_screen.dart
+// lib/features/market/home/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/widgets/custom_appbar.dart';
-import 'package:murchin/features/home/controllers/home_controller.dart';
-import 'package:murchin/features/home/widgets/polymarket_card.dart';
-import 'package:murchin/features/home/widgets/kalshi_card.dart';
+import 'package:murchin/features/market/home/controllers/home_controller.dart';
+import 'package:murchin/features/market/home/widgets/polymarket_card.dart';
+import 'package:murchin/features/market/home/widgets/kalshi_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,24 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-
-    scrollController.addListener(() {
-      if (scrollController.position.pixels >=
-              scrollController.position.maxScrollExtent - 200 &&
-          controller.nextPageUrl != null &&
-          !controller.isLoading.value) {
-        controller.loadNextPage();
-      }
-    });
-
-    kalshiScrollController.addListener(() {
-      if (kalshiScrollController.position.pixels >=
-              kalshiScrollController.position.maxScrollExtent - 200 &&
-          controller.kalshiNextPageUrl != null &&
-          !controller.isLoading.value) {
-        controller.loadKalshiNextPage();
-      }
-    });
+    // No manual pagination - auto-loads 2 pages (10 events total)
   }
 
   @override
@@ -137,9 +120,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 return ListView.builder(
                   controller: scrollController,
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  itemCount: controller.events.length + 1,
+                  itemCount: controller.events.length + (controller.isPageLoading.value ? 1 : 0),
                   itemBuilder: (context, index) {
-                    // In ListView.builder for Polymarket tab
                     if (index < controller.events.length) {
                       final e = controller.events[index];
                       final eventId = e['event_id'] as int?;
@@ -163,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ));
                     } else {
-                      // pagination spinner only
+                      // Loading spinner for auto-pagination
                       return controller.isPageLoading.value
                           ? const Padding(
                               padding: EdgeInsets.all(16),
@@ -183,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 return ListView.builder(
                   controller: kalshiScrollController,
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  itemCount: controller.kalshiEvents.length + 1,
+                  itemCount: controller.kalshiEvents.length + (controller.isPageLoading.value ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index < controller.kalshiEvents.length) {
                       final e = controller.kalshiEvents[index];
@@ -208,6 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     } else {
+                      // Loading spinner for auto-pagination
                       return controller.isPageLoading.value
                           ? const Padding(
                               padding: EdgeInsets.all(16),

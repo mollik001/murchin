@@ -1,9 +1,9 @@
-// lib/features/home/widgets/kalshi_card.dart
+// lib/features/market/home/widgets/kalshi_card.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:murchin/features/home/controllers/home_controller.dart';
-import 'package:murchin/features/home/screens/card_details_screen.dart';
-import 'package:murchin/features/home/widgets/custom_card.dart';
+import 'package:murchin/features/market/home/controllers/home_controller.dart';
+import 'package:murchin/features/market/home/screens/card_details_screen.dart';
+import 'package:murchin/features/market/home/widgets/custom_card.dart';
 
 class KalshiCard extends StatelessWidget {
   final String? eventId;
@@ -139,6 +139,7 @@ class KalshiCard extends StatelessWidget {
                 team: team,
                 isPolymarket: false,
                 bgColor: bgColor,
+                eventIdString: eventId,
                 optionTitles: _getOptionTitles(),
                 marketProbs: _getMarketProbs(),
                 aiPercentages: _getAiPercentages(),

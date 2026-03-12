@@ -40,12 +40,12 @@ class HomeController extends GetxController {
 
   bool sendMarketPrediction = true;
 
-  final String aiUrl = "https://abc.dsrt321.online/predict";
+  final String aiUrl = "https://abc.dsrt321.online/api/v1/prediction/predict";
 
   static const String _cacheKey = 'cached_ai_values';
   static const String _cacheTimestampKey = 'cached_ai_values_timestamp';
   static const Duration _cacheDuration = Duration(hours: 12);
-  static const int _maxCachedEvents = 100;
+  static const int _maxCachedEvents = 10;
 
   static const String _kalshiCacheKey = 'cached_kalshi_ai_values';
   static const String _kalshiCacheTimestampKey = 'cached_kalshi_ai_timestamp';
@@ -55,7 +55,12 @@ class HomeController extends GetxController {
 
   final Set<int> _cachedEventIndexes = <int>{};
 
-  static const String _pageCachePrefix = 'cached_page_';
+  static const int _maxEventsPerSection = 10;
+  static const int _eventsPerPage = 5;
+  static const int _maxPagesToLoad = 10; // Load up to 10 pages to get 10 valid events
+
+  int _polymarketPagesLoaded = 0;
+  int _kalshiPagesLoaded = 0;
 
   Timer? _debounceTimer;
   final TextEditingController searchController = TextEditingController();
@@ -64,9 +69,8 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
 
+    // Load cached events immediately for both platforms
     loadCachedEvents();
-    
-    // Load cached Kalshi events immediately
     loadCachedKalshiEvents();
 
     // Fetch saved events to populate saved event IDs
@@ -82,14 +86,16 @@ class HomeController extends GetxController {
           await fetchPolymarketEvents();
         }
       });
-      
-      // Load Kalshi with AI cache check
+
+      // Load Kalshi with AI cache check - show cached data first
       loadCachedKalshiEventsData().then((hasValidCache) async {
         if (hasValidCache) {
-          // Has valid AI cache, just fetch fresh events in background
+          print("Kalshi has valid cache, fetching in background");
+          // Has valid AI cache, fetch fresh events in background (AI will be merged inside fetchKalshiEvents)
           await fetchKalshiEvents(backgroundOnly: true);
         } else {
-          // No valid cache, fetch fresh events
+          print("Kalshi no valid cache, fetching fresh");
+          // No valid AI cache, fetch fresh events and AI data
           await fetchKalshiEvents();
         }
       });
@@ -108,7 +114,7 @@ class HomeController extends GetxController {
     try {
       // Check if event is in saved Polymarket events first
       final savedIdx = _savedPolymarketEvents.indexWhere((e) => e['title'] == title);
-      
+
       if (savedIdx != -1) {
         final e = _savedPolymarketEvents[savedIdx];
 
@@ -126,6 +132,11 @@ class HomeController extends GetxController {
           baseEvent: e,
           originalIndices: filtered['originalIndices'],
         );
+
+        // Skip if AI data is null or empty (API failed)
+        if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
+          return;
+        }
 
         List<Map<String, dynamic>> newList = List.from(_savedPolymarketEvents);
         newList[savedIdx] = aiData;
@@ -161,6 +172,11 @@ class HomeController extends GetxController {
           originalIndices: filtered['originalIndices'],
         );
 
+        // Skip if AI data is null or empty (API failed)
+        if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
+          return;
+        }
+
         List<Map<String, dynamic>> newResults = List.from(_searchResults);
         newResults[idx] = aiData;
         _searchResults.assignAll(newResults);
@@ -188,6 +204,11 @@ class HomeController extends GetxController {
           baseEvent: e,
           originalIndices: filtered['originalIndices'],
         );
+
+        // Skip if AI data is null or empty (API failed)
+        if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
+          return;
+        }
 
         List<Map<String, dynamic>> newEvents = List.from(_events);
         newEvents[idx] = aiData;
@@ -271,14 +292,16 @@ class HomeController extends GetxController {
   Future<void> fetchPolymarketEvents({
     String? url,
     bool backgroundOnly = false,
+    bool isAutoLoad = false,
   }) async {
     final requestUrl =
         url ?? '${Urls.baseUrl}/api/trade/polymarket-event-list/';
 
     try {
-      if (url == null && !backgroundOnly) {
+      if (url == null && !backgroundOnly && !isAutoLoad) {
         isLoading.value = true;
-      } else if (!backgroundOnly) {
+        _polymarketPagesLoaded = 0; // Reset page counter
+      } else if (!backgroundOnly && !isAutoLoad) {
         isPageLoading.value = true;
       }
 
@@ -369,10 +392,38 @@ class HomeController extends GetxController {
           _events.assignAll(tempEvents);
         }
 
-        nextPageUrl = data['next'];
-
+        // Store next page URL but auto-load second page if needed
         if (url == null) {
+          nextPageUrl = data['next'];
+          _polymarketPagesLoaded = 1;
           cacheEvents(events);
+
+          // Auto-load more pages if we have less than 10 events and next page exists
+          if (_events.length < _maxEventsPerSection && nextPageUrl != null) {
+            await fetchPolymarketEvents(url: nextPageUrl, isAutoLoad: true);
+          } else {
+            // Limit to 10 events after loading
+            if (_events.length > _maxEventsPerSection) {
+              _events.assignAll(_events.take(_maxEventsPerSection).toList());
+            }
+            nextPageUrl = null; // No more pagination
+          }
+        } else if (isAutoLoad) {
+          // Auto-loading additional pages
+          _polymarketPagesLoaded++;
+          cacheEvents(events);
+
+          // Continue loading if still need more events and have more pages
+          if (_events.length < _maxEventsPerSection && data['next'] != null && _polymarketPagesLoaded < _maxPagesToLoad) {
+            nextPageUrl = data['next'];
+            await fetchPolymarketEvents(url: nextPageUrl, isAutoLoad: true);
+          } else {
+            // Reached 10 events or max pages
+            if (_events.length > _maxEventsPerSection) {
+              _events.assignAll(_events.take(_maxEventsPerSection).toList());
+            }
+            nextPageUrl = null; // No more pagination
+          }
         }
 
         if (await loadCachedAIData()) {
@@ -393,11 +444,26 @@ class HomeController extends GetxController {
             baseEvent: e,
             originalIndices: filtered['originalIndices'],
           ).then((aiData) async {
+            // Skip if AI data is null or empty (API failed or returned invalid data)
+            if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
+              print("Polymarket AI returned null/empty, keeping cached value");
+              return;
+            }
+
             final idx = events.indexWhere(
               (ev) => ev['title'] == aiData['title'],
             );
 
             if (idx != -1 && !_cachedEventIndexes.contains(idx)) {
+              final currentEvent = events[idx];
+              
+              // Skip if current event already has AI data (from cache)
+              if (currentEvent['aiPercentage'] != null && 
+                  currentEvent['aiPercentage'].toString().isNotEmpty) {
+                print("Event already has AI data from cache, skipping update");
+                return;
+              }
+
               List<Map<String, dynamic>> newEvents = List.from(_events);
               newEvents[idx] = aiData;
 
@@ -418,7 +484,7 @@ class HomeController extends GetxController {
     } catch (e) {
       print("Error in fetchPolymarketEvents: $e");
     } finally {
-      if (!backgroundOnly) {
+      if (!backgroundOnly && !isAutoLoad) {
         if (url == null) {
           isLoading.value = false;
         } else {
@@ -433,13 +499,15 @@ class HomeController extends GetxController {
   Future<void> fetchKalshiEvents({
     String? url,
     bool backgroundOnly = false,
+    bool isAutoLoad = false,
   }) async {
     final requestUrl = url ?? Urls.kalshiEventListUrl;
 
     try {
-      if (url == null && !backgroundOnly) {
+      if (url == null && !backgroundOnly && !isAutoLoad) {
         isLoading.value = true;
-      } else if (!backgroundOnly) {
+        _kalshiPagesLoaded = 0; // Reset page counter
+      } else if (!backgroundOnly && !isAutoLoad) {
         isPageLoading.value = true;
       }
 
@@ -548,7 +616,7 @@ class HomeController extends GetxController {
             'probability_no': probabilityNo,
             'title_no': titleNo,
           });
-          
+
           print("Kalshi event added: ${event['title']} | Market: $marketPercentage | Team: $highestTeam | Options: $optionTitles");
         }
 
@@ -560,18 +628,58 @@ class HomeController extends GetxController {
           _kalshiEvents.assignAll(tempEvents);
         }
 
-        kalshiNextPageUrl = data['next'];
-
+        // Store next page URL but auto-load more pages if needed
         if (url == null) {
+          kalshiNextPageUrl = data['next'];
+          _kalshiPagesLoaded = 1;
           cacheKalshiEvents(_kalshiEvents);
+          
+          // Auto-load more pages if we have less than 10 events and next page exists
+          if (_kalshiEvents.length < _maxEventsPerSection && kalshiNextPageUrl != null) {
+            await fetchKalshiEvents(url: kalshiNextPageUrl, isAutoLoad: true);
+          } else {
+            // Limit to 10 events after loading
+            if (_kalshiEvents.length > _maxEventsPerSection) {
+              _kalshiEvents.assignAll(_kalshiEvents.take(_maxEventsPerSection).toList());
+            }
+            kalshiNextPageUrl = null; // No more pagination
+          }
+        } else if (isAutoLoad) {
+          // Auto-loading additional pages
+          _kalshiPagesLoaded++;
+          cacheKalshiEvents(_kalshiEvents);
+          
+          // Continue loading if still need more events and have more pages
+          if (_kalshiEvents.length < _maxEventsPerSection && data['next'] != null && _kalshiPagesLoaded < _maxPagesToLoad) {
+            kalshiNextPageUrl = data['next'];
+            await fetchKalshiEvents(url: kalshiNextPageUrl, isAutoLoad: true);
+          } else {
+            // Reached 10 events or max pages
+            if (_kalshiEvents.length > _maxEventsPerSection) {
+              _kalshiEvents.assignAll(_kalshiEvents.take(_maxEventsPerSection).toList());
+            }
+            kalshiNextPageUrl = null; // No more pagination
+          }
         }
 
-        // Load cached AI values and merge them with fresh events
-        await _loadKalshiCachedAIValues();
+        // Load cached AI values only if cache is valid (same as Polymarket)
+        if (await loadCachedKalshiEventsData()) {
+          await _loadKalshiCachedAIValues();
+        }
 
-        // Fetch AI predictions for Kalshi events
-        for (int i = 0; i < tempEvents.length; i++) {
-          final e = tempEvents[i];
+        // Count how many events need AI fetch
+        int needAiFetch = _kalshiEvents.where((e) => e['aiPercentage'] == null || e['aiPercentage'].toString().isEmpty).length;
+        print("Kalshi events total: ${_kalshiEvents.length}, need AI fetch: $needAiFetch");
+
+        // Fetch AI predictions for Kalshi events (only for events without AI data)
+        int aiFetchCount = 0;
+        for (int i = 0; i < _kalshiEvents.length; i++) {
+          final e = _kalshiEvents[i];
+
+          // Skip if AI data already exists
+          if (e['aiPercentage'] != null && e['aiPercentage'].toString().isNotEmpty) {
+            continue;
+          }
 
           final filtered = _buildFilteredOptions(e);
 
@@ -587,16 +695,26 @@ class HomeController extends GetxController {
           ).then((aiData) async {
             print("Kalshi AI received for: ${aiData['title']}");
             print("Kalshi AI percentage: ${aiData['aiPercentage']}");
-            
+
+            // Skip if AI data is null or empty (API failed or returned invalid data)
+            if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
+              print("Kalshi AI returned null/empty, keeping cached value");
+              return;
+            }
+
             final idx = _kalshiEvents.indexWhere(
               (ev) => ev['event_id'] == aiData['event_id'],
             );
 
             if (idx != -1) {
-              // Check if AI data is different from current
+              // Only update if we got valid AI data
               final currentEvent = _kalshiEvents[idx];
-              if (currentEvent['aiPercentage'] == aiData['aiPercentage']) {
-                return; // Already has this AI data
+              
+              // Skip if current event already has AI data (from cache)
+              if (currentEvent['aiPercentage'] != null && 
+                  currentEvent['aiPercentage'].toString().isNotEmpty) {
+                print("Event already has AI data from cache, skipping update");
+                return;
               }
 
               List<Map<String, dynamic>> newEvents = List.from(_kalshiEvents);
@@ -606,9 +724,14 @@ class HomeController extends GetxController {
               update();
 
               print("Kalshi AI updated at index $idx");
-              
-              // Save AI data to cache
-              await saveKalshiAIDataToCache();
+
+              aiFetchCount++;
+
+              // Save AI data to cache after fetching
+              if (aiFetchCount <= _maxCachedEvents) {
+                await saveKalshiAIDataToCache();
+                await cacheKalshiEvents(_kalshiEvents);
+              }
             } else {
               print("Kalshi AI update failed - event not found: ${aiData['event_id']}");
             }
@@ -618,7 +741,7 @@ class HomeController extends GetxController {
     } catch (e) {
       print("Error in fetchKalshiEvents: $e");
     } finally {
-      if (!backgroundOnly) {
+      if (!backgroundOnly && !isAutoLoad) {
         if (url == null) {
           isLoading.value = false;
         } else {
@@ -671,6 +794,12 @@ class HomeController extends GetxController {
 
       _kalshiEvents.assignAll(eventsWithDefaults);
       print("Loaded ${_kalshiEvents.length} cached Kalshi events");
+      
+      // Debug: Check how many events have AI data
+      int withAi = _kalshiEvents.where((e) => e['aiPercentage'] != null && e['aiPercentage'].toString().isNotEmpty).length;
+      print("Cached Kalshi events with AI data: $withAi / ${_kalshiEvents.length}");
+    } else {
+      print("No cached Kalshi events found");
     }
   }
 
@@ -682,7 +811,8 @@ class HomeController extends GetxController {
       if (cachedAIDataJson != null) {
         final cachedAIData = jsonDecode(cachedAIDataJson) as List<dynamic>;
 
-        // Merge cached AI values into current events list
+        // Merge cached AI values into current events by index (same as Polymarket)
+        int mergedCount = 0;
         for (int i = 0; i < _kalshiEvents.length && i < cachedAIData.length && i < _maxCachedEvents; i++) {
           final cachedEvent = cachedAIData[i] as Map<String, dynamic>;
 
@@ -691,10 +821,11 @@ class HomeController extends GetxController {
             'aiPercentage': cachedEvent['aiPercentage'],
             'aiExplanation': '', // Don't load cached explanation
           };
+          mergedCount++;
         }
-        
+
         update();
-        print("Loaded cached Kalshi AI values for ${cachedAIData.length} events");
+        print("Loaded cached Kalshi AI values for $mergedCount events");
       }
     } catch (e) {
       print("Error loading Kalshi cached AI values: $e");
@@ -725,14 +856,6 @@ class HomeController extends GetxController {
       );
     } catch (e) {
       print("Error saving Kalshi AI data to cache: $e");
-    }
-  }
-
-  // ================= KALSHI PAGINATION =================
-
-  Future<void> loadKalshiNextPage() async {
-    if (kalshiNextPageUrl != null && !isPageLoading.value) {
-      await fetchKalshiEvents(url: kalshiNextPageUrl);
     }
   }
 
@@ -818,14 +941,6 @@ class HomeController extends GetxController {
     } catch (e) {
       print("AI Error: $e");
       return baseEvent;
-    }
-  }
-
-  // ================= PAGINATION =================
-
-  Future<void> loadNextPage() async {
-    if (nextPageUrl != null && !isPageLoading.value) {
-      await fetchPolymarketEvents(url: nextPageUrl);
     }
   }
 
@@ -941,6 +1056,11 @@ class HomeController extends GetxController {
             baseEvent: e,
             originalIndices: filtered['originalIndices'],
           ).then((aiData) {
+            // Skip if AI data is null or empty (API failed)
+            if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
+              return;
+            }
+
             final idx = _searchResults.indexWhere(
               (ev) => ev['title'] == aiData['title'],
             );
@@ -981,15 +1101,19 @@ class HomeController extends GetxController {
   // ================= SAVE EVENT =================
 
   final RxSet<int> _savedEventIds = <int>{}.obs;
+  final RxSet<String> _savedKalshiEventIds = <String>{}.obs;
 
   bool isEventSaved(int eventId) => _savedEventIds.contains(eventId);
+  bool isKalshiEventSaved(String eventId) => _savedKalshiEventIds.contains(eventId);
 
   void addSavedEventId(int eventId) => _savedEventIds.add(eventId);
-
   void removeSavedEventId(int eventId) => _savedEventIds.remove(eventId);
+  void addSavedKalshiEventId(String eventId) => _savedKalshiEventIds.add(eventId);
+  void removeSavedKalshiEventId(String eventId) => _savedKalshiEventIds.remove(eventId);
 
   Future<bool> saveEvent({
-    required int eventId,
+    int? eventId,
+    String? eventIdString,
     required String marketPlace,
   }) async {
     try {
@@ -1001,6 +1125,12 @@ class HomeController extends GetxController {
       final token = await SharedPreferencesHelper.getAccessToken();
       print("Token: ${token?.substring(0, 20)}...");
 
+      // Determine which ID to use based on market place
+      final dynamic idToSend = eventId ?? (eventIdString as dynamic);
+      
+      print("Event ID: $idToSend (${eventId != null ? 'int' : 'String'})");
+      print("Market Place: $marketPlace");
+
       final response = await http.post(
         Uri.parse(url),
         headers: {
@@ -1008,19 +1138,24 @@ class HomeController extends GetxController {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'event_id': eventId,
+          'event_id': idToSend,
           'market_place': marketPlace,
         }),
       );
 
-      print("Request Body: {event_id: $eventId, market_place: $marketPlace}");
+      print("Request Body: {event_id: $idToSend, market_place: $marketPlace}");
       print("Response Status: ${response.statusCode}");
       print("Response Body: ${response.body}");
       print("=====================");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print("Event saved successfully!");
-        addSavedEventId(eventId);
+        // Add to appropriate saved set
+        if (eventId != null) {
+          addSavedEventId(eventId);
+        } else if (eventIdString != null) {
+          addSavedKalshiEventId(eventIdString);
+        }
         return true;
       } else {
         print("Failed to save event: ${response.statusCode}");
@@ -1097,6 +1232,11 @@ class HomeController extends GetxController {
               baseEvent: e,
               originalIndices: filtered['originalIndices'],
             ).then((aiData) {
+              // Skip if AI data is null or empty (API failed)
+              if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
+                return;
+              }
+
               final idx = _savedPolymarketEvents.indexWhere(
                 (ev) => ev['title'] == aiData['title'],
               );

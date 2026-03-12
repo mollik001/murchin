@@ -77,22 +77,22 @@ class ProfileController extends GetxController {
   Future<void> logout() async {
     try {
       isLoading.value = true;
-      
-      // Clear all SharedPreferences data
-     // await SharedPreferencesHelper.clearAll();
-      
+
+      // Clear last visited section
+      await SharedPreferencesHelper.clearLastVisitedSection();
+
       // Sign out from Firebase
       await _auth.signOut();
-      
+
       // Sign out from Google
       await _googleSignIn.signOut();
-      
+
       // Clear observable values
       name.value = '';
       email.value = '';
       photoUrl.value = '';
       profileImage.value = null;
-      
+
       print('✅ User logged out successfully');
     } catch (e) {
       print('❌ Logout error: $e');

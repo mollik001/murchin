@@ -49,7 +49,7 @@ class SelectionScreen extends StatelessWidget {
 
                 /// Subtitle
                 Text(
-                  'Choose a prediction to start with PickFair',
+                  'Choose a Platform to start with PickFair',
                   style: AppTextStyles.authSubtitle?.copyWith(
                     color: const Color(0xff848484),
                     fontSize: 16.sp,

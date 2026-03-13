@@ -157,6 +157,7 @@ class _SavedScreenState extends State<SavedScreen> {
                       team: freshEvent['team'],
                       bgColor: const Color(0xFF607D3B),
                       borderColor: AppColors.notBlue,
+                      slug: freshEvent['slug'] as String?,
                       isSaved: true,
                       eventRef: freshEvent,
                       onSaved: () {
@@ -194,19 +195,32 @@ class _SavedScreenState extends State<SavedScreen> {
             }).toList(),
 
             // Kalshi Events
-            ...controller.savedKalshiEvents.map((e) {
-              return Padding(
-                padding: EdgeInsets.only(bottom: 20.h),
-                child: KalshiCard(
-                  title: e['title'],
-                  subtitle: formatPrettyDate(e['endDate']),
-                  date: formatPrettyDate(e['endDate']),
-                  marketPercentage: e['marketPercentage'],
-                  aiPercentage: e['aiPercentage'] ?? 'N/A',
-                  team: e['team'],
-                  bgColor: const Color(0xFF6678F3),
-                  borderColor: AppColors.blue,
-                ),
+            ...controller.savedKalshiEvents.asMap().entries.map((entry) {
+              int index = entry.key;
+              final e = entry.value;
+              return GetX<HomeController>(
+                builder: (ctrl) {
+                  // Get fresh data from controller's list
+                  final freshEvent = ctrl.savedKalshiEvents[index];
+                  final seriesTicker = freshEvent['series_ticker'] as String?;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 20.h),
+                    child: KalshiCard(
+                      eventId: freshEvent['event_id'] as String?,
+                      title: freshEvent['title'],
+                      subtitle: formatPrettyDate(freshEvent['endDate']),
+                      date: formatPrettyDate(freshEvent['endDate']),
+                      marketPercentage: freshEvent['marketPercentage'],
+                      aiPercentage: freshEvent['aiPercentage'],
+                      team: freshEvent['team'],
+                      bgColor: const Color(0xFF6678F3),
+                      borderColor: AppColors.blue,
+                      seriesTicker: seriesTicker,
+                      eventRef: freshEvent,
+                      isSaved: true,
+                    ),
+                  );
+                },
               );
             }).toList(),
           ],

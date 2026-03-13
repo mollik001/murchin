@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="murchin"
+        android:label="Pickfair"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -45,13 +45,25 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
-        
+
         <!-- Required for Google Sign-In -->
         <intent>
             <action android:name="com.google.android.gms.auth.GOOGLE_ACCOUNT_PICKER" />
         </intent>
         <intent>
             <action android:name="com.google.android.gms.auth.api.signin.SignInActivity" />
+        </intent>
+        
+        <!-- Required for url_launcher to open browsers -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
         </intent>
     </queries>
 </manifest>

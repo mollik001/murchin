@@ -107,29 +107,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       color: Colors.white.withOpacity(0.95), // Transparent background
       items: [
-        PopupMenuItem(
-          height: 40.h,
-          value: 'edit',
-          child: Row(
-            children: [
-              Image.asset(
-                'assets/icons/edit.png', // Edit icon asset
-                width: 20.w,
-                height: 20.h,
-                fit: BoxFit.contain,
-              ),
-              SizedBox(width: 12.w),
-              Text(
-                'Edit',
-                style: AppTextStyles.bodyMedium?.copyWith(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14.sp,
-                ),
-              ),
-            ],
-          ),
-        ),
+        // Commented out Edit option
+        // PopupMenuItem(
+        //   height: 40.h,
+        //   value: 'edit',
+        //   child: Row(
+        //     children: [
+        //       Image.asset(
+        //         'assets/icons/edit.png', // Edit icon asset
+        //         width: 20.w,
+        //         height: 20.h,
+        //         fit: BoxFit.contain,
+        //       ),
+        //       SizedBox(width: 12.w),
+        //       Text(
+        //         'Edit',
+        //         style: AppTextStyles.bodyMedium?.copyWith(
+        //           color: Colors.black,
+        //           fontWeight: FontWeight.w600,
+        //           fontSize: 14.sp,
+        //         ),
+
+        //       ),
+        //     ],
+        //   ),
+        // ),
         PopupMenuItem(
           height: 40.h,
           value: 'delete',

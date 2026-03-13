@@ -129,40 +129,58 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
             ...controller.savedFanduelEvents.asMap().entries.map((entry) {
               int index = entry.key;
               final e = entry.value;
+              
+              // Use the aiPercentage that was calculated by the controller (favorite team's AI value)
+              // Show shimmer if AI data is not yet loaded (null or 'N/A')
+              String? aiPercentage = e['aiPercentage'] as String?;
+              if (aiPercentage == 'N/A' || aiPercentage == null) {
+                aiPercentage = null; // Show shimmer
+              }
+              
               return Padding(
                 padding: EdgeInsets.only(bottom: 20.h),
                 child: FanduelCard(
-                  eventId: e['event_id'],
-                  title: e['title'],
+                  eventId: e['event_id']?.toString(),
+                  title: 'NBA Championship Odds 2026',
                   subtitle: e['subtitle'] ?? '',
                   date: formatPrettyDate(e['endDate']),
                   marketPercentage: e['marketPercentage'],
-                  aiPercentage: e['aiPercentage'],
+                  aiPercentage: aiPercentage,
                   team: e['team'],
                   bgColor: fanduelBgColor,
                   borderColor: AppColors.notBlue,
                   platform: e['marketPlace'] as String? ?? 'FanDuel',
                   isSaved: true,
+                  eventRef: e,
                 ),
               );
             }),
             ...controller.savedDraftkingsEvents.asMap().entries.map((entry) {
               int index = entry.key;
               final e = entry.value;
+              
+              // Use the aiPercentage that was calculated by the controller (favorite team's AI value)
+              // Show shimmer if AI data is not yet loaded (null or 'N/A')
+              String? aiPercentage = e['aiPercentage'] as String?;
+              if (aiPercentage == 'N/A' || aiPercentage == null) {
+                aiPercentage = null; // Show shimmer
+              }
+              
               return Padding(
                 padding: EdgeInsets.only(bottom: 20.h),
                 child: DraftkingsCard(
-                  eventId: e['event_id'],
-                  title: e['title'],
+                  eventId: e['event_id']?.toString(),
+                  title: 'NBA Championship Odds 2026',
                   subtitle: e['subtitle'] ?? '',
                   date: formatPrettyDate(e['endDate']),
                   marketPercentage: e['marketPercentage'],
-                  aiPercentage: e['aiPercentage'],
+                  aiPercentage: aiPercentage,
                   team: e['team'],
                   bgColor: draftkingsBgColor,
                   borderColor: AppColors.blue,
                   platform: e['marketPlace'] as String? ?? 'DraftKings',
                   isSaved: true,
+                  eventRef: e,
                 ),
               );
             }),

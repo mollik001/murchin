@@ -39,14 +39,29 @@ class _EventScreenState extends State<EventScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200 &&
-        !controller.isPageLoading.value) {
-      final platform = controller.selectedPlatform.value;
-      if (platform == 0 || platform == 1) {
+    final platform = controller.selectedPlatform.value;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    
+    print('=== Scroll Debug ===');
+    print('Platform: $platform');
+    print('Current scroll: $currentScroll');
+    print('Max scroll: $maxScroll');
+    print('Threshold: ${maxScroll - 200}');
+    print('Polymarket next: ${controller.polymarketNextPageUrl}');
+    print('Kalshi next: ${controller.kalshiNextPageUrl}');
+    print('Polymarket loading: ${controller.isPolymarketLoading.value}');
+    print('Kalshi loading: ${controller.isKalshiLoading.value}');
+
+    if (currentScroll >= maxScroll - 200) {
+      print('Triggering load more!');
+      // Load more from both APIs when in "All" tab (platform == 0)
+      if ((platform == 0 || platform == 1) && !controller.isPolymarketLoading.value) {
+        print('Loading Polymarket next page');
         controller.loadPolymarketNextPage();
       }
-      if (platform == 0 || platform == 2) {
+      if ((platform == 0 || platform == 2) && !controller.isKalshiLoading.value) {
+        print('Loading Kalshi next page');
         controller.loadKalshiNextPage();
       }
     }
@@ -206,7 +221,7 @@ class _EventScreenState extends State<EventScreen> {
                         _buildFeaturedCard(),
                         SizedBox(height: 24.h),
                         _buildCardsList(),
-                        if (controller.isPageLoading.value)
+                        if (controller.isPolymarketLoading.value || controller.isKalshiLoading.value)
                           const Padding(
                             padding: EdgeInsets.all(16),
                             child: Center(child: CircularProgressIndicator()),
@@ -383,7 +398,8 @@ class _EventScreenState extends State<EventScreen> {
     } else if (platform == 2) {
       return controller.kalshiEvents;
     } else {
-      return [...controller.events.take(3), ...controller.kalshiEvents.take(3)];
+      // All tab - show all events from both platforms
+      return [...controller.events, ...controller.kalshiEvents];
     }
   }
 
@@ -549,6 +565,9 @@ class _EventScreenState extends State<EventScreen> {
       isPolymarket: !isKalshi,
       bgColor: isKalshi ? kalshiBgColor : polymarketBgColor,
       eventId: event['event_id'] as int?,
+      eventIdString: event['event_ticker'] as String?,
+      slug: event['slug'] as String?,
+      seriesTicker: event['series_ticker'] as String?,
       optionTitles: event['optionTitles'] != null ? List<String>.from(event['optionTitles']) : null,
       marketProbs: event['marketProbs'] != null ? List<double>.from(event['marketProbs']) : null,
       aiPercentages: event['aiPercentages'] != null ? List<double>.from(event['aiPercentages']) : null,
@@ -570,7 +589,8 @@ class EventsController extends GetxController {
 
   final RxMap<String, String?> _polymarketNextPageUrls = <String, String?>{}.obs;
   final RxMap<String, String?> _kalshiNextPageUrls = <String, String?>{}.obs;
-  final isPageLoading = false.obs;
+  final isPolymarketLoading = false.obs;
+  final isKalshiLoading = false.obs;
 
   String? _polymarketNextPageUrl;
   String? _kalshiNextPageUrl;
@@ -820,6 +840,8 @@ class EventsController extends GetxController {
           tempEvents.add({
             'event_id': event['event_id'],
             'title': event['title'],
+            'slug': event['slug'] ?? '',
+            'imageUrl': event['image_url'] ?? '',
             'endDate': event['end_date'] ?? '',
             'team': highestTeam,
             'marketPercentage': marketPercentage,
@@ -1111,16 +1133,21 @@ class EventsController extends GetxController {
 
   Future<void> loadPolymarketNextPage() async {
     final nextPageUrl = polymarketNextPageUrl;
-    if (nextPageUrl != null && !isPageLoading.value) {
-      isPageLoading.value = true;
+    print('=== loadPolymarketNextPage ===');
+    print('nextPageUrl: $nextPageUrl');
+    print('isPageLoading: ${isPolymarketLoading.value}');
+
+    if (nextPageUrl != null && !isPolymarketLoading.value) {
+      isPolymarketLoading.value = true;
       try {
+        print('Fetching Polymarket page from: $nextPageUrl');
         final response = await http.get(Uri.parse(nextPageUrl));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           final eventsList = data['results']?['events'];
 
           if (eventsList == null || eventsList.isEmpty) {
-            isPageLoading.value = false;
+            isPolymarketLoading.value = false;
             return;
           }
 
@@ -1166,6 +1193,7 @@ class EventsController extends GetxController {
             tempEvents.add({
               'event_id': event['event_id'],
               'title': event['title'],
+              'slug': event['slug'] ?? '',
               'endDate': event['end_date'] ?? '',
               'team': highestTeam,
               'marketPercentage': '${roundedPercentage}%',
@@ -1180,30 +1208,35 @@ class EventsController extends GetxController {
 
           _events.addAll(tempEvents);
           setPolymarketNextPageUrl(selectedCategory.value, data['next']);
-          
+
           final cachedKey = '${_polymarketCacheKey}${selectedCategory.value.toLowerCase()}';
           await _cacheEvents(cachedKey, _events);
         }
       } catch (e) {
         print("Error loading Polymarket next page: $e");
       } finally {
-        isPageLoading.value = false;
+        isPolymarketLoading.value = false;
       }
     }
   }
 
   Future<void> loadKalshiNextPage() async {
     final nextPageUrl = kalshiNextPageUrl;
-    if (nextPageUrl != null && !isPageLoading.value) {
-      isPageLoading.value = true;
+    print('=== loadKalshiNextPage ===');
+    print('nextPageUrl: $nextPageUrl');
+    print('isPageLoading: ${isKalshiLoading.value}');
+
+    if (nextPageUrl != null && !isKalshiLoading.value) {
+      isKalshiLoading.value = true;
       try {
+        print('Fetching Kalshi page from: $nextPageUrl');
         final response = await http.get(Uri.parse(nextPageUrl));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           final eventsList = data['results']?['events'];
 
           if (eventsList == null || eventsList.isEmpty) {
-            isPageLoading.value = false;
+            isKalshiLoading.value = false;
             return;
           }
 
@@ -1254,6 +1287,7 @@ class EventsController extends GetxController {
               'event_id': event['event_ticker'],
               'series_ticker': event['series_ticker'] ?? '',
               'title': event['title'],
+              'imageUrl': event['img_url'] ?? '',
               'endDate': event['end_date'] ?? '',
               'team': highestTeam,
               'marketPercentage': '${roundedPercentage}%',
@@ -1268,14 +1302,14 @@ class EventsController extends GetxController {
 
           _kalshiEvents.addAll(tempEvents);
           setKalshiNextPageUrl(selectedCategory.value, data['next']);
-          
+
           final cachedKey = '${_kalshiCacheKey}${selectedCategory.value.toLowerCase()}';
           await _cacheEvents(cachedKey, _kalshiEvents);
         }
       } catch (e) {
         print("Error loading Kalshi next page: $e");
       } finally {
-        isPageLoading.value = false;
+        isKalshiLoading.value = false;
       }
     }
   }

@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/const/widgets/custom_appbar.dart';
 import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
 import 'package:murchin/features/sports/home/model/sportsbook_model.dart';
 import 'package:murchin/features/sports/home/widgets/sports_base_card.dart';
 import 'package:murchin/features/sports/home/widgets/sports_card_details_screen.dart';
+import 'package:shimmer/shimmer.dart';
 
 class SportsHomeScreen extends StatefulWidget {
   const SportsHomeScreen({super.key});
@@ -103,32 +103,35 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
                 );
               }
 
-              if (controller.sportsbookEvents.isEmpty && controller.isLoading.value) {
+              // Show loading state when there's no data yet (prevents empty state flash on initial load)
+              if (controller.sportsbookEvents.isEmpty) {
+                if (controller.isLoading.value) {
+                  return _buildLoadingState();
+                }
+                // If there's an error, show error state with retry option
+                if (controller.hasError.value) {
+                  return _buildErrorState(
+                    onRetry: () {
+                      controller.fetchSportsbookEvents();
+                    },
+                  );
+                }
+                // If not loading and no error, still show loading (initial load in progress)
                 return _buildLoadingState();
               }
 
-              if (controller.sportsbookEvents.isEmpty && !controller.isLoading.value) {
-                return _buildEmptyState(
-                  message: 'No data available',
-                  subtitle: 'Please check back later',
-                  actionLabel: 'Retry',
-                  onAction: () {
-                    controller.fetchSportsbookEvents();
-                  },
-                );
-              }
+              return Obx(() {
+                return ListView.builder(
+                  controller: scrollController,
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  itemCount: controller.sportsbookEvents.length,
+                  itemBuilder: (context, eventIndex) {
+                    final event = controller.sportsbookEvents[eventIndex];
 
-              return ListView.builder(
-                controller: scrollController,
-                padding: EdgeInsets.symmetric(horizontal: 20.w),
-                itemCount: controller.sportsbookEvents.length,
-                itemBuilder: (context, eventIndex) {
-                  final event = controller.sportsbookEvents[eventIndex];
-                  
-                  return Column(
-                    children: [
-                      // Cards for each sportsbook
-                      ...event.bookmark.map((bookmark) {
+                    return Column(
+                      children: [
+                        // Cards for each sportsbook
+                        ...event.bookmark.map((bookmark) {
                         // Get H2H market and determine favorite team
                         final h2hMarket = bookmark.market.firstWhere(
                           (m) => m.key == 'h2h',
@@ -174,17 +177,21 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
                         String? aiPercentage;
                         if (favoriteTeam == event.awayTeam) {
                           // We're showing away team's moneyline, use away team's AI prediction
-                          aiPercentage = (bookmark.aiMoneylineAway != null && bookmark.aiMoneylineAway != 'N/A') 
-                              ? bookmark.aiMoneylineAway 
-                              : event.aiPercentage;
+                          aiPercentage = (bookmark.aiMoneylineAway != null && bookmark.aiMoneylineAway != 'N/A')
+                              ? bookmark.aiMoneylineAway
+                              : null;
                         } else {
                           // We're showing home team's moneyline, use home team's AI prediction
-                          aiPercentage = (bookmark.aiMoneylineHome != null && bookmark.aiMoneylineHome != 'N/A') 
-                              ? bookmark.aiMoneylineHome 
-                              : event.aiPercentage;
+                          aiPercentage = (bookmark.aiMoneylineHome != null && bookmark.aiMoneylineHome != 'N/A')
+                              ? bookmark.aiMoneylineHome
+                              : null;
                         }
 
+                        // Pass null to show shimmer while loading, 'N/A' only if explicitly failed
+                        final aiPercentageToShow = aiPercentage;
+
                         return Padding(
+                          key: ValueKey('${event.eventId}_${bookmark.id}_$aiPercentage'),
                           padding: EdgeInsets.only(bottom: 16.h),
                           child: GestureDetector(
                             onTap: () {
@@ -234,20 +241,12 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
                               platform: bookmark.marketTitle,
                               iconAsset: _getIconAsset(bookmark.marketTitle),
                               initiallySaved: isSaved,
-                              onSaved: () {
-                                Get.snackbar(
-                                  'Saved',
-                                  'Event saved to your list',
-                                  snackPosition: SnackPosition.BOTTOM,
-                                  backgroundColor: AppColors.primary.withOpacity(0.9),
-                                  colorText: Colors.white,
-                                );
-                              },
+                              eventId: event.eventId,
                             ),
                           ),
                         );
                       }).toList(),
-                      
+
                       // Divider between events (except last one)
                       if (eventIndex < controller.sportsbookEvents.length - 1)
                         Divider(
@@ -259,6 +258,7 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
                   );
                 },
               );
+              });
             }),
           ),
         ],
@@ -340,37 +340,131 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
     return odds;
   }
 
-  /// Build loading state widget
+  /// Build loading state widget with shimmer cards
   Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 48.w,
-            height: 48.h,
-            child: CircularProgressIndicator(
-              color: AppColors.primary,
-              strokeWidth: 3.w,
+    return ListView.builder(
+      padding: EdgeInsets.symmetric(horizontal: 20.w),
+      itemCount: 5, // Show 5 placeholder cards
+      itemBuilder: (context, index) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: 16.h),
+          child: _buildShimmerCard(),
+        );
+      },
+    );
+  }
+
+  /// Build shimmer placeholder card
+  Widget _buildShimmerCard() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: AppColors.gray300, width: 1.w),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44.w,
+                  height: 44.h,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        height: 16.h,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4.r),
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Container(
+                        width: 150.w,
+                        height: 12.h,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4.r),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 20.w,
+                  height: 20.h,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4.r),
+                  ),
+                ),
+              ],
             ),
-          ),
-          SizedBox(height: 24.h),
-          Text(
-            'Loading events...',
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 16.sp,
+            SizedBox(height: 16.h),
+            Row(
+              children: [
+                Container(
+                  width: 80.w,
+                  height: 24.h,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6.r),
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Container(
+                    height: 12.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            'Please wait',
-            style: TextStyle(
-              color: Colors.grey.shade500,
-              fontSize: 14.sp,
+            SizedBox(height: 20.h),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 16.w),
+                Expanded(
+                  child: Container(
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -443,6 +537,16 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
     );
   }
 
+  /// Build error state widget
+  Widget _buildErrorState({VoidCallback? onRetry}) {
+    return _buildEmptyState(
+      message: 'Failed to load events',
+      subtitle: 'Please check your connection and try again',
+      actionLabel: 'Retry',
+      onAction: onRetry,
+    );
+  }
+
   /// Build search result card
   Widget _buildSearchResultCard(SportsbookEvent event) {
     return Column(
@@ -471,15 +575,7 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
               platform: bookmark.marketTitle,
               iconAsset: _getIconAsset(bookmark.marketTitle),
               initiallySaved: isSaved,
-              onSaved: () {
-                Get.snackbar(
-                  'Saved',
-                  'Event saved to your list',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: AppColors.primary.withOpacity(0.9),
-                  colorText: Colors.white,
-                );
-              },
+              eventId: event.eventId,
             ),
           );
         }).toList(),

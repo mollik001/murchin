@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
 import 'package:murchin/features/sports/home/widgets/sports_comparison_tab.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:murchin/const/theme/app_color.dart';
@@ -18,6 +19,7 @@ class SportsBaseCard extends StatefulWidget {
   final String platform;
   final String iconAsset;
   final bool initiallySaved;
+  final String? eventId;
   final VoidCallback? onSaved;
 
   const SportsBaseCard({
@@ -33,6 +35,7 @@ class SportsBaseCard extends StatefulWidget {
     required this.platform,
     required this.iconAsset,
     this.initiallySaved = false,
+    this.eventId,
     this.onSaved,
   });
 
@@ -42,6 +45,7 @@ class SportsBaseCard extends StatefulWidget {
 
 class _SportsBaseCardState extends State<SportsBaseCard> {
   late bool isSaved;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -49,25 +53,69 @@ class _SportsBaseCardState extends State<SportsBaseCard> {
     isSaved = widget.initiallySaved;
   }
 
-  void _toggleSaved() {
-    setState(() => isSaved = !isSaved);
-    widget.onSaved?.call();
+  Future<void> _toggleSaved() async {
+    if (_isSaving) return;
+    
+    // Check if we have an event ID
+    if (widget.eventId == null) {
+      // Get.snackbar(
+      //   'Error',
+      //   'Event ID not available',
+      //   snackPosition: SnackPosition.BOTTOM,
+      //   backgroundColor: Colors.red.withOpacity(0.9),
+      //   colorText: Colors.white,
+      // );
+      return;
+    }
 
-    if (isSaved) {
+    setState(() {
+      _isSaving = true;
+    });
+
+    final controller = Get.find<SportsHomeController>();
+
+    // Save event via API
+    final success = await controller.saveEvent(
+      eventId: widget.eventId!,
+      marketPlace: widget.platform,
+    );
+
+    if (success && mounted) {
+      setState(() {
+        isSaved = !isSaved;
+      });
+
+      // Refresh saved events list
+      await controller.fetchSavedEvents();
+
       Get.snackbar(
-        'Saved',
-        'Event saved to your list',
+        isSaved ? 'Saved' : 'Removed',
+        isSaved ? 'Event saved to your list' : 'Event removed from saved list',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.primary.withOpacity(0.9),
+        backgroundColor: isSaved ? AppColors.primary.withOpacity(0.9) : Colors.red.withOpacity(0.9),
         colorText: Colors.white,
       );
+    } else if (mounted) {
+      Get.snackbar(
+        'Error',
+        'Failed to save event',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.9),
+        colorText: Colors.white,
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _isSaving = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isLoadingValues =
-        widget.aiPercentage == null || widget.aiPercentage!.isEmpty;
+    // Show shimmer when AI value is null (loading), show N/A only when explicitly set
+    bool isLoadingValues = widget.aiPercentage == null;
 
     return Container(
       width: double.infinity,
@@ -180,29 +228,12 @@ class _SportsBaseCardState extends State<SportsBaseCard> {
                               borderRadius: BorderRadius.circular(8.r)),
                         ),
                       )
-                    : widget.aiPercentage == 'N/A'
-                        ? Container(
-                            height: 48.h,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(8.r),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'N/A',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          )
-                        : SportsComparisonTab(
-                            title: 'AI Predicts',
-                            percentage: widget.aiPercentage!,
-                            team: widget.team,
-                            percentageColor: const Color(0xffC41E3A),
-                          ),
+                    : SportsComparisonTab(
+                        title: 'AI Predicts',
+                        percentage: widget.aiPercentage ?? '0%',
+                        team: widget.team,
+                        percentageColor: const Color(0xffC41E3A),
+                      ),
               ),
             ],
           ),

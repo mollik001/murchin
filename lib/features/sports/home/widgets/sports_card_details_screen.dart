@@ -5,6 +5,7 @@ import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/features/sports/controllers/ai_prediction_controller.dart';
 import 'package:murchin/features/sports/controllers/player_props_controller.dart';
+import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
 import 'package:murchin/features/sports/model/player_props_model.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -79,7 +80,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
   final Set<int> _expandedCards = {};
   final PlayerPropsController _playerPropsController = Get.put(PlayerPropsController());
   final AiPredictionController _aiPredictionController = Get.put(AiPredictionController());
-  
+
   // Local state for AI predictions
   String? _aiSpreadAway;
   String? _aiSpreadHome;
@@ -87,14 +88,24 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
   String? _aiMoneylineHome;
   String? _aiTotalOver;
   String? _aiTotalUnder;
-  
+
   // Loading state for AI predictions
   bool _isAiLoading = false;
+  
+  // Save state
+  bool _isSaved = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    
+
+    // Check if event is already saved
+    if (widget.eventId != null && widget.platform != null) {
+      final controller = Get.find<SportsHomeController>();
+      _isSaved = controller.isEventSaved(widget.eventId!, widget.platform!);
+    }
+
     // Use AI values from widget if provided, otherwise fetch them
     _aiSpreadAway = widget.aiSpreadAway;
     _aiSpreadHome = widget.aiSpreadHome;
@@ -102,28 +113,33 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
     _aiMoneylineHome = widget.aiMoneylineHome;
     _aiTotalOver = widget.aiTotalOver;
     _aiTotalUnder = widget.aiTotalUnder;
-    
+
     // Fetch player props data if eventId and platform are provided
     if (widget.eventId != null && widget.platform != null) {
       _playerPropsController.fetchPlayerProps(
         eventId: widget.eventId!,
         platform: widget.platform!,
-      );
+      ).then((_) {
+        // Fetch AI for all player props after player props are loaded
+        if (widget.awayTeam != null && widget.homeTeam != null) {
+          _playerPropsController.fetchAiForAllCategories(
+            teamNames: [widget.awayTeam!, widget.homeTeam!],
+          );
+        }
+      });
     }
-    
-    // Fetch AI predictions if not provided from events page
-    if (_aiSpreadAway == null || _aiSpreadAway == 'N/A') {
-      _fetchAiPredictions();
-    }
+
+    // Always fetch fresh AI predictions when opening event details
+    _fetchAiPredictions();
   }
-  
+
   Future<void> _fetchAiPredictions() async {
     if (widget.awayTeam == null || widget.homeTeam == null) return;
-    
+
     setState(() {
       _isAiLoading = true;
     });
-    
+
     final aiData = await _aiPredictionController.fetchAiPredictions(
       awayTeam: widget.awayTeam!,
       homeTeam: widget.homeTeam!,
@@ -134,7 +150,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
       totalOver: widget.totalOver,
       totalUnder: widget.totalUnder,
     );
-    
+
     if (aiData != null && mounted) {
       setState(() {
         _aiSpreadAway = aiData['aiSpreadAway'];
@@ -148,6 +164,65 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
     } else if (mounted) {
       setState(() {
         _isAiLoading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleSaveEvent() async {
+    if (_isSaving) return;
+
+    // Check if we have an event ID and platform
+    if (widget.eventId == null || widget.platform == null) {
+      Get.snackbar(
+        'Error',
+        'Event ID not available',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.9),
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final controller = Get.find<SportsHomeController>();
+
+    // Save event via API
+    final success = await controller.saveEvent(
+      eventId: widget.eventId!,
+      marketPlace: widget.platform!,
+    );
+
+    if (success && mounted) {
+      setState(() {
+        _isSaved = !_isSaved;
+      });
+
+      // Refresh saved events list
+      await controller.fetchSavedEvents();
+
+      Get.snackbar(
+        _isSaved ? 'Saved' : 'Removed',
+        _isSaved ? 'Event saved to your list' : 'Event removed from saved list',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: _isSaved ? AppColors.primary.withOpacity(0.9) : Colors.red.withOpacity(0.9),
+        colorText: Colors.white,
+      );
+    } else if (mounted) {
+      Get.snackbar(
+        'Error',
+        'Failed to save event',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.9),
+        colorText: Colors.white,
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _isSaving = false;
       });
     }
   }
@@ -223,21 +298,26 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () {
-                              Get.snackbar(
-                                'Saved',
-                                'Event saved to your list',
-                                snackPosition: SnackPosition.BOTTOM,
-                                backgroundColor: AppColors.primary.withOpacity(0.9),
-                                colorText: Colors.white,
-                              );
-                            },
-                            child: Image.asset(
-                              'assets/icons/bookmark.png',
-                              width: 20.w,
-                              height: 20.h,
-                              fit: BoxFit.contain,
-                            ),
+                            onTap: _toggleSaveEvent,
+                            child: _isSaving
+                              ? SizedBox(
+                                  width: 20.w,
+                                  height: 20.h,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppColors.primary,
+                                    ),
+                                  ),
+                                )
+                              : Image.asset(
+                                  _isSaved
+                                    ? 'assets/icons/bookmark_active.png'
+                                    : 'assets/icons/bookmark.png',
+                                  width: 20.w,
+                                  height: 20.h,
+                                  fit: BoxFit.contain,
+                                ),
                           ),
                         ],
                       ),
@@ -414,17 +494,17 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                           const Spacer(),
                           SizedBox(
                             width: 48.w,
-                            child: _buildAiValueContainer(_aiSpreadAway ?? 'N/A'),
+                            child: _buildAiValueContainer(_aiSpreadAway),
                           ),
                           SizedBox(width: 14.w),
                           SizedBox(
                             width: 48.w,
-                            child: _buildAiValueContainer(_aiMoneylineAway ?? 'N/A'),
+                            child: _buildAiValueContainer(_aiMoneylineAway),
                           ),
                           SizedBox(width: 14.w),
                           SizedBox(
                             width: 55.w,
-                            child: _buildAiValueContainer(_aiTotalOver ?? 'N/A'),
+                            child: _buildAiValueContainer(_aiTotalOver),
                           ),
                         ],
                       ),
@@ -522,17 +602,17 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                           const Spacer(),
                           SizedBox(
                             width: 48.w,
-                            child: _buildAiValueContainer(_aiSpreadHome ?? 'N/A'),
+                            child: _buildAiValueContainer(_aiSpreadHome),
                           ),
                           SizedBox(width: 14.w),
                           SizedBox(
                             width: 48.w,
-                            child: _buildAiValueContainer(_aiMoneylineHome ?? 'N/A'),
+                            child: _buildAiValueContainer(_aiMoneylineHome),
                           ),
                           SizedBox(width: 14.w),
                           SizedBox(
                             width: 55.w,
-                            child: _buildAiValueContainer(_aiTotalUnder ?? 'N/A'),
+                            child: _buildAiValueContainer(_aiTotalUnder),
                           ),
                         ],
                       ),
@@ -581,14 +661,14 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                       final category = entry.value;
                       final title = _playerPropsController.getCategoryTitle(category);
                       final propsData = _playerPropsController.playerProps?.getPropsByCategory(category) ?? {};
-                      
+
                       // Check if this category has over/under data
                       final hasOverUnder = PlayerPropsResponse.hasOverUnder(propsData.values.first);
-                      
+
                       return Column(
                         children: [
                           if (index > 0) SizedBox(height: 12.h),
-                          _buildPlayerPropsCard(index, title, propsData, hasOverUnder),
+                          _buildPlayerPropsCard(index, title, category, propsData, hasOverUnder),
                         ],
                       );
                     }).toList(),
@@ -681,7 +761,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
   }
 
   /// Build player props card with API data
-  Widget _buildPlayerPropsCard(int index, String title, Map<String, dynamic> propsData, bool hasOverUnder) {
+  Widget _buildPlayerPropsCard(int index, String title, String category, Map<String, dynamic> propsData, bool hasOverUnder) {
     final isExpanded = _expandedCards.contains(index);
 
     return Container(
@@ -752,28 +832,30 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
             ),
             Padding(
               padding: EdgeInsets.all(16.w),
-              child: Column(
-                children: propsData.entries.map((entry) {
-                  final playerName = entry.key;
-                  final playerData = entry.value;
-                  final isOverUnder = PlayerPropsResponse.hasOverUnder(playerData);
-                  
-                  return Column(
-                    children: [
-                      if (isOverUnder)
-                        _buildOverUnderPlayerItem(playerName, playerData)
-                      else
-                        _buildSingleValuePlayerItem(playerName, playerData),
-                      if (entry.key != propsData.keys.last)
-                        Container(
-                          height: 1.h,
-                          color: AppColors.gray300,
-                          margin: EdgeInsets.only(top: 12.h, bottom: 4.h),
-                        ),
-                    ],
-                  );
-                }).toList(),
-              ),
+              child: Obx(() {
+                return Column(
+                  children: propsData.entries.map((entry) {
+                    final playerName = entry.key;
+                    final playerData = entry.value;
+                    final isOverUnder = PlayerPropsResponse.hasOverUnder(playerData);
+
+                    return Column(
+                      children: [
+                        if (isOverUnder)
+                          _buildOverUnderPlayerItem(playerName, playerData, category)
+                        else
+                          _buildSingleValuePlayerItem(playerName, playerData, category),
+                        if (entry.key != propsData.keys.last)
+                          Container(
+                            height: 1.h,
+                            color: AppColors.gray300,
+                            margin: EdgeInsets.only(top: 12.h, bottom: 4.h),
+                          ),
+                      ],
+                    );
+                  }).toList(),
+                );
+              }),
             ),
           ],
         ],
@@ -782,10 +864,18 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
   }
 
   /// Build over/under player item with API data
-  Widget _buildOverUnderPlayerItem(String playerName, dynamic playerData) {
+  Widget _buildOverUnderPlayerItem(String playerName, dynamic playerData, String category) {
     final over = playerData is Map ? playerData['over']?.toString().replaceAll('+', '') ?? '-' : '-';
     final under = playerData is Map ? playerData['under']?.toString().replaceAll('+', '') ?? '-' : '-';
     final initials = playerName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join();
+
+    // Check if AI is still loading for this category
+    final isAiLoading = !_playerPropsController.isAiLoaded(category);
+    
+    // Get AI predictions for this player (Type 2)
+    final aiPrediction = _playerPropsController.getAiPredictionForType2(category, playerName);
+    final aiOver = aiPrediction?['over'];
+    final aiUnder = aiPrediction?['under'];
 
     return Padding(
       padding: EdgeInsets.only(bottom: 12.h),
@@ -931,41 +1021,80 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
               SizedBox(height: 4.h),
               Row(
                 children: [
-                  Container(
-                    width: 50.w,
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFA81D06),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Text(
-                      'N/A',
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                  isAiLoading
+                    ? Shimmer.fromColors(
+                        baseColor: Colors.grey.shade300,
+                        highlightColor: Colors.grey.shade100,
+                        child: Container(
+                          width: 50.w,
+                          height: 24.h,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                        ),
+                      )
+                    : isAiLoading
+                      ? Shimmer.fromColors(
+                          baseColor: Colors.grey.shade300,
+                          highlightColor: Colors.grey.shade100,
+                          child: Container(
+                            width: 50.w,
+                            height: 24.h,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4.r),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 50.w,
+                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFA81D06),
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                          child: Text(
+                            aiOver ?? '-',
+                            style: AppTextStyles.bodySmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12.sp,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                   SizedBox(width: 14.w),
-                  Container(
-                    width: 50.w,
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFA81D06),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Text(
-                      'N/A',
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.sp,
+                  isAiLoading
+                    ? Shimmer.fromColors(
+                        baseColor: Colors.grey.shade300,
+                        highlightColor: Colors.grey.shade100,
+                        child: Container(
+                          width: 50.w,
+                          height: 24.h,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        width: 50.w,
+                        padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFA81D06),
+                          borderRadius: BorderRadius.circular(4.r),
+                        ),
+                        child: Text(
+                          aiUnder ?? '-',
+                          style: AppTextStyles.bodySmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.sp,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
                 ],
               ),
             ],
@@ -977,9 +1106,16 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
   }
 
   /// Build single value player item (result or over only)
-  Widget _buildSingleValuePlayerItem(String playerName, dynamic playerData) {
+  Widget _buildSingleValuePlayerItem(String playerName, dynamic playerData, String category) {
     final sportsbookValue = PlayerPropsResponse.getSportsbookValue(playerData)?.toString().replaceAll('+', '') ?? '-';
     final initials = playerName.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join();
+    
+    // Check if AI is still loading for this category
+    final isAiLoading = !_playerPropsController.isAiLoaded(category);
+    
+    // Get AI prediction for this player
+    final aiPredictions = _playerPropsController.getAiPredictions(category);
+    final aiValue = aiPredictions[playerName];
 
     return Padding(
       padding: EdgeInsets.only(bottom: 12.h),
@@ -1071,23 +1207,36 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                     ),
                   ),
                   SizedBox(height: 4.h),
-                  Container(
-                    width: 54.w,
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFA81D06),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Text(
-                      'N/A',
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.sp,
+                  isAiLoading
+                    ? Shimmer.fromColors(
+                        baseColor: Colors.grey.shade300,
+                        highlightColor: Colors.grey.shade100,
+                        child: Container(
+                          width: 54.w,
+                          height: 24.h,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        width: 54.w,
+                        padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFA81D06),
+                          borderRadius: BorderRadius.circular(4.r),
+                        ),
+                        child: Text(
+                          aiValue ?? '-',
+                          style: AppTextStyles.bodySmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.sp,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
                 ],
               ),
             ],
@@ -1509,21 +1658,23 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
     );
   }
 
-  Widget _buildAiValueContainer(String value) {
-    if (_isAiLoading) {
+  Widget _buildAiValueContainer(String? value) {
+    // Show shimmer if value is null or empty (loading state)
+    if (value == null || value.isEmpty || value == '-') {
       return Shimmer.fromColors(
         baseColor: Colors.grey.shade300,
         highlightColor: Colors.grey.shade100,
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 4.h),
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 8.h),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(6.r),
           ),
+          height: 28.h,
         ),
       );
     }
-    
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 4.h),
       decoration: BoxDecoration(

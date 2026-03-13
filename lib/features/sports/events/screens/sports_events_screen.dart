@@ -555,7 +555,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
         return Padding(
           padding: EdgeInsets.only(bottom: 20.h),
           child: FanduelCard(
-            eventId: e['event_id'] as int?,
+            eventId: e['event_id']?.toString(),
             title: e['title'],
             subtitle: e['subtitle'],
             date: formatPrettyDate(e['endDate']),
@@ -570,11 +570,10 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
           ),
         );
       } else {
-        final eventId = e['event_id'] is int ? (e['event_id'] as int).toString() : e['event_id'] as String?;
         return Padding(
           padding: EdgeInsets.only(bottom: 20.h),
           child: DraftkingsCard(
-            eventId: eventId,
+            eventId: e['event_id']?.toString(),
             title: e['title'],
             subtitle: e['subtitle'],
             date: formatPrettyDate(e['endDate']),

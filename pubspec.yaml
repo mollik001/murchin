@@ -45,6 +45,7 @@ dependencies:
   shared_preferences: ^2.5.4
   shimmer: ^3.0.0
   http: ^1.2.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +57,13 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/name.png"
+  min_sdk_android: 21
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

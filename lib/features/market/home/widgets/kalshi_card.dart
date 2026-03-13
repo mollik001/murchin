@@ -15,6 +15,7 @@ class KalshiCard extends StatelessWidget {
   final String team;
   final Color bgColor;
   final Color borderColor;
+  final String? seriesTicker;
   final List<String>? optionTitles;
   final List<double>? marketProbs;
   final List<double>? aiPercentages;
@@ -34,6 +35,7 @@ class KalshiCard extends StatelessWidget {
     required this.team,
     required this.bgColor,
     required this.borderColor,
+    this.seriesTicker,
     this.optionTitles,
     this.marketProbs,
     this.aiPercentages,
@@ -140,6 +142,9 @@ class KalshiCard extends StatelessWidget {
                 isPolymarket: false,
                 bgColor: bgColor,
                 eventIdString: eventId,
+                seriesTicker: eventRef != null
+                    ? (eventRef!['series_ticker'] as String?) ?? seriesTicker
+                    : seriesTicker,
                 optionTitles: _getOptionTitles(),
                 marketProbs: _getMarketProbs(),
                 aiPercentages: _getAiPercentages(),

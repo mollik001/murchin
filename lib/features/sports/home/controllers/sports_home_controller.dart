@@ -16,12 +16,17 @@ class SportsHomeController extends GetxController {
   final isRefreshing = false.obs;
   final isSearching = false.obs;
   final hasActiveSearch = false.obs;
+  final hasError = false.obs;
 
   final RxList<SportsbookEvent> _sportsbookEvents = <SportsbookEvent>[].obs;
   final RxList<SportsbookEvent> _searchResults = <SportsbookEvent>[].obs;
 
   List<SportsbookEvent> get sportsbookEvents => _sportsbookEvents;
   List<SportsbookEvent> get searchResults => _searchResults;
+
+  // Track if initial cache load is complete
+  bool _isInitialCacheLoaded = false;
+  bool get isInitialCacheLoaded => _isInitialCacheLoaded;
 
   String? nextPageUrl;
 
@@ -37,9 +42,9 @@ class SportsHomeController extends GetxController {
 
   final TextEditingController searchController = TextEditingController();
 
-  // AI caching constants
-  static const String _cacheKey = 'cached_sportsbook_ai_values';
-  static const String _cacheTimestampKey = 'cached_sportsbook_ai_timestamp';
+  // Sportsbook events caching - cache entire events data
+  static const String _sportsbookCacheKey = 'cached_sportsbook_events_v3';
+  static const String _sportsbookCacheTimestampKey = 'cached_sportsbook_timestamp_v3';
   static const Duration _cacheDuration = Duration(hours: 12);
   static const int _maxCachedEvents = 10;
 
@@ -50,22 +55,104 @@ class SportsHomeController extends GetxController {
   void onInit() {
     super.onInit();
     fetchSavedEvents();
-    
-    // Load cached AI data first
-    loadCachedAIData().then((hasValidCache) async {
+
+    // Load cached sportsbook events first
+    loadCachedSportsbookEvents().then((hasValidCache) async {
       if (hasValidCache) {
-        loadEventsWithCachedAI();
-        await fetchSportsbookEvents(backgroundOnly: true);
+        // Fetch fresh data in background without replacing cached data immediately
+        _fetchSportsbookEventsInBackground();
       } else {
         await fetchSportsbookEvents();
       }
     });
   }
 
+  /// Fetch sportsbook events in background (doesn't replace existing data until AI is loaded)
+  Future<void> _fetchSportsbookEventsInBackground() async {
+    try {
+      print("=== Fetching Sportsbook Events in Background ===");
+      print("URL: ${Urls.sportsbookModelUrl}");
+
+      final response = await http.get(Uri.parse(Urls.sportsbookModelUrl));
+      print("Response Status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final sportsbookResponse = SportsbookResponse.fromJson(data);
+
+        // Limit to 10 events maximum
+        List<SportsbookEvent> eventsList = sportsbookResponse.results.events;
+        if (eventsList.length > _maxEventsPerSection) {
+          eventsList = eventsList.take(_maxEventsPerSection).toList();
+        }
+
+        // Preserve AI moneyline data from cached events for ALL bookmarks
+        for (int i = 0; i < eventsList.length; i++) {
+          final freshEvent = eventsList[i];
+          final cachedEventIndex = _sportsbookEvents.indexWhere(
+            (e) => e.eventId == freshEvent.eventId,
+          );
+
+          if (cachedEventIndex != -1) {
+            final cachedEvent = _sportsbookEvents[cachedEventIndex];
+
+            // Merge AI data from cached event into fresh event for ALL bookmarks
+            List<Bookmark> mergedBookmarks = [];
+            for (int j = 0; j < freshEvent.bookmark.length; j++) {
+              final freshBookmark = freshEvent.bookmark[j];
+              final cachedBookmark = cachedEvent.bookmark.length > j ? cachedEvent.bookmark[j] : null;
+
+              if (cachedBookmark != null) {
+                // Merge all AI data from cached bookmark
+                mergedBookmarks.add(freshBookmark.copyWith(
+                  aiSpreadAway: cachedBookmark.aiSpreadAway ?? freshBookmark.aiSpreadAway,
+                  aiSpreadHome: cachedBookmark.aiSpreadHome ?? freshBookmark.aiSpreadHome,
+                  aiMoneylineAway: cachedBookmark.aiMoneylineAway ?? freshBookmark.aiMoneylineAway,
+                  aiMoneylineHome: cachedBookmark.aiMoneylineHome ?? freshBookmark.aiMoneylineHome,
+                  aiTotalOver: cachedBookmark.aiTotalOver ?? freshBookmark.aiTotalOver,
+                  aiTotalUnder: cachedBookmark.aiTotalUnder ?? freshBookmark.aiTotalUnder,
+                ));
+              } else {
+                mergedBookmarks.add(freshBookmark);
+              }
+            }
+
+            // Merge AI data from cached event into fresh event
+            eventsList[i] = freshEvent.copyWith(
+              bookmark: mergedBookmarks,
+              aiPercentage: cachedEvent.aiPercentage,
+              aiExplanation: cachedEvent.aiExplanation,
+              optionTitles: cachedEvent.optionTitles,
+              marketProbs: cachedEvent.marketProbs,
+              aiPercentages: cachedEvent.aiPercentages,
+            );
+          }
+        }
+
+        // Update events with merged data
+        _sportsbookEvents.assignAll(eventsList);
+        _sportsbookEvents.refresh();
+        nextPageUrl = sportsbookResponse.next;
+
+        print("Background events loaded with cached AI data!");
+        update(); // Notify UI to rebuild
+
+        // Fetch fresh AI data and update cache
+        _fetchAllAiPredictionsAsync(eventsList);
+      } else {
+        print("Background fetch failed with status: ${response.statusCode}. Keeping cached data.");
+      }
+    } catch (e) {
+      print("Error fetching sportsbook events in background: $e");
+      // Keep cached data - don't clear events on error
+    }
+  }
+
   /// Fetch sportsbook events from API
   Future<void> fetchSportsbookEvents({bool backgroundOnly = false}) async {
     if (!backgroundOnly) {
       isLoading.value = true;
+      hasError.value = false;
     }
 
     try {
@@ -94,68 +181,169 @@ class SportsHomeController extends GetxController {
 
         print("Events loaded successfully! (Showing ${eventsList.length} events)");
 
-        // Fetch AI predictions for each bookmark in all events
-        int aiFetchCount = 0;
-        for (int i = 0; i < eventsList.length; i++) {
-          final event = eventsList[i];
-          
-          // Fetch AI for each bookmark in the event
-          for (int j = 0; j < event.bookmark.length; j++) {
-            final bookmark = event.bookmark[j];
-            
-            // Skip if AI data already exists for this bookmark
-            if (bookmark.aiMoneylineAway != null) {
-              continue;
-            }
-            
-            fetchAIForBookmark(event, bookmark, i, j).then((aiData) async {
-              // Skip if AI data is null
-              if (aiData == null) {
-                print("Sportsbook AI returned null for bookmark");
-                return;
-              }
-              
-              final idx = _sportsbookEvents.indexWhere(
-                (ev) => ev.eventId == event.eventId,
-              );
-              
-              if (idx != -1) {
-                final currentEvent = _sportsbookEvents[idx];
-                final currentBookmarks = List<Bookmark>.from(currentEvent.bookmark);
-                
-                // Update the specific bookmark with AI data
-                currentBookmarks[j] = bookmark.copyWith(
-                  aiSpreadAway: aiData['aiSpreadAway'],
-                  aiSpreadHome: aiData['aiSpreadHome'],
-                  aiMoneylineAway: aiData['aiMoneylineAway'],
-                  aiMoneylineHome: aiData['aiMoneylineHome'],
-                  aiTotalOver: aiData['aiTotalOver'],
-                  aiTotalUnder: aiData['aiTotalUnder'],
-                );
-                
-                final updatedEvent = currentEvent.copyWith(
-                  bookmark: currentBookmarks,
-                );
-                
-                _sportsbookEvents[idx] = updatedEvent;
-                _sportsbookEvents.refresh();
-                
-                aiFetchCount++;
-                
-                if (aiFetchCount <= _maxCachedEvents * 3) { // Allow more caches for multiple bookmarks
-                  await saveAIDataToCache();
-                }
-              }
-            });
-          }
-        }
+        // Fetch AI predictions first, then cache everything together
+        await _fetchAllAiPredictionsSync(eventsList);
+
+        // Cache the events with AI data
+        cacheSportsbookEvents();
       } else {
         print("Failed to fetch events: ${response.statusCode}");
+        if (!backgroundOnly) {
+          hasError.value = true;
+        }
       }
     } catch (e) {
       print("Error fetching sportsbook events: $e");
+      if (!backgroundOnly) {
+        hasError.value = true;
+      }
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// Fetch AI predictions synchronously (waits for completion)
+  Future<void> _fetchAllAiPredictionsSync(List<SportsbookEvent> eventsList) async {
+    List<Future<void>> aiFetchFutures = [];
+
+    for (int i = 0; i < eventsList.length; i++) {
+      final event = eventsList[i];
+
+      // Fetch AI for ALL bookmarks (not just first one)
+      for (int j = 0; j < event.bookmark.length; j++) {
+        final bookmark = event.bookmark[j];
+
+        // Skip if AI moneyline already exists for this bookmark
+        if (bookmark.aiMoneylineAway != null && bookmark.aiMoneylineHome != null) {
+          continue;
+        }
+
+        aiFetchFutures.add(
+          fetchAIForBookmark(event, bookmark, i, j).then((aiData) async {
+            // Skip if AI data is null
+            if (aiData == null) {
+              print("Sportsbook AI returned null for bookmark");
+              return;
+            }
+
+            final idx = _sportsbookEvents.indexWhere(
+              (ev) => ev.eventId == event.eventId,
+            );
+
+            if (idx != -1) {
+              final currentEvent = _sportsbookEvents[idx];
+              final currentBookmarks = List<Bookmark>.from(currentEvent.bookmark);
+
+              // Ensure we have a bookmark at index j
+              if (j >= currentBookmarks.length) {
+                return;
+              }
+
+              // Save moneyline values for this bookmark
+              currentBookmarks[j] = currentBookmarks[j].copyWith(
+                aiMoneylineAway: aiData['aiMoneylineAway'],
+                aiMoneylineHome: aiData['aiMoneylineHome'],
+              );
+
+              final updatedEvent = currentEvent.copyWith(
+                bookmark: currentBookmarks,
+              );
+
+              _sportsbookEvents[idx] = updatedEvent;
+              _sportsbookEvents.refresh();
+            }
+          }),
+        );
+      }
+    }
+
+    // Wait for all AI fetches to complete
+    if (aiFetchFutures.isNotEmpty) {
+      await Future.wait(aiFetchFutures);
+      print("All AI predictions fetched!");
+    }
+  }
+
+  /// Fetch AI predictions asynchronously (doesn't block)
+  void _fetchAllAiPredictionsAsync(List<SportsbookEvent> eventsList, {bool shouldCache = true}) {
+    int completedCount = 0;
+    int totalCount = 0;
+
+    // Count total AI fetches needed
+    for (int i = 0; i < eventsList.length; i++) {
+      final event = eventsList[i];
+      for (int j = 0; j < event.bookmark.length; j++) {
+        final bookmark = event.bookmark[j];
+        if (bookmark.aiMoneylineAway == null || bookmark.aiMoneylineHome == null) {
+          totalCount++;
+        }
+      }
+    }
+
+    // No AI fetches needed, return
+    if (totalCount == 0) {
+      if (shouldCache) cacheSportsbookEvents();
+      return;
+    }
+
+    for (int i = 0; i < eventsList.length; i++) {
+      final event = eventsList[i];
+
+      // Fetch AI for ALL bookmarks (not just first one)
+      for (int j = 0; j < event.bookmark.length; j++) {
+        final bookmark = event.bookmark[j];
+
+        // Skip if AI moneyline already exists for this bookmark
+        if (bookmark.aiMoneylineAway != null && bookmark.aiMoneylineHome != null) {
+          continue;
+        }
+
+        fetchAIForBookmark(event, bookmark, i, j).then((aiData) async {
+          completedCount++;
+
+          // Skip if AI data is null
+          if (aiData == null) {
+            print("Sportsbook AI returned null for bookmark");
+            // Cache even if some AI failed
+            if (shouldCache && completedCount >= totalCount) {
+              cacheSportsbookEvents();
+            }
+            return;
+          }
+
+          final idx = _sportsbookEvents.indexWhere(
+            (ev) => ev.eventId == event.eventId,
+          );
+
+          if (idx != -1) {
+            final currentEvent = _sportsbookEvents[idx];
+            final currentBookmarks = List<Bookmark>.from(currentEvent.bookmark);
+
+            // Ensure we have a bookmark at index j
+            if (j >= currentBookmarks.length) {
+              return;
+            }
+
+            // Save moneyline values for this bookmark
+            currentBookmarks[j] = currentBookmarks[j].copyWith(
+              aiMoneylineAway: aiData['aiMoneylineAway'],
+              aiMoneylineHome: aiData['aiMoneylineHome'],
+            );
+
+            final updatedEvent = currentEvent.copyWith(
+              bookmark: currentBookmarks,
+            );
+
+            _sportsbookEvents[idx] = updatedEvent;
+            _sportsbookEvents.refresh();
+
+            // Cache after all AI fetches complete
+            if (shouldCache && completedCount >= totalCount) {
+              cacheSportsbookEvents();
+            }
+          }
+        });
+      }
     }
   }
 
@@ -473,94 +661,78 @@ class SportsHomeController extends GetxController {
     }
   }
 
-  // ================= AI CACHING METHODS =================
+  // ================= SPORTSBOOK EVENTS CACHING METHODS =================
 
-  Future<bool> loadCachedAIData() async {
+  /// Load cached sportsbook events
+  Future<bool> loadCachedSportsbookEvents() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cachedTimestamp = prefs.getInt(_cacheTimestampKey);
-      
-      if (cachedTimestamp == null) return false;
-      
-      final timestamp = DateTime.fromMillisecondsSinceEpoch(cachedTimestamp);
-      final now = DateTime.now();
-      
-      if (now.difference(timestamp) > _cacheDuration) {
-        print("Cache expired");
+      final cachedTimestampStr = prefs.getString(_sportsbookCacheTimestampKey);
+
+      if (cachedTimestampStr == null) {
+        print("No cached sportsbook events found");
         return false;
       }
-      
-      final cachedData = prefs.getString(_cacheKey);
+
+      final timestamp = DateTime.parse(cachedTimestampStr);
+      final now = DateTime.now();
+
+      if (now.difference(timestamp) > _cacheDuration) {
+        print("Sportsbook cache expired - will fetch fresh data");
+        return false;
+      }
+
+      final cachedData = prefs.getString(_sportsbookCacheKey);
       if (cachedData == null) return false;
-      
+
       final List decoded = jsonDecode(cachedData);
-      
-      // Create a map of eventId -> AI data for quick lookup
-      final aiDataMap = <String, Map<String, dynamic>>{};
-      for (var item in decoded) {
-        final eventId = item['eventId'] as String?;
-        if (eventId != null) {
-          aiDataMap[eventId] = Map<String, dynamic>.from(item);
-        }
+      final eventsList = decoded.map((e) => SportsbookEvent.fromJson(Map<String, dynamic>.from(e))).toList();
+
+      if (eventsList.isNotEmpty) {
+        _sportsbookEvents.assignAll(eventsList);
+        _isInitialCacheLoaded = true;
+        print("Loaded ${eventsList.length} cached sportsbook events");
+        // Trigger UI update
+        update();
+        return true;
       }
-      
-      // Apply cached AI data to events
-      for (int i = 0; i < _sportsbookEvents.length; i++) {
-        final event = _sportsbookEvents[i];
-        final aiData = aiDataMap[event.eventId];
-        
-        if (aiData != null && aiData['aiPercentage'] != null) {
-          _sportsbookEvents[i] = event.copyWith(
-            aiPercentage: aiData['aiPercentage'],
-            aiExplanation: aiData['aiExplanation'],
-            optionTitles: aiData['optionTitles'] as List<String>?,
-            marketProbs: aiData['marketProbs'] as List<double>?,
-            aiPercentages: aiData['aiPercentages'] as List<double>?,
-          );
-          _cachedEventIndexes.add(i);
-        }
-      }
-      
-      print("Loaded ${aiDataMap.length} cached AI predictions");
-      return true;
+
+      // Mark as loaded even if no cache (first time user)
+      _isInitialCacheLoaded = true;
+      update();
+      return false;
     } catch (e) {
-      print("Error loading cached AI data: $e");
+      print("Error loading cached sportsbook events: $e");
+      // Mark as loaded even on error to prevent infinite loading
+      _isInitialCacheLoaded = true;
+      update();
       return false;
     }
   }
 
-  void loadEventsWithCachedAI() {
-    // Events already have AI data from loadCachedAIData
-    print("Events loaded with cached AI data");
-    update();
-  }
-
-  Future<void> saveAIDataToCache() async {
+  /// Cache sportsbook events to local storage
+  Future<void> cacheSportsbookEvents() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
+      // Convert events to JSON-serializable format
       final List<Map<String, dynamic>> dataToCache = [];
-      
       for (int i = 0; i < _sportsbookEvents.length && i < _maxCachedEvents; i++) {
         final event = _sportsbookEvents[i];
-        if (event.aiPercentage != null && event.aiPercentage.toString().isNotEmpty) {
-          dataToCache.add({
-            'eventId': event.eventId,
-            'aiPercentage': event.aiPercentage,
-            'aiExplanation': event.aiExplanation,
-            'optionTitles': event.optionTitles,
-            'marketProbs': event.marketProbs,
-            'aiPercentages': event.aiPercentages,
-          });
-        }
+        dataToCache.add(event.toJson());
       }
-      
-      await prefs.setString(_cacheKey, jsonEncode(dataToCache));
-      await prefs.setInt(_cacheTimestampKey, DateTime.now().millisecondsSinceEpoch);
-      
-      print("Saved ${dataToCache.length} AI predictions to cache");
+
+      if (dataToCache.isEmpty) return;
+
+      await prefs.setString(_sportsbookCacheKey, jsonEncode(dataToCache));
+      await prefs.setString(
+        _sportsbookCacheTimestampKey,
+        DateTime.now().toIso8601String(),
+      );
+
+      print("Cached ${dataToCache.length} sportsbook events");
     } catch (e) {
-      print("Error saving AI data to cache: $e");
+      print("Error caching sportsbook events: $e");
     }
   }
 
@@ -685,69 +857,350 @@ class SportsHomeController extends GetxController {
   Future<void> fetchSavedEvents() async {
     try {
       final token = await SharedPreferencesHelper.getAccessToken();
-      if (token == null) return;
+      if (token == null) {
+        print("No token found for saved events");
+        return;
+      }
 
-      final url = Uri.parse('${Urls.baseUrl}/api/saved-accounts/');
+      final url = Uri.parse('${Urls.baseUrl}/api/trade/saved-event-list/');
+      print("=== Fetch Saved Sports Events ===");
+      print("URL: $url");
+
       final response = await http.get(
         url,
-        headers: {'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
+
+      print("Response Status: ${response.statusCode}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final savedList = data['saved_accounts'] as List;
+        print("Response Body: $data");
 
+        // Get only sportsbook_events from the response
+        final sportsbookEvents = data['sportsbook_events'] as List<dynamic>?;
+
+        // Clear existing saved events
         _savedFanduelEventIds.clear();
         _savedDraftkingsEventIds.clear();
         _savedBetMgmEventIds.clear();
+        _savedFanduelEvents.clear();
+        _savedDraftkingsEvents.clear();
+        _savedBetMgmEvents.clear();
 
-        for (var item in savedList) {
-          final marketPlace = item['market_place'] as String?;
-          final eventId = item['event_id']?.toString();
+        // Process sportsbook events
+        if (sportsbookEvents != null && sportsbookEvents.isNotEmpty) {
+          print("Found ${sportsbookEvents.length} saved sportsbook events");
 
-          if (eventId == null) continue;
+          for (var event in sportsbookEvents) {
+            final eventId = event['event_id']?.toString();
+            if (eventId == null) continue;
 
-          switch (marketPlace) {
-            case 'FanDuel':
-              _savedFanduelEventIds.add(eventId);
-              break;
-            case 'DraftKings':
-              _savedDraftkingsEventIds.add(eventId);
-              break;
-            case 'BetMGM':
-              _savedBetMgmEventIds.add(eventId);
-              break;
+            // Process each bookmark (FanDuel, DraftKings, BetMGM)
+            final bookmarks = event['bookmark'] as List<dynamic>?;
+            if (bookmarks == null) continue;
+
+            for (var bookmark in bookmarks) {
+              final marketPlace = bookmark['market_title'] as String?;
+              if (marketPlace == null) continue;
+
+              // Add to appropriate saved set
+              switch (marketPlace) {
+                case 'FanDuel':
+                  _savedFanduelEventIds.add(eventId);
+                  _savedFanduelEvents.add({
+                    'event_id': eventId,
+                    'title': event['title'] ?? '',
+                    'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
+                    'endDate': event['date'] ?? '',
+                    'marketPercentage': _getBestMoneyline(bookmark),
+                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'] ?? 'N/A',
+                    'team': event['home_team'] ?? '',
+                    'marketPlace': marketPlace,
+                    'bookmark': bookmark,
+                  });
+                  break;
+                case 'DraftKings':
+                  _savedDraftkingsEventIds.add(eventId);
+                  _savedDraftkingsEvents.add({
+                    'event_id': eventId,
+                    'title': event['title'] ?? '',
+                    'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
+                    'endDate': event['date'] ?? '',
+                    'marketPercentage': _getBestMoneyline(bookmark),
+                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'] ?? 'N/A',
+                    'team': event['home_team'] ?? '',
+                    'marketPlace': marketPlace,
+                    'bookmark': bookmark,
+                  });
+                  break;
+                case 'BetMGM':
+                  _savedBetMgmEventIds.add(eventId);
+                  _savedBetMgmEvents.add({
+                    'event_id': eventId,
+                    'title': event['title'] ?? '',
+                    'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
+                    'endDate': event['date'] ?? '',
+                    'marketPercentage': _getBestMoneyline(bookmark),
+                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'] ?? 'N/A',
+                    'team': event['home_team'] ?? '',
+                    'marketPlace': marketPlace,
+                    'bookmark': bookmark,
+                  });
+                  break;
+              }
+            }
           }
+
+          print("Saved events processed: FD=${_savedFanduelEvents.length}, DK=${_savedDraftkingsEvents.length}, MGM=${_savedBetMgmEvents.length}");
+          
+          // Fetch AI predictions for saved events (async, doesn't block UI)
+          _fetchAiForSavedEvents();
+        } else {
+          print("No saved sportsbook events found");
         }
+      } else {
+        print("Failed to fetch saved events: ${response.statusCode}");
       }
     } catch (e) {
       print("Error fetching saved events: $e");
     }
   }
 
-  void saveEvent({required String eventId, required String marketPlace}) {
+  /// Fetch AI predictions for saved events
+  Future<void> _fetchAiForSavedEvents() async {
+    final allSavedEvents = [
+      ..._savedFanduelEvents,
+      ..._savedDraftkingsEvents,
+      ..._savedBetMgmEvents,
+    ];
+
+    for (var event in allSavedEvents) {
+      final bookmark = event['bookmark'] as Map<String, dynamic>?;
+      if (bookmark == null) continue;
+
+      final eventId = event['event_id'] as String?;
+      if (eventId == null) continue;
+
+      // Check if AI data already exists
+      final existingAiAway = bookmark['ai_moneyline_away'] as String?;
+      final existingAiHome = bookmark['ai_moneyline_home'] as String?;
+      if (existingAiAway != null || existingAiHome != null) {
+        continue; // Already has AI data
+      }
+
+      // Build team names from subtitle
+      final subtitle = event['subtitle'] as String? ?? '';
+      final teams = subtitle.split(' vs ');
+      if (teams.length != 2) continue;
+
+      final awayTeam = teams[0].trim();
+      final homeTeam = teams[1].trim();
+
+      // Fetch AI for this bookmark
+      fetchAIForBookmark(
+        SportsbookEvent(
+          eventId: eventId,
+          bookmark: [Bookmark.fromJson(bookmark)],
+          date: event['endDate'] as String? ?? '',
+          homeTeam: homeTeam,
+          awayTeam: awayTeam,
+        ),
+        Bookmark.fromJson(bookmark),
+        0,
+        0,
+      ).then((aiData) {
+        if (aiData != null) {
+          final aiMoneylineAway = aiData['aiMoneylineAway'] as String?;
+          final aiMoneylineHome = aiData['aiMoneylineHome'] as String?;
+          
+          // Determine which team is the favorite (more negative moneyline)
+          String? favoriteAiValue;
+          final markets = bookmark['market'] as List<dynamic>?;
+          if (markets != null) {
+            for (var market in markets) {
+              final key = market['key'] as String?;
+              if (key == 'h2h') {
+                final outcome = market['outcome'] as Map<String, dynamic>?;
+                if (outcome != null) {
+                  final away = outcome['away_team'] as Map<String, dynamic>?;
+                  final home = outcome['home_team'] as Map<String, dynamic>?;
+                  final awayAmerican = away?['american'] as String?;
+                  final homeAmerican = home?['american'] as String?;
+                  
+                  if (awayAmerican != null && homeAmerican != null) {
+                    final awayValue = int.tryParse(awayAmerican) ?? 0;
+                    final homeValue = int.tryParse(homeAmerican) ?? 0;
+                    // Favorite is the more negative value
+                    favoriteAiValue = (awayValue < homeValue) ? aiMoneylineAway : aiMoneylineHome;
+                  }
+                }
+                break;
+              }
+            }
+          }
+          
+          // Update the saved event with AI data
+          final marketPlace = event['marketPlace'] as String?;
+          if (marketPlace != null) {
+            final idx = _getSavedEventIndex(eventId, marketPlace);
+            if (idx != -1) {
+              final updatedBookmark = bookmark..addAll({
+                'ai_moneyline_away': aiMoneylineAway,
+                'ai_moneyline_home': aiMoneylineHome,
+              });
+              
+              switch (marketPlace) {
+                case 'FanDuel':
+                  if (idx < _savedFanduelEvents.length) {
+                    _savedFanduelEvents[idx]['bookmark'] = updatedBookmark;
+                    _savedFanduelEvents[idx]['aiPercentage'] = favoriteAiValue ?? aiMoneylineAway ?? aiMoneylineHome;
+                  }
+                  break;
+                case 'DraftKings':
+                  if (idx < _savedDraftkingsEvents.length) {
+                    _savedDraftkingsEvents[idx]['bookmark'] = updatedBookmark;
+                    _savedDraftkingsEvents[idx]['aiPercentage'] = favoriteAiValue ?? aiMoneylineAway ?? aiMoneylineHome;
+                  }
+                  break;
+                case 'BetMGM':
+                  if (idx < _savedBetMgmEvents.length) {
+                    _savedBetMgmEvents[idx]['bookmark'] = updatedBookmark;
+                    _savedBetMgmEvents[idx]['aiPercentage'] = favoriteAiValue ?? aiMoneylineAway ?? aiMoneylineHome;
+                  }
+                  break;
+              }
+              // Refresh the specific list to trigger UI rebuild
+              _savedFanduelEvents.refresh();
+              _savedDraftkingsEvents.refresh();
+              _savedBetMgmEvents.refresh();
+              // Force controller update
+              update();
+            }
+          }
+        }
+      });
+    }
+  }
+
+  /// Get index of saved event by event ID and market place
+  int _getSavedEventIndex(String eventId, String marketPlace) {
     switch (marketPlace) {
       case 'FanDuel':
-        if (_savedFanduelEventIds.contains(eventId)) {
-          _savedFanduelEventIds.remove(eventId);
-        } else {
-          _savedFanduelEventIds.add(eventId);
-        }
-        break;
+        return _savedFanduelEvents.indexWhere((e) => e['event_id'] == eventId);
       case 'DraftKings':
-        if (_savedDraftkingsEventIds.contains(eventId)) {
-          _savedDraftkingsEventIds.remove(eventId);
-        } else {
-          _savedDraftkingsEventIds.add(eventId);
-        }
-        break;
+        return _savedDraftkingsEvents.indexWhere((e) => e['event_id'] == eventId);
       case 'BetMGM':
-        if (_savedBetMgmEventIds.contains(eventId)) {
-          _savedBetMgmEventIds.remove(eventId);
-        } else {
-          _savedBetMgmEventIds.add(eventId);
+        return _savedBetMgmEvents.indexWhere((e) => e['event_id'] == eventId);
+      default:
+        return -1;
+    }
+  }
+
+  /// Get best moneyline (lowest american value) from bookmark
+  String _getBestMoneyline(dynamic bookmark) {
+    try {
+      final markets = bookmark['market'] as List<dynamic>?;
+      if (markets == null) return '-';
+
+      // Find h2h market
+      final h2hMarket = markets.firstWhere(
+        (m) => m['key'] == 'h2h',
+        orElse: () => null,
+      );
+
+      if (h2hMarket == null) return '-';
+
+      final outcome = h2hMarket['outcome'] as Map<String, dynamic>?;
+      if (outcome == null) return '-';
+
+      final awayTeam = outcome['away_team'] as Map<String, dynamic>?;
+      final homeTeam = outcome['home_team'] as Map<String, dynamic>?;
+
+      final awayAmerican = awayTeam?['american'] as String?;
+      final homeAmerican = homeTeam?['american'] as String?;
+
+      if (awayAmerican == null && homeAmerican == null) return '-';
+      if (awayAmerican == null) return homeAmerican!.replaceAll('+', '');
+      if (homeAmerican == null) return awayAmerican.replaceAll('+', '');
+
+      // Return the lower (more negative) value
+      final awayValue = int.tryParse(awayAmerican) ?? 0;
+      final homeValue = int.tryParse(homeAmerican) ?? 0;
+
+      return (awayValue < homeValue ? awayAmerican : homeAmerican).replaceAll('+', '');
+    } catch (e) {
+      return '-';
+    }
+  }
+
+  Future<bool> saveEvent({
+    required String eventId,
+    required String marketPlace,
+  }) async {
+    try {
+      final url = '${Urls.baseUrl}/api/trade/saved-event/';
+      print("=== Save Sports Event API ===");
+      print("URL: $url");
+
+      // Get token from SharedPreferencesHelper
+      final token = await SharedPreferencesHelper.getAccessToken();
+      print("Token: ${token?.substring(0, 20)}...");
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'event_id': eventId,
+          'market_place': 'SportsBook',
+        }),
+      );
+
+      print("Request Body: {event_id: $eventId, market_place: SportsBook}");
+      print("Response Status: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+      print("=====================");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print("Event saved successfully!");
+        // Toggle local state
+        switch (marketPlace) {
+          case 'FanDuel':
+            if (_savedFanduelEventIds.contains(eventId)) {
+              _savedFanduelEventIds.remove(eventId);
+            } else {
+              _savedFanduelEventIds.add(eventId);
+            }
+            break;
+          case 'DraftKings':
+            if (_savedDraftkingsEventIds.contains(eventId)) {
+              _savedDraftkingsEventIds.remove(eventId);
+            } else {
+              _savedDraftkingsEventIds.add(eventId);
+            }
+            break;
+          case 'BetMGM':
+            if (_savedBetMgmEventIds.contains(eventId)) {
+              _savedBetMgmEventIds.remove(eventId);
+            } else {
+              _savedBetMgmEventIds.add(eventId);
+            }
+            break;
         }
-        break;
+        return true;
+      } else {
+        print("Failed to save event: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print("Save event error: $e");
+      return false;
     }
   }
 

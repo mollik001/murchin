@@ -14,6 +14,7 @@ class PolymarketCard extends StatelessWidget {
   final String team;
   final Color bgColor;
   final Color borderColor;
+  final String? slug;
   final List<String>? optionTitles;
   final List<double>? marketProbs;
   final List<double>? aiPercentages;
@@ -33,6 +34,7 @@ class PolymarketCard extends StatelessWidget {
     required this.team,
     required this.bgColor,
     required this.borderColor,
+    this.slug,
     this.optionTitles,
     this.marketProbs,
     this.aiPercentages,
@@ -63,6 +65,9 @@ class PolymarketCard extends StatelessWidget {
                 isPolymarket: true,
                 bgColor: bgColor,
                 eventId: eventId,
+                slug: eventRef != null
+                    ? (eventRef!['slug'] as String?) ?? slug
+                    : slug,
                 optionTitles: eventRef != null
                     ? (eventRef!['optionTitles'] as List<String>?) ?? optionTitles
                     : optionTitles,
@@ -83,8 +88,8 @@ class PolymarketCard extends StatelessWidget {
         subtitle: subtitle,
         date: date,
         marketPercentage: marketPercentage,
-        aiPercentage: eventRef != null 
-            ? (eventRef!['aiPercentage'] as String?) ?? aiPercentage 
+        aiPercentage: eventRef != null
+            ? (eventRef!['aiPercentage'] as String?) ?? aiPercentage
             : aiPercentage,
         team: team,
         bgColor: bgColor,

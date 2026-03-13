@@ -375,6 +375,8 @@ class HomeController extends GetxController {
           tempEvents.add({
             'event_id': event['event_id'],
             'title': event['title'],
+            'slug': event['slug'] ?? '',
+            'imageUrl': event['image_url'] ?? '',
             'endDate': event['end_date'] ?? '',
             'team': highestTeam,
             'marketPercentage': marketPercentage,
@@ -402,11 +404,12 @@ class HomeController extends GetxController {
           if (_events.length < _maxEventsPerSection && nextPageUrl != null) {
             await fetchPolymarketEvents(url: nextPageUrl, isAutoLoad: true);
           } else {
-            // Limit to 10 events after loading
+            // Limit to 10 events after loading for initial display
             if (_events.length > _maxEventsPerSection) {
               _events.assignAll(_events.take(_maxEventsPerSection).toList());
             }
-            nextPageUrl = null; // No more pagination
+            // Keep nextPageUrl for "All" tab infinite scroll - don't set to null
+            // nextPageUrl remains available for loadMoreForAllTab()
           }
         } else if (isAutoLoad) {
           // Auto-loading additional pages
@@ -422,7 +425,10 @@ class HomeController extends GetxController {
             if (_events.length > _maxEventsPerSection) {
               _events.assignAll(_events.take(_maxEventsPerSection).toList());
             }
-            nextPageUrl = null; // No more pagination
+            // Keep nextPageUrl for "All" tab infinite scroll
+            if (data['next'] != null) {
+              nextPageUrl = data['next'];
+            }
           }
         }
 
@@ -604,6 +610,7 @@ class HomeController extends GetxController {
             'event_id': event['event_ticker'],
             'series_ticker': event['series_ticker'] ?? '',
             'title': event['title'],
+            'imageUrl': event['img_url'] ?? '',
             'endDate': event['end_date'] ?? '',
             'team': highestTeam,
             'marketPercentage': marketPercentage,
@@ -633,22 +640,22 @@ class HomeController extends GetxController {
           kalshiNextPageUrl = data['next'];
           _kalshiPagesLoaded = 1;
           cacheKalshiEvents(_kalshiEvents);
-          
+
           // Auto-load more pages if we have less than 10 events and next page exists
           if (_kalshiEvents.length < _maxEventsPerSection && kalshiNextPageUrl != null) {
             await fetchKalshiEvents(url: kalshiNextPageUrl, isAutoLoad: true);
           } else {
-            // Limit to 10 events after loading
+            // Limit to 10 events after loading for initial display
             if (_kalshiEvents.length > _maxEventsPerSection) {
               _kalshiEvents.assignAll(_kalshiEvents.take(_maxEventsPerSection).toList());
             }
-            kalshiNextPageUrl = null; // No more pagination
+            // Keep kalshiNextPageUrl for "All" tab infinite scroll - don't set to null
           }
         } else if (isAutoLoad) {
           // Auto-loading additional pages
           _kalshiPagesLoaded++;
           cacheKalshiEvents(_kalshiEvents);
-          
+
           // Continue loading if still need more events and have more pages
           if (_kalshiEvents.length < _maxEventsPerSection && data['next'] != null && _kalshiPagesLoaded < _maxPagesToLoad) {
             kalshiNextPageUrl = data['next'];
@@ -658,7 +665,10 @@ class HomeController extends GetxController {
             if (_kalshiEvents.length > _maxEventsPerSection) {
               _kalshiEvents.assignAll(_kalshiEvents.take(_maxEventsPerSection).toList());
             }
-            kalshiNextPageUrl = null; // No more pagination
+            // Keep kalshiNextPageUrl for "All" tab infinite scroll
+            if (data['next'] != null) {
+              kalshiNextPageUrl = data['next'];
+            }
           }
         }
 
@@ -1029,6 +1039,8 @@ class HomeController extends GetxController {
           tempEvents.add({
             'event_id': event['event_id'],
             'title': event['title'],
+            'slug': event['slug'] ?? '',
+            'imageUrl': event['image_url'] ?? '',
             'endDate': event['end_date'] ?? '',
             'team': highestTeam,
             'marketPercentage': marketPercentage,
@@ -1260,6 +1272,37 @@ class HomeController extends GetxController {
             _processSavedEvents(kalshiEvents, 'Kalshi'),
           );
           print("Found ${_savedKalshiEvents.length} saved Kalshi events");
+
+          // Fetch AI predictions for saved Kalshi events (limited to first 5)
+          for (int i = 0; i < _savedKalshiEvents.length && i < 5; i++) {
+            final e = _savedKalshiEvents[i];
+            final filtered = _buildFilteredOptions(e);
+
+            fetchAIValue(
+              eventName: e['title'],
+              options: filtered['options'],
+              marketPredictions: filtered['marketProbs'],
+              baseEvent: e,
+              originalIndices: filtered['originalIndices'],
+            ).then((aiData) {
+              // Skip if AI data is null or empty (API failed)
+              if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
+                return;
+              }
+
+              final idx = _savedKalshiEvents.indexWhere(
+                (ev) => ev['event_id'] == aiData['event_id'],
+              );
+
+              if (idx != -1) {
+                List<Map<String, dynamic>> newList = List.from(_savedKalshiEvents);
+                newList[idx] = aiData;
+                _savedKalshiEvents.assignAll(newList);
+                update(); // Force UI refresh
+                print("AI data updated for saved Kalshi event: ${aiData['title']}");
+              }
+            });
+          }
         } else {
           _savedKalshiEvents.clear();
         }
@@ -1280,20 +1323,23 @@ class HomeController extends GetxController {
     List<Map<String, dynamic>> processedEvents = [];
 
     for (var event in events) {
-      final outcomes = event['question_outcome'] as List<dynamic>?;
+      // Handle different structures for Polymarket vs Kalshi
+      List<dynamic>? outcomes;
+      dynamic eventId;
+      
+      if (marketPlace == 'Kalshi') {
+        // Kalshi structure
+        outcomes = event['outcomes'] as List<dynamic>?;
+        eventId = event['event_ticker'] as String?;
+      } else {
+        // Polymarket structure
+        outcomes = event['question_outcome'] as List<dynamic>?;
+        eventId = event['event_id'];
+      }
 
       if (event['title'] == null || event['title'].toString().isEmpty)
         continue;
       if (outcomes == null || outcomes.isEmpty) continue;
-
-      final validOutcomes = outcomes.where((o) {
-        final title = o['group_item_title']?.toString() ?? '';
-        final probStr = o['probability']?.toString() ?? '';
-        final prob = double.tryParse(probStr) ?? -1;
-        return title.isNotEmpty && prob >= 0;
-      }).toList();
-
-      if (validOutcomes.isEmpty) continue;
 
       String highestTeam = '';
       double highestProb = -1;
@@ -1301,18 +1347,48 @@ class HomeController extends GetxController {
       List<String> optionTitles = [];
       List<double> marketProbs = [];
 
-      for (var outcome in validOutcomes) {
-        final prob = double.tryParse(outcome['probability'].toString()) ?? 0;
-        final title = outcome['group_item_title'] ?? '';
+      if (marketPlace == 'Kalshi') {
+        // Process Kalshi outcomes (probability_yes, group_item_title_yes)
+        for (var outcome in outcomes) {
+          final probYes = double.tryParse(outcome['probability_yes'].toString()) ?? -1;
+          final titleYes = outcome['group_item_title_yes']?.toString() ?? '';
+          
+          // Skip 0 and 100 values
+          if (probYes <= 0 || probYes >= 100) continue;
+          if (titleYes.isEmpty) continue;
 
-        if (prob <= 0) continue;
+          optionTitles.add(titleYes);
+          marketProbs.add(probYes);
 
-        optionTitles.add(title);
-        marketProbs.add(prob);
+          if (probYes > highestProb) {
+            highestProb = probYes;
+            highestTeam = titleYes;
+          }
+        }
+      } else {
+        // Process Polymarket outcomes (probability, group_item_title)
+        final validOutcomes = outcomes.where((o) {
+          final title = o['group_item_title']?.toString() ?? '';
+          final probStr = o['probability']?.toString() ?? '';
+          final prob = double.tryParse(probStr) ?? -1;
+          return title.isNotEmpty && prob >= 0;
+        }).toList();
 
-        if (prob > highestProb) {
-          highestProb = prob;
-          highestTeam = title;
+        if (validOutcomes.isEmpty) continue;
+
+        for (var outcome in validOutcomes) {
+          final prob = double.tryParse(outcome['probability'].toString()) ?? 0;
+          final title = outcome['group_item_title'] ?? '';
+
+          if (prob <= 0) continue;
+
+          optionTitles.add(title);
+          marketProbs.add(prob);
+
+          if (prob > highestProb) {
+            highestProb = prob;
+            highestTeam = title;
+          }
         }
       }
 
@@ -1326,8 +1402,13 @@ class HomeController extends GetxController {
       final marketPercentage = '${roundedPercentage}%';
 
       processedEvents.add({
-        'event_id': event['event_id'],
+        'event_id': eventId,
         'title': event['title'],
+        'slug': event['slug'] ?? '',
+        'series_ticker': event['series_ticker'] ?? '',
+        'imageUrl': (marketPlace == 'Kalshi') 
+            ? (event['img_url'] ?? '') 
+            : (event['image_url'] ?? ''),
         'endDate': event['end_date'] ?? '',
         'team': highestTeam,
         'marketPercentage': marketPercentage,

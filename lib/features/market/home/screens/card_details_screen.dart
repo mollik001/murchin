@@ -8,6 +8,7 @@ import 'package:murchin/const/widgets/custom_appbar_2.dart';
 import 'package:murchin/const/widgets/custom_button.dart';
 import 'package:murchin/features/market/home/controllers/home_controller.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CardDetailScreen extends StatefulWidget {
   final String title;
@@ -20,6 +21,8 @@ class CardDetailScreen extends StatefulWidget {
   final Color bgColor;
   final int? eventId;
   final String? eventIdString;
+  final String? slug;
+  final String? seriesTicker;
   final List<String>? optionTitles;
   final List<double>? marketProbs;
   final List<double>? aiPercentages;
@@ -37,6 +40,8 @@ class CardDetailScreen extends StatefulWidget {
     required this.bgColor,
     this.eventId,
     this.eventIdString,
+    this.slug,
+    this.seriesTicker,
     this.optionTitles,
     this.marketProbs,
     this.aiPercentages,
@@ -130,21 +135,25 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
       print("AI Explanation: ${aiData['aiExplanation']}");
       print("AI Percentages: ${aiData['aiPercentages']}");
 
-      // Store fresh AI data
-      setState(() {
-        _freshAiExplanation = aiData['aiExplanation'] as String?;
-        _freshAiPercentage = aiData['aiPercentage'] as String?;
-        final rawPercentages = aiData['aiPercentages'];
-        if (rawPercentages != null && rawPercentages is List) {
-          _freshAiPercentages = List<double>.from(rawPercentages);
-        }
-        _isAiLoading = false;
-      });
+      // Store fresh AI data only if still mounted
+      if (mounted) {
+        setState(() {
+          _freshAiExplanation = aiData['aiExplanation'] as String?;
+          _freshAiPercentage = aiData['aiPercentage'] as String?;
+          final rawPercentages = aiData['aiPercentages'];
+          if (rawPercentages != null && rawPercentages is List) {
+            _freshAiPercentages = List<double>.from(rawPercentages);
+          }
+          _isAiLoading = false;
+        });
+      }
     } catch (e) {
       print("Error fetching fresh AI data: $e");
-      setState(() {
-        _isAiLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isAiLoading = false;
+        });
+      }
     } finally {
       _isFetchingAI = false;
     }
@@ -657,11 +666,80 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
     );
   }
 
-  void _viewOnPlatform() {
-    Get.snackbar(
-      'Platform Redirect',
-      'Redirecting to ${widget.isPolymarket ? 'Polymarket' : 'Kalshi'}...',
-      snackPosition: SnackPosition.BOTTOM,
-    );
+  void _viewOnPlatform() async {
+    if (widget.isPolymarket) {
+      // For Polymarket events
+      if (widget.slug != null && widget.slug!.isNotEmpty) {
+        final url = Uri.parse('https://polymarket.com/event/${widget.slug}');
+        print('🔗 Opening Polymarket URL: $url');
+        
+        try {
+          // Directly launch the URL without canLaunchUrl check
+          final launched = await launchUrl(
+            url,
+            mode: LaunchMode.externalApplication,
+          );
+          
+          if (!launched) {
+            print('❌ Failed to launch URL');
+            Get.snackbar(
+              'Error',
+              'Could not open the platform',
+              snackPosition: SnackPosition.BOTTOM,
+            );
+          }
+        } catch (e) {
+          print('❌ Error launching URL: $e');
+          Get.snackbar(
+            'Error',
+            'Could not open the platform',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      } else {
+        print('⚠️ No slug available for Polymarket event');
+        Get.snackbar(
+          'Unavailable',
+          'Platform link not available for this event',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } else {
+      // For Kalshi events
+      if (widget.seriesTicker != null && widget.seriesTicker!.isNotEmpty) {
+        final url = Uri.parse('https://kalshi.com/markets/${widget.seriesTicker}');
+        print('🔗 Opening Kalshi URL: $url');
+        
+        try {
+          final launched = await launchUrl(
+            url,
+            mode: LaunchMode.externalApplication,
+          );
+          
+          if (!launched) {
+            print('❌ Failed to launch URL');
+            Get.snackbar(
+              'Error',
+              'Could not open the platform',
+              snackPosition: SnackPosition.BOTTOM,
+            );
+          }
+        } catch (e) {
+          print('❌ Error launching URL: $e');
+          Get.snackbar(
+            'Error',
+            'Could not open the platform',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+      } else {
+        print('⚠️ No series_ticker available for Kalshi event');
+        Get.snackbar(
+          'Unavailable',
+          'Platform link not available for this event',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    }
   }
 }

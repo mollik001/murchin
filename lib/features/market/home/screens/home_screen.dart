@@ -125,6 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (index < controller.events.length) {
                       final e = controller.events[index];
                       final eventId = e['event_id'] as int?;
+                      final slug = e['slug'] as String?;
                       return Obx(() => Padding(
                         padding: EdgeInsets.only(bottom: 20.h),
                         child: PolymarketCard(
@@ -137,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           team: e['team'],
                           bgColor: polymarketBgColor,
                           borderColor: AppColors.notBlue,
+                          slug: slug,
                           isSaved: eventId != null && controller.isEventSaved(eventId),
                           optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
                           marketProbs: e['marketProbs'] != null ? List<double>.from(e['marketProbs']) : null,
@@ -170,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (index < controller.kalshiEvents.length) {
                       final e = controller.kalshiEvents[index];
                       final eventId = e['event_id'] as String?;
+                      final seriesTicker = e['series_ticker'] as String?;
                       return Padding(
                         padding: EdgeInsets.only(bottom: 20.h),
                         child: KalshiCard(
@@ -182,6 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           team: e['team'],
                           bgColor: kalshiBgColor,
                           borderColor: AppColors.blue,
+                          seriesTicker: seriesTicker,
                           isSaved: false, // TODO: Implement Kalshi save functionality
                           optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
                           marketProbs: e['marketProbs'] != null ? List<double>.from(e['marketProbs']) : null,
@@ -211,6 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       .map(
                         (e) {
                           final eventId = e['event_id'] as int?;
+                          final slug = e['slug'] as String?;
                           return Obx(() => Padding(
                             padding: EdgeInsets.only(bottom: 20.h),
                             child: PolymarketCard(
@@ -223,6 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               team: e['team'],
                               bgColor: polymarketBgColor,
                               borderColor: AppColors.notBlue,
+                              slug: slug,
                               isSaved: eventId != null && controller.isEventSaved(eventId),
                               optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
                               marketProbs: e['marketProbs'] != null ? List<double>.from(e['marketProbs']) : null,
@@ -237,6 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       .map(
                         (e) {
                           final eventId = e['event_id'] as String?;
+                          final seriesTicker = e['series_ticker'] as String?;
                           return Padding(
                             padding: EdgeInsets.only(bottom: 20.h),
                             child: KalshiCard(
@@ -249,6 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               team: e['team'],
                               bgColor: kalshiBgColor,
                               borderColor: AppColors.blue,
+                              seriesTicker: seriesTicker,
                               isSaved: false, // TODO: Implement Kalshi save functionality
                               optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
                               marketProbs: e['marketProbs'] != null ? List<double>.from(e['marketProbs']) : null,

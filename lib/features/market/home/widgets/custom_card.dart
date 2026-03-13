@@ -169,29 +169,12 @@ class _BaseCardState extends State<BaseCard> {
                               borderRadius: BorderRadius.circular(8.r)),
                         ),
                       )
-                    : widget.aiPercentage == 'N/A'
-                        ? Container(
-                            height: 48.h,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(8.r),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'N/A',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          )
-                        : ComparisonTab(
-                            title: 'AI Predicts',
-                            percentage: widget.aiPercentage!,
-                            team: widget.team,
-                            percentageColor: const Color(0xffC41E3A),
-                          ),
+                    : ComparisonTab(
+                        title: 'AI Predicts',
+                        percentage: widget.aiPercentage ?? '0%',
+                        team: widget.team,
+                        percentageColor: const Color(0xffC41E3A),
+                      ),
               ),
             ],
           ),

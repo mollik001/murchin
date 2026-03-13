@@ -3,7 +3,7 @@ class Urls {
   static const String baseUrl = 'https://pickfair.dsrt321.online';
 
   // AI Sportsbook API base URL
-  static const String aiSportsbookBaseUrl = 'https://abc.dsrt321.online';
+  static const String aiBaseUrl = 'https://abc.dsrt321.online/api/v1/sportbook';
 
   // AI Sportsbook API endpoint
   static const String aiSportsbookGameLinesUrl = 'https://abc.dsrt321.online/api/v1/sportbook/game-lines';

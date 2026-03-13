@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:murchin/const/service/shared_preference_helper.dart';
+import 'package:murchin/features/auth/signin_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -78,6 +80,11 @@ class ProfileController extends GetxController {
     try {
       isLoading.value = true;
 
+      // Clear tokens from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('token');
+      await prefs.remove('refresh_token');
+
       // Clear last visited section
       await SharedPreferencesHelper.clearLastVisitedSection();
 
@@ -94,6 +101,9 @@ class ProfileController extends GetxController {
       profileImage.value = null;
 
       print('✅ User logged out successfully');
+      
+      // Navigate to sign in screen and clear all previous routes
+      Get.offAll(() => SignInPage());
     } catch (e) {
       print('❌ Logout error: $e');
     } finally {

@@ -69,11 +69,11 @@ class SportsbookEvent {
       date: json['date'] ?? '',
       homeTeam: json['home_team'] ?? '',
       awayTeam: json['away_team'] ?? '',
-      aiPercentage: null,
-      aiExplanation: null,
-      optionTitles: null,
-      marketProbs: null,
-      aiPercentages: null,
+      aiPercentage: json['ai_percentage'] as String?,
+      aiExplanation: json['ai_explanation'] as String?,
+      optionTitles: json['option_titles'] != null ? List<String>.from(json['option_titles']) : null,
+      marketProbs: json['market_probs'] != null ? List<double>.from(json['market_probs']) : null,
+      aiPercentages: json['ai_percentages'] != null ? List<double>.from(json['ai_percentages']) : null,
     );
   }
 
@@ -101,6 +101,21 @@ class SportsbookEvent {
       marketProbs: marketProbs ?? this.marketProbs,
       aiPercentages: aiPercentages ?? this.aiPercentages,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'event_id': eventId,
+      'bookmark': bookmark.map((b) => b.toJson()).toList(),
+      'date': date,
+      'home_team': homeTeam,
+      'away_team': awayTeam,
+      'ai_percentage': aiPercentage,
+      'ai_explanation': aiExplanation,
+      'option_titles': optionTitles,
+      'market_probs': marketProbs,
+      'ai_percentages': aiPercentages,
+    };
   }
 }
 
@@ -139,12 +154,12 @@ class Bookmark {
       marketTitle: json['market_title'] ?? '',
       link: json['link'] ?? '',
       event: json['event'] ?? '',
-      aiSpreadAway: null,
-      aiSpreadHome: null,
-      aiMoneylineAway: null,
-      aiMoneylineHome: null,
-      aiTotalOver: null,
-      aiTotalUnder: null,
+      aiSpreadAway: json['ai_spread_away'] as String?,
+      aiSpreadHome: json['ai_spread_home'] as String?,
+      aiMoneylineAway: json['ai_moneyline_away'] as String?,
+      aiMoneylineHome: json['ai_moneyline_home'] as String?,
+      aiTotalOver: json['ai_total_over'] as String?,
+      aiTotalUnder: json['ai_total_under'] as String?,
     );
   }
 
@@ -175,6 +190,22 @@ class Bookmark {
       aiTotalUnder: aiTotalUnder ?? this.aiTotalUnder,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'market': market.map((m) => m.toJson()).toList(),
+      'market_title': marketTitle,
+      'link': link,
+      'event': event,
+      'ai_spread_away': aiSpreadAway,
+      'ai_spread_home': aiSpreadHome,
+      'ai_moneyline_away': aiMoneylineAway,
+      'ai_moneyline_home': aiMoneylineHome,
+      'ai_total_over': aiTotalOver,
+      'ai_total_under': aiTotalUnder,
+    };
+  }
 }
 
 class Market {
@@ -197,6 +228,15 @@ class Market {
       outcome: MarketOutcome.fromJson(json['outcome'] ?? {}),
       bookmark: json['bookmark'] ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'key': key,
+      'outcome': outcome.toJson(),
+      'bookmark': bookmark,
+    };
   }
 }
 
@@ -221,6 +261,15 @@ class MarketOutcome {
       under: json['under'] != null ? TotalOdds.fromJson(json['under']) : null,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'away_team': awayTeam?.toJson(),
+      'home_team': homeTeam?.toJson(),
+      'over': over?.toJson(),
+      'under': under?.toJson(),
+    };
+  }
 }
 
 class TeamOdds {
@@ -232,6 +281,12 @@ class TeamOdds {
     return TeamOdds(
       american: json['american'] ?? '',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'american': american,
+    };
   }
 }
 
@@ -246,5 +301,12 @@ class TotalOdds {
       point: (json['point'] ?? 0).toDouble(),
       american: json['american'] ?? '',
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'point': point,
+      'american': american,
+    };
   }
 }

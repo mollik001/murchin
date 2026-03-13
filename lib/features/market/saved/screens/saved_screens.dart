@@ -105,9 +105,8 @@ class _SavedScreenState extends State<SavedScreen> {
   Widget _buildSavedCardsList() {
     return GetX<HomeController>(
       builder: (controller) {
-        if (controller.isLoadingSaved.value &&
-            controller.savedPolymarketEvents.isEmpty &&
-            controller.savedKalshiEvents.isEmpty) {
+        // Show shimmer while initial loading
+        if (controller.isLoadingSaved.value) {
           return _buildLoadingShimmer();
         }
 

@@ -94,9 +94,8 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
 
     return GetX<SportsHomeController>(
       builder: (controller) {
-        if (controller.isLoading.value &&
-            controller.savedFanduelEvents.isEmpty &&
-            controller.savedDraftkingsEvents.isEmpty) {
+        // Show shimmer while initial loading
+        if (controller.isLoading.value) {
           return _buildLoadingShimmer();
         }
 
@@ -129,14 +128,11 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
             ...controller.savedFanduelEvents.asMap().entries.map((entry) {
               int index = entry.key;
               final e = entry.value;
-              
-              // Use the aiPercentage that was calculated by the controller (favorite team's AI value)
+
               // Show shimmer if AI data is not yet loaded (null or 'N/A')
               String? aiPercentage = e['aiPercentage'] as String?;
-              if (aiPercentage == 'N/A' || aiPercentage == null) {
-                aiPercentage = null; // Show shimmer
-              }
-              
+              bool isLoadingAI = aiPercentage == null || aiPercentage == 'N/A' || aiPercentage.isEmpty;
+
               return Padding(
                 padding: EdgeInsets.only(bottom: 20.h),
                 child: FanduelCard(
@@ -145,7 +141,7 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
                   subtitle: e['subtitle'] ?? '',
                   date: formatPrettyDate(e['endDate']),
                   marketPercentage: e['marketPercentage'],
-                  aiPercentage: aiPercentage,
+                  aiPercentage: isLoadingAI ? null : aiPercentage,
                   team: e['team'],
                   bgColor: fanduelBgColor,
                   borderColor: AppColors.notBlue,
@@ -158,14 +154,11 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
             ...controller.savedDraftkingsEvents.asMap().entries.map((entry) {
               int index = entry.key;
               final e = entry.value;
-              
-              // Use the aiPercentage that was calculated by the controller (favorite team's AI value)
+
               // Show shimmer if AI data is not yet loaded (null or 'N/A')
               String? aiPercentage = e['aiPercentage'] as String?;
-              if (aiPercentage == 'N/A' || aiPercentage == null) {
-                aiPercentage = null; // Show shimmer
-              }
-              
+              bool isLoadingAI = aiPercentage == null || aiPercentage == 'N/A' || aiPercentage.isEmpty;
+
               return Padding(
                 padding: EdgeInsets.only(bottom: 20.h),
                 child: DraftkingsCard(
@@ -174,7 +167,7 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
                   subtitle: e['subtitle'] ?? '',
                   date: formatPrettyDate(e['endDate']),
                   marketPercentage: e['marketPercentage'],
-                  aiPercentage: aiPercentage,
+                  aiPercentage: isLoadingAI ? null : aiPercentage,
                   team: e['team'],
                   bgColor: draftkingsBgColor,
                   borderColor: AppColors.blue,

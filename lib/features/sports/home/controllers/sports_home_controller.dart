@@ -601,55 +601,67 @@ class SportsHomeController extends GetxController {
         Uri.parse(Urls.aiSportsbookGameLinesUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
+      ).timeout(
+        Duration(seconds: 10),
+        onTimeout: () {
+          print("AI API request timed out for ${bookmark.marketTitle}");
+          return http.Response('{"error": "timeout"}', 408);
+        },
       );
 
       print("AI Response Status: ${response.statusCode}");
+      print("AI Response Body: ${response.body}");
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final aiPrediction = data['AI_prediction'];
+        try {
+          final data = jsonDecode(response.body);
+          final aiPrediction = data['AI_prediction'];
 
-        if (aiPrediction != null) {
-          final aiSpread = aiPrediction['spread'] as List<dynamic>?;
-          final aiMoneyline = aiPrediction['moneyline'] as List<dynamic>?;
-          final aiTotals = aiPrediction['totals'] as List<dynamic>?;
+          if (aiPrediction != null) {
+            final aiSpread = aiPrediction['spread'] as List<dynamic>?;
+            final aiMoneyline = aiPrediction['moneyline'] as List<dynamic>?;
+            final aiTotals = aiPrediction['totals'] as List<dynamic>?;
 
-          // Format spread values
-          String aiSpreadAway = 'N/A';
-          String aiSpreadHome = 'N/A';
-          if (aiSpread != null && aiSpread.length == 2) {
-            aiSpreadAway = aiSpread[0].toString();
-            aiSpreadHome = aiSpread[1].toString();
+            // Format spread values
+            String aiSpreadAway = 'N/A';
+            String aiSpreadHome = 'N/A';
+            if (aiSpread != null && aiSpread.length == 2) {
+              aiSpreadAway = aiSpread[0].toString();
+              aiSpreadHome = aiSpread[1].toString();
+            }
+
+            // Format moneyline values - no '+' sign for positive values
+            String aiMoneylineAway = 'N/A';
+            String aiMoneylineHome = 'N/A';
+            if (aiMoneyline != null && aiMoneyline.length == 2) {
+              final awayValue = aiMoneyline[0] is int ? aiMoneyline[0] : (aiMoneyline[0] as num).toInt();
+              final homeValue = aiMoneyline[1] is int ? aiMoneyline[1] : (aiMoneyline[1] as num).toInt();
+              aiMoneylineAway = awayValue.toString();
+              aiMoneylineHome = homeValue.toString();
+            }
+
+            // Format totals values
+            String aiTotalOver = 'N/A';
+            String aiTotalUnder = 'N/A';
+            if (aiTotals != null && aiTotals.length == 2) {
+              aiTotalOver = aiTotals[0].toString();
+              aiTotalUnder = aiTotals[1].toString();
+            }
+
+            print("AI Prediction for ${bookmark.marketTitle}: Spread[$aiSpreadAway, $aiSpreadHome] Money[$aiMoneylineAway, $aiMoneylineHome] Total[$aiTotalOver, $aiTotalUnder]");
+
+            return {
+              'aiSpreadAway': aiSpreadAway,
+              'aiSpreadHome': aiSpreadHome,
+              'aiMoneylineAway': aiMoneylineAway,
+              'aiMoneylineHome': aiMoneylineHome,
+              'aiTotalOver': aiTotalOver,
+              'aiTotalUnder': aiTotalUnder,
+            };
           }
-
-          // Format moneyline values - no '+' sign for positive values
-          String aiMoneylineAway = 'N/A';
-          String aiMoneylineHome = 'N/A';
-          if (aiMoneyline != null && aiMoneyline.length == 2) {
-            final awayValue = aiMoneyline[0] is int ? aiMoneyline[0] : (aiMoneyline[0] as num).toInt();
-            final homeValue = aiMoneyline[1] is int ? aiMoneyline[1] : (aiMoneyline[1] as num).toInt();
-            aiMoneylineAway = awayValue.toString();
-            aiMoneylineHome = homeValue.toString();
-          }
-
-          // Format totals values
-          String aiTotalOver = 'N/A';
-          String aiTotalUnder = 'N/A';
-          if (aiTotals != null && aiTotals.length == 2) {
-            aiTotalOver = aiTotals[0].toString();
-            aiTotalUnder = aiTotals[1].toString();
-          }
-
-          print("AI Prediction for ${bookmark.marketTitle}: Spread[$aiSpreadAway, $aiSpreadHome] Money[$aiMoneylineAway, $aiMoneylineHome] Total[$aiTotalOver, $aiTotalUnder]");
-
-          return {
-            'aiSpreadAway': aiSpreadAway,
-            'aiSpreadHome': aiSpreadHome,
-            'aiMoneylineAway': aiMoneylineAway,
-            'aiMoneylineHome': aiMoneylineHome,
-            'aiTotalOver': aiTotalOver,
-            'aiTotalUnder': aiTotalUnder,
-          };
+        } catch (e) {
+          print("Error decoding AI response: $e");
+          print("Response body: ${response.body}");
         }
       }
 
@@ -917,7 +929,7 @@ class SportsHomeController extends GetxController {
                     'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
                     'endDate': event['date'] ?? '',
                     'marketPercentage': _getBestMoneyline(bookmark),
-                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'] ?? 'N/A',
+                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'], // null if not available - shows shimmer
                     'team': event['home_team'] ?? '',
                     'marketPlace': marketPlace,
                     'bookmark': bookmark,
@@ -931,7 +943,7 @@ class SportsHomeController extends GetxController {
                     'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
                     'endDate': event['date'] ?? '',
                     'marketPercentage': _getBestMoneyline(bookmark),
-                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'] ?? 'N/A',
+                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'], // null if not available - shows shimmer
                     'team': event['home_team'] ?? '',
                     'marketPlace': marketPlace,
                     'bookmark': bookmark,
@@ -945,7 +957,7 @@ class SportsHomeController extends GetxController {
                     'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
                     'endDate': event['date'] ?? '',
                     'marketPercentage': _getBestMoneyline(bookmark),
-                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'] ?? 'N/A',
+                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'], // null if not available - shows shimmer
                     'team': event['home_team'] ?? '',
                     'marketPlace': marketPlace,
                     'bookmark': bookmark,
@@ -970,7 +982,7 @@ class SportsHomeController extends GetxController {
     }
   }
 
-  /// Fetch AI predictions for saved events
+  /// Fetch AI predictions for saved events - Process sequentially to avoid timeouts
   Future<void> _fetchAiForSavedEvents() async {
     final allSavedEvents = [
       ..._savedFanduelEvents,
@@ -978,6 +990,8 @@ class SportsHomeController extends GetxController {
       ..._savedBetMgmEvents,
     ];
 
+    int processedCount = 0;
+    
     for (var event in allSavedEvents) {
       final bookmark = event['bookmark'] as Map<String, dynamic>?;
       if (bookmark == null) continue;
@@ -1000,23 +1014,25 @@ class SportsHomeController extends GetxController {
       final awayTeam = teams[0].trim();
       final homeTeam = teams[1].trim();
 
-      // Fetch AI for this bookmark
-      fetchAIForBookmark(
-        SportsbookEvent(
-          eventId: eventId,
-          bookmark: [Bookmark.fromJson(bookmark)],
-          date: event['endDate'] as String? ?? '',
-          homeTeam: homeTeam,
-          awayTeam: awayTeam,
-        ),
-        Bookmark.fromJson(bookmark),
-        0,
-        0,
-      ).then((aiData) {
+      // Fetch AI for this bookmark - wait for each request to complete before starting next
+      try {
+        final aiData = await fetchAIForBookmark(
+          SportsbookEvent(
+            eventId: eventId,
+            bookmark: [Bookmark.fromJson(bookmark)],
+            date: event['endDate'] as String? ?? '',
+            homeTeam: homeTeam,
+            awayTeam: awayTeam,
+          ),
+          Bookmark.fromJson(bookmark),
+          0,
+          0,
+        );
+        
         if (aiData != null) {
           final aiMoneylineAway = aiData['aiMoneylineAway'] as String?;
           final aiMoneylineHome = aiData['aiMoneylineHome'] as String?;
-          
+
           // Determine which team is the favorite (more negative moneyline)
           String? favoriteAiValue;
           final markets = bookmark['market'] as List<dynamic>?;
@@ -1030,7 +1046,7 @@ class SportsHomeController extends GetxController {
                   final home = outcome['home_team'] as Map<String, dynamic>?;
                   final awayAmerican = away?['american'] as String?;
                   final homeAmerican = home?['american'] as String?;
-                  
+
                   if (awayAmerican != null && homeAmerican != null) {
                     final awayValue = int.tryParse(awayAmerican) ?? 0;
                     final homeValue = int.tryParse(homeAmerican) ?? 0;
@@ -1052,7 +1068,7 @@ class SportsHomeController extends GetxController {
                 'ai_moneyline_away': aiMoneylineAway,
                 'ai_moneyline_home': aiMoneylineHome,
               });
-              
+
               switch (marketPlace) {
                 case 'FanDuel':
                   if (idx < _savedFanduelEvents.length) {
@@ -1082,8 +1098,18 @@ class SportsHomeController extends GetxController {
             }
           }
         }
-      });
+        
+        processedCount++;
+        print("Processed $processedCount AI requests for saved events");
+      } catch (e) {
+        print("Error processing AI for bookmark: $e");
+      }
+      
+      // Small delay between requests to avoid overwhelming the API
+      await Future.delayed(Duration(milliseconds: 500));
     }
+    
+    print("Completed processing all saved events AI requests");
   }
 
   /// Get index of saved event by event ID and market place

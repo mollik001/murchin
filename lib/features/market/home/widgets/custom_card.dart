@@ -69,7 +69,10 @@ class _BaseCardState extends State<BaseCard> {
   @override
   Widget build(BuildContext context) {
     bool isLoadingValues =
-        widget.aiPercentage == null || widget.aiPercentage!.isEmpty;
+        widget.aiPercentage == null || 
+        widget.aiPercentage!.isEmpty || 
+        widget.aiPercentage == 'N/A' ||
+        widget.aiPercentage == 'NA';
 
     return Container(
       width: double.infinity,

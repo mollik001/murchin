@@ -88,8 +88,6 @@ class _BaseCardState extends State<BaseCard> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(widget.iconAsset, width: 44.w, height: 44.h),
-              SizedBox(width: 12.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -333,10 +333,10 @@ class _LandingPageState extends State<LandingPage> {
                   fit: BoxFit.contain,
                 ),
               ),
-              const Spacer(),
+              SizedBox(height: 24.h),
               Center(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 60.h),
+                  padding: EdgeInsets.symmetric(horizontal: 6.w),
                   child: Text(
                     'Smarter Investments through\nArtificial Intelligence',
                     style: AppTextStyles.headlineSmall.copyWith(
@@ -348,6 +348,7 @@ class _LandingPageState extends State<LandingPage> {
                   ),
                 ),
               ),
+              const Spacer(),
             ],
           ),
         ),

@@ -330,7 +330,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                             color: widget.bgColor,
                             borderRadius: BorderRadius.circular(6.r),
                             border: Border.all(
-                              color: widget.isFanduel ? AppColors.notBlue : AppColors.blue,
+                              color: widget.bgColor,
                                 width: 1.w,
                               ),
                             ),
@@ -378,8 +378,8 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                       child: Text(
                         'Spread',
                         style: AppTextStyles.bodySmall?.copyWith(
-                          color: const Color(0xff5A5A5A),
-                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
                           fontSize: 14.sp,
                         ),
                         textAlign: TextAlign.center,
@@ -391,8 +391,8 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                       child: Text(
                         'Money',
                         style: AppTextStyles.bodySmall?.copyWith(
-                          color: const Color(0xff5A5A5A),
-                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
                           fontSize: 14.sp,
                         ),
                         textAlign: TextAlign.center,
@@ -404,8 +404,8 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                       child: Text(
                         'Total',
                         style: AppTextStyles.bodySmall?.copyWith(
-                          color: const Color(0xff5A5A5A),
-                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
                           fontSize: 14.sp,
                         ),
                         textAlign: TextAlign.center,
@@ -711,15 +711,15 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                       ),
                     ),
                   ),
-                  if (isOverUnder && isExpanded) ...[
+                    if (isOverUnder && isExpanded) ...[
                     SizedBox(
                       width: 54.w,
                       child: Text(
                         'Over',
                         style: AppTextStyles.bodySmall?.copyWith(
-                          color: AppColors.gray600,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12.sp,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.sp,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -730,9 +730,9 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                       child: Text(
                         'Under',
                         style: AppTextStyles.bodySmall?.copyWith(
-                          color: AppColors.gray600,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12.sp,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.sp,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -794,9 +794,9 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                       child: Text(
                         'Over',
                         style: AppTextStyles.bodySmall?.copyWith(
-                          color: AppColors.gray600,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12.sp,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.sp,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -807,9 +807,9 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                       child: Text(
                         'Under',
                         style: AppTextStyles.bodySmall?.copyWith(
-                          color: AppColors.gray600,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12.sp,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.sp,
                         ),
                         textAlign: TextAlign.center,
                       ),

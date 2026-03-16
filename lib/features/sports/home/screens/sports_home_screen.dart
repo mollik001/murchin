@@ -21,10 +21,10 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
   final SportsHomeController controller = Get.put(SportsHomeController());
   final ScrollController scrollController = ScrollController();
 
-  final Color unselectedBgColor = const Color(0xFFBDC4D2);
-  final Color fanduelBgColor = const Color(0xFF607D3B);
-  final Color draftkingsBgColor = const Color(0xFF6678F3);
-  final Color betmgmBgColor = const Color(0xFFE31837);
+  final Color unselectedBgColor = const Color(0xFF8D9AB1);
+  final Color fanduelBgColor = const Color(0xFF559CEE);
+  final Color draftkingsBgColor = const Color(0xFF218B28);
+  final Color betmgmBgColor = const Color(0xFFA79D2C);
 
   @override
   void initState() {
@@ -237,7 +237,7 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
                               aiPercentage: aiPercentage,
                               team: favoriteTeam,
                               bgColor: _getBgColor(bookmark.marketTitle),
-                              borderColor: AppColors.blue,
+                              borderColor: _getBgColor(bookmark.marketTitle),
                               platform: bookmark.marketTitle,
                               iconAsset: _getIconAsset(bookmark.marketTitle),
                               initiallySaved: isSaved,
@@ -571,7 +571,7 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
               aiPercentage: aiPercentage,
               team: event.homeTeam,
               bgColor: _getBgColor(bookmark.marketTitle),
-              borderColor: AppColors.blue,
+              borderColor: _getBgColor(bookmark.marketTitle),
               platform: bookmark.marketTitle,
               iconAsset: _getIconAsset(bookmark.marketTitle),
               initiallySaved: isSaved,

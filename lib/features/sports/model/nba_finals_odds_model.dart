@@ -42,6 +42,8 @@ class NbaFinalsOdd {
   final String teamName;
   final String price;
   final String date;
+  final String? aiPrediction;
+  final bool isLoadingAi;
 
   NbaFinalsOdd({
     required this.id,
@@ -49,6 +51,8 @@ class NbaFinalsOdd {
     required this.teamName,
     required this.price,
     required this.date,
+    this.aiPrediction,
+    this.isLoadingAi = false,
   });
 
   factory NbaFinalsOdd.fromJson(Map<String, dynamic> json) {
@@ -58,6 +62,27 @@ class NbaFinalsOdd {
       teamName: json['team_name'] ?? '',
       price: json['price'] ?? '',
       date: json['date'] ?? '',
+    );
+  }
+
+  /// Create a copy with updated AI prediction
+  NbaFinalsOdd copyWith({
+    int? id,
+    String? bookmarkTitle,
+    String? teamName,
+    String? price,
+    String? date,
+    String? aiPrediction,
+    bool? isLoadingAi,
+  }) {
+    return NbaFinalsOdd(
+      id: id ?? this.id,
+      bookmarkTitle: bookmarkTitle ?? this.bookmarkTitle,
+      teamName: teamName ?? this.teamName,
+      price: price ?? this.price,
+      date: date ?? this.date,
+      aiPrediction: aiPrediction ?? this.aiPrediction,
+      isLoadingAi: isLoadingAi ?? this.isLoadingAi,
     );
   }
 

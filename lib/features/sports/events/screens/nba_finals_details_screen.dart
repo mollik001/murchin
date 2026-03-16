@@ -5,6 +5,7 @@ import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/features/sports/controllers/nba_finals_odds_controller.dart';
 import 'package:murchin/features/sports/model/nba_finals_odds_model.dart';
+import 'package:shimmer/shimmer.dart';
 
 class NbaFinalsDetailsScreen extends StatefulWidget {
   final String platform;
@@ -27,15 +28,12 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    // Get the existing controller (don't create a new one)
     if (Get.isRegistered<NbaFinalsOddsController>()) {
       controller = Get.find<NbaFinalsOddsController>();
     } else {
       controller = Get.put(NbaFinalsOddsController(), permanent: true);
     }
     _scrollController.addListener(_onScroll);
-    // Data should already be loaded from Events screen
-    // No need to fetch again
   }
 
   @override
@@ -74,10 +72,7 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
                       size: 20.sp,
                     ),
                   ),
-
                   SizedBox(height: 20.h),
-
-                  /// Header Card
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.all(16.w),
@@ -141,10 +136,7 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
                       ],
                     ),
                   ),
-
                   SizedBox(height: 24.h),
-
-                  /// Table Header
                   Row(
                     children: [
                       Expanded(
@@ -185,58 +177,55 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
                       ),
                     ],
                   ),
-
                   SizedBox(height: 12.h),
                 ],
               ),
             ),
-
-            /// Odds List with pagination
             Expanded(
-              child: Obx(() {
-                if (controller.isLoading.value &&
-                    controller.getOddsForPlatform(widget.platform).isEmpty) {
-                  return Center(
-                    child: CircularProgressIndicator(),
-                  );
-                }
+              child: GetBuilder<NbaFinalsOddsController>(
+                builder: (controller) {
+                  final isAiLoading = controller.isAiLoading.value;
 
-                final odds = controller.getOddsForPlatform(widget.platform);
+                  if (controller.isLoading.value &&
+                      controller.getOddsForPlatform(widget.platform).isEmpty) {
+                    return Center(child: CircularProgressIndicator());
+                  }
 
-                if (odds.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No odds available',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 16.sp,
+                  final odds = controller.getOddsForPlatform(widget.platform);
+
+                  if (odds.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'No odds available',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 16.sp,
+                        ),
                       ),
-                    ),
-                  );
-                }
+                    );
+                  }
 
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  itemCount: odds.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index < odds.length) {
-                      return _buildOddCard(odds[index]);
-                    } else {
-                      // Loading indicator for pagination
-                      if (controller.isRefreshing.value) {
-                        return Padding(
-                          padding: EdgeInsets.all(16.h),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    itemCount: odds.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index < odds.length) {
+                        return _buildOddCard(odds[index], isAiLoading: isAiLoading);
+                      } else {
+                        if (controller.isRefreshing.value) {
+                          return Padding(
+                            padding: EdgeInsets.all(16.h),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        return SizedBox.shrink();
                       }
-                      return SizedBox.shrink();
-                    }
-                  },
-                );
-              }),
+                    },
+                  );
+                },
+              ),
             ),
-
             SizedBox(height: 40.h),
           ],
         ),
@@ -244,7 +233,10 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
     );
   }
 
-  Widget _buildOddCard(NbaFinalsOdd odd) {
+  Widget _buildOddCard(NbaFinalsOdd odd, {bool? isAiLoading}) {
+    final bool isLoadingAi = isAiLoading == true || odd.aiPrediction == null || odd.isLoadingAi;
+    final String aiValue = odd.aiPrediction ?? 'N/A';
+
     return Padding(
       padding: EdgeInsets.only(bottom: 12.h),
       child: Container(
@@ -279,8 +271,7 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
               children: [
                 Container(
                   width: 80.w,
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 4.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 4.h),
                   decoration: BoxDecoration(
                     color: widget.bgColor,
                     borderRadius: BorderRadius.circular(4.r),
@@ -298,25 +289,41 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
                 SizedBox(width: 14.w),
                 Container(
                   width: 60.w,
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 4.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 4.h),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFA81D06),
+                    color: isLoadingAi ? Colors.grey.shade300 : const Color(0xFFA81D06),
                     borderRadius: BorderRadius.circular(4.r),
                   ),
-                  child: Text(
-                    'N/A',
-                    style: AppTextStyles.bodySmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12.sp,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                  child: isLoadingAi
+                      ? _buildAiShimmer()
+                      : Text(
+                          aiValue,
+                          style: AppTextStyles.bodySmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.sp,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAiShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        width: double.infinity,
+        height: 16.h,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4.r),
         ),
       ),
     );

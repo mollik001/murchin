@@ -1020,6 +1020,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 child: Row(
                   children: [
+                    // Prediction Market Label
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _toggleMode(false),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(vertical: 10.h),
+                          decoration: BoxDecoration(
+                            color: !_isSportsbookMode ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Prediction Market',
+                              style: AppTextStyles.bodyMedium?.copyWith(
+                                color: !_isSportsbookMode ? Colors.white : AppColors.gray600,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
                     // Sportsbook Label
                     Expanded(
                       child: GestureDetector(
@@ -1035,30 +1059,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               'Sportsbook',
                               style: AppTextStyles.bodyMedium?.copyWith(
                                 color: _isSportsbookMode ? Colors.white : AppColors.gray600,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    
-                    // Market Label
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _toggleMode(false),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 10.h),
-                          decoration: BoxDecoration(
-                            color: !_isSportsbookMode ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Market',
-                              style: AppTextStyles.bodyMedium?.copyWith(
-                                color: !_isSportsbookMode ? Colors.white : AppColors.gray600,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14.sp,
                               ),

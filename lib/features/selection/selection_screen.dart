@@ -49,7 +49,7 @@ class SelectionScreen extends StatelessWidget {
 
                 /// Subtitle
                 Text(
-                  'Choose a Platform to start with PickFair',
+                  'Choose to get started:',
                   style: AppTextStyles.authSubtitle?.copyWith(
                     color: const Color(0xff848484),
                     fontSize: 16.sp,
@@ -58,40 +58,64 @@ class SelectionScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
 
-                SizedBox(height: 100.h),
+                SizedBox(height: 120.h),
 
-                /// Sportsbook Logo (Selectable)
+                /// Market Button
                 GestureDetector(
                   onTap: () async {
-                    await SharedPreferencesHelper.saveLastVisitedSection('sports');
-                    Get.offAll(() => SportsNavbarScreen());
+                    await SharedPreferencesHelper.saveLastVisitedSection('market');
+                    Get.offAll(() => MarketNavbarScreen());
                   },
-                  child: Image.asset(
-                    'assets/images/sports.png',
-                    width: 100.w,
-                    height: 100.h,
-                    fit: BoxFit.contain,
+                  child: Container(
+                    width: double.infinity,
+                    height: 45.h,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(30.r),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Prediction Markets vs. AI',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
 
                 SizedBox(height: 16.h),
 
                 /// Divider
-                Divider(color: Colors.grey[300], thickness: 1.h),
+                Divider(color: Colors.grey[500], thickness: 1.h),
 
                 SizedBox(height: 16.h),
 
-                /// Market Logo (Selectable)
+                /// Sportsbook Button
                 GestureDetector(
                   onTap: () async {
-                    await SharedPreferencesHelper.saveLastVisitedSection('market');
-                    Get.offAll(() => MarketNavbarScreen());
+                    await SharedPreferencesHelper.saveLastVisitedSection('sports');
+                    Get.offAll(() => SportsNavbarScreen());
                   },
-                  child: Image.asset(
-                    'assets/images/market.png',
-                    width: 100.w,
-                    height: 100.h,
-                    fit: BoxFit.contain,
+                  child: Container(
+                    width: double.infinity,
+                    height: 45.h,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB54533),
+                      borderRadius: BorderRadius.circular(30.r),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Sportsbooks vs. AI',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
 

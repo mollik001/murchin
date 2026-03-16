@@ -89,8 +89,8 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
   }
 
   Widget _buildSavedCardsList() {
-    final Color fanduelBgColor = const Color(0xFF607D3B);
-    final Color draftkingsBgColor = const Color(0xFF6678F3);
+    final Color fanduelBgColor = const Color(0xFF559CEE);
+    final Color draftkingsBgColor = const Color(0xFF218B28);
 
     return GetX<SportsHomeController>(
       builder: (controller) {
@@ -144,7 +144,7 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
                   aiPercentage: isLoadingAI ? null : aiPercentage,
                   team: e['team'],
                   bgColor: fanduelBgColor,
-                  borderColor: AppColors.notBlue,
+                  borderColor: fanduelBgColor,
                   platform: e['marketPlace'] as String? ?? 'FanDuel',
                   isSaved: true,
                   eventRef: e,
@@ -170,7 +170,7 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
                   aiPercentage: isLoadingAI ? null : aiPercentage,
                   team: e['team'],
                   bgColor: draftkingsBgColor,
-                  borderColor: AppColors.blue,
+                  borderColor: draftkingsBgColor,
                   platform: e['marketPlace'] as String? ?? 'DraftKings',
                   isSaved: true,
                   eventRef: e,

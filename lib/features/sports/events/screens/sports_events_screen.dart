@@ -57,14 +57,15 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
         !sportsController.isRefreshing.value &&
         sportsController.nextPageUrl != null &&
         selectedCategoryIndex == 0) { // Only for NBA Odds category
+      print('=== Scroll pagination triggered ===');
       sportsController.loadMoreSportsbookEvents();
     }
   }
 
-  final Color unselectedBgColor = const Color(0xFFBDC4D2);
-  final Color fanduelBgColor = const Color(0xFF607D3B);
-  final Color draftkingsBgColor = const Color(0xFF6678F3);
-  final Color betmgmBgColor = const Color(0xFFE31837);
+  final Color unselectedBgColor = const Color(0xFF8D9AB1);
+  final Color fanduelBgColor = const Color(0xFF559CEE);
+  final Color draftkingsBgColor = const Color(0xFF218B28);
+  final Color betmgmBgColor = const Color(0xFFA79D2C);
 
   final List<String> platformTabs = ['All Platform', 'Draftkings', 'Fanduel', 'BetMGM'];
   final List<String> categoryTabs = ['NBA Odds', 'NBA Finals'];
@@ -90,88 +91,104 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
           SizedBox(height: 16.h),
           Expanded(
             child: Obx(() {
-              // Check if NBA Finals category is selected
-              final isNbaFinalsCategory = selectedCategoryIndex == 1;
-              
-              // Also watch betmgmEvents and selectedPlatform to trigger rebuilds
-              final _ = controller.betmgmEvents.length;
-              controller.selectedPlatform.value;
-              
-              // Loading state for NBA Odds
-              if (!isNbaFinalsCategory) {
-                if (sportsController.isLoading.value && sportsController.sportsbookEvents.isEmpty) {
-                  return _buildLoadingState();
-                }
-                
-                // Empty state for NBA Odds
-                if (sportsController.sportsbookEvents.isEmpty && !sportsController.isLoading.value) {
-                  return _buildEmptyState(
-                    message: 'No data available',
-                    subtitle: 'Please check back later',
-                    actionLabel: 'Retry',
-                    onAction: () {
-                      sportsController.fetchSportsbookEvents();
-                    },
-                  );
-                }
-              }
-              
-              // Loading state for NBA Finals
-              if (isNbaFinalsCategory) {
-                if (nbaFinalsController.isLoading.value && 
-                    controller.events.isEmpty && 
-                    controller.draftkingsEvents.isEmpty && 
-                    controller.betmgmEvents.isEmpty) {
-                  return _buildLoadingState();
-                }
-                
-                // Empty state for NBA Finals
-                final hasNbaFinalsData = controller.events.any((e) => e['is_nba_finals'] == true) ||
-                    controller.draftkingsEvents.any((e) => e['is_nba_finals'] == true) ||
-                    controller.betmgmEvents.any((e) => e['is_nba_finals'] == true);
-                    
-                if (!hasNbaFinalsData && !nbaFinalsController.isLoading.value) {
-                  return _buildEmptyState(
-                    message: 'No data available',
-                    subtitle: 'Please check back later',
-                    actionLabel: 'Retry',
-                    onAction: () {
-                      nbaFinalsController.fetchNbaFinalsOdds('FanDuel');
-                      nbaFinalsController.fetchNbaFinalsOdds('DraftKings');
-                      nbaFinalsController.fetchNbaFinalsOdds('BetMGM');
-                    },
-                  );
-                }
-              }
+              // Watch sportsController's selectedPlatform for NBA Odds category
+              final _ = sportsController.selectedPlatform.value;
 
-              return ListView.builder(
-                controller: _scrollController,
-                padding: EdgeInsets.symmetric(horizontal: 20.w),
-                itemCount: (isNbaFinalsCategory ? _buildNbaFinalsCards() : _buildSportsbookCards()).length + (isNbaFinalsCategory ? 0 : 2),
-                itemBuilder: (context, index) {
-                  final cards = isNbaFinalsCategory ? _buildNbaFinalsCards() : _buildSportsbookCards();
-                  
-                  // Featured card for NBA Odds
-                  if (!isNbaFinalsCategory && index == 0) {
-                    return _buildFeaturedCard();
+              return GetBuilder<NbaFinalsOddsController>(
+                builder: (nbaController) {
+                  // Check if NBA Finals category is selected
+                  final isNbaFinalsCategory = selectedCategoryIndex == 1;
+
+                  // Reload events when GetBuilder rebuilds (after AI predictions loaded)
+                  if (isNbaFinalsCategory) {
+                    controller.loadEventsForCurrentSelection();
                   }
-                  
-                  // Adjust index for NBA Odds (skip featured card)
-                  final cardIndex = isNbaFinalsCategory ? index : index - 1;
-                  
-                  if (cardIndex < cards.length) {
-                    return cards[cardIndex];
-                  } else {
-                    // Loading indicator for pagination
-                    if ((isNbaFinalsCategory && nbaFinalsController.isRefreshing.value) ||
-                        (!isNbaFinalsCategory && sportsController.isRefreshing.value)) {
-                      return Padding(
-                        padding: EdgeInsets.all(16.h),
-                        child: Center(child: CircularProgressIndicator()),
+
+                  // Also watch betmgmEvents, selectedPlatform, events lists to trigger rebuilds
+                  controller.selectedPlatform.value;
+                  controller.events.length;
+                  controller.draftkingsEvents.length;
+
+                  // Loading state for NBA Odds
+                  if (!isNbaFinalsCategory) {
+                    if (sportsController.isLoading.value && sportsController.sportsbookEvents.isEmpty) {
+                      return _buildLoadingState();
+                    }
+
+                    // Empty state for NBA Odds
+                    if (sportsController.sportsbookEvents.isEmpty && !sportsController.isLoading.value) {
+                      return _buildEmptyState(
+                        message: 'No data available',
+                        subtitle: 'Please check back later',
+                        actionLabel: 'Retry',
+                        onAction: () {
+                          sportsController.fetchSportsbookEvents();
+                        },
                       );
                     }
-                    return SizedBox.shrink();
                   }
+
+                  // Loading state for NBA Finals
+                  if (isNbaFinalsCategory) {
+                    if (nbaFinalsController.isLoading.value &&
+                        controller.events.isEmpty &&
+                        controller.draftkingsEvents.isEmpty &&
+                        controller.betmgmEvents.isEmpty) {
+                      return _buildLoadingState();
+                    }
+
+                    // Empty state for NBA Finals
+                    final hasNbaFinalsData = controller.events.any((e) => e['is_nba_finals'] == true) ||
+                        controller.draftkingsEvents.any((e) => e['is_nba_finals'] == true) ||
+                        controller.betmgmEvents.any((e) => e['is_nba_finals'] == true);
+
+                    if (!hasNbaFinalsData && !nbaFinalsController.isLoading.value) {
+                      return _buildEmptyState(
+                        message: 'No data available',
+                        subtitle: 'Please check back later',
+                        actionLabel: 'Retry',
+                        onAction: () {
+                          nbaFinalsController.fetchNbaFinalsOdds('FanDuel');
+                          nbaFinalsController.fetchNbaFinalsOdds('DraftKings');
+                          nbaFinalsController.fetchNbaFinalsOdds('BetMGM');
+                        },
+                      );
+                    }
+                  }
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: EdgeInsets.only(left: 20.w, right: 20.w, top: 8.h),
+                    itemCount: (isNbaFinalsCategory ? _buildNbaFinalsCards() : _buildSportsbookCards()).length + (isNbaFinalsCategory ? 0 : 2),
+                    itemBuilder: (context, index) {
+                      final cards = isNbaFinalsCategory ? _buildNbaFinalsCards() : _buildSportsbookCards();
+
+                      // Featured card for NBA Odds
+                      if (!isNbaFinalsCategory && index == 0) {
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: 16.h),
+                          child: _buildFeaturedCard(),
+                        );
+                      }
+
+                      // Adjust index for NBA Odds (skip featured card)
+                      final cardIndex = isNbaFinalsCategory ? index : index - 1;
+
+                      if (cardIndex < cards.length) {
+                        return cards[cardIndex];
+                      } else {
+                        // Loading indicator for pagination
+                        if ((isNbaFinalsCategory && nbaFinalsController.isRefreshing.value) ||
+                            (!isNbaFinalsCategory && sportsController.isRefreshing.value)) {
+                          return Padding(
+                            padding: EdgeInsets.all(16.h),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        return SizedBox.shrink();
+                      }
+                    },
+                  );
                 },
               );
             }),
@@ -535,13 +552,13 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
       
       if (isFanduel) {
         bgColor = fanduelBgColor;
-        borderColor = AppColors.notBlue;
+        borderColor = fanduelBgColor;
       } else if (isBetMgm) {
         bgColor = betmgmBgColor;
-        borderColor = AppColors.blue;
+        borderColor = betmgmBgColor;
       } else {
         bgColor = draftkingsBgColor;
-        borderColor = AppColors.blue;
+        borderColor = draftkingsBgColor;
       }
       
       final customOnTap = () {
@@ -605,7 +622,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
         // Filter by platform if specific platform is selected
         if (platform != 0) {
           final platformName = platform == 1 ? 'DraftKings' : platform == 2 ? 'FanDuel' : 'BetMGM';
-          if (marketPlace != platformName) continue;
+          if (marketPlace.toLowerCase() != platformName.toLowerCase()) continue;
         }
 
         // Get H2H moneyline odds and determine which team is the favorite
@@ -649,13 +666,13 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
 
         if (isFanduel) {
           bgColor = fanduelBgColor;
-          borderColor = AppColors.notBlue;
+          borderColor = fanduelBgColor;
         } else if (isBetMgm) {
           bgColor = betmgmBgColor;
-          borderColor = AppColors.blue;
+          borderColor = betmgmBgColor;
         } else {
           bgColor = draftkingsBgColor;
-          borderColor = AppColors.blue;
+          borderColor = draftkingsBgColor;
         }
 
         // Custom onTap for navigating to details screen
@@ -897,15 +914,15 @@ class SportsEventsController extends GetxController {
   void selectPlatform(int index) {
     selectedPlatform.value = index;
     // Don't reset category - preserve user's current selection
-    _loadEventsForCurrentSelection();
+    loadEventsForCurrentSelection();
   }
 
   void selectCategory(String category) {
     selectedCategory.value = category;
-    _loadEventsForCurrentSelection();
+    loadEventsForCurrentSelection();
   }
 
-  void _loadEventsForCurrentSelection() {
+  void loadEventsForCurrentSelection() {
     final platform = selectedPlatform.value;
     final category = selectedCategory.value;
 
@@ -941,7 +958,7 @@ class SportsEventsController extends GetxController {
   }
 
   void loadStaticData() {
-    _loadEventsForCurrentSelection();
+    loadEventsForCurrentSelection();
   }
 
   void _loadFanduelNbaOdds() {
@@ -974,6 +991,12 @@ class SportsEventsController extends GetxController {
     final lowestTeam = nbaFinalsController?.getLowestOddsTeam('FanDuel');
 
     if (lowestTeam != null) {
+      // Get AI prediction from the updated odds in controller
+      final aiPrediction = lowestTeam.aiPrediction;
+      final isLoadingAi = aiPrediction == null;
+      
+      print('=== _loadFanduelNbaFinals: team=${lowestTeam.teamName}, aiPrediction=$aiPrediction, isLoadingAi=$isLoadingAi ===');
+
       _events.assignAll([
         {
           'event_id': 3,
@@ -981,7 +1004,7 @@ class SportsEventsController extends GetxController {
           'subtitle': '',
           'endDate': lowestTeam.date,
           'marketPercentage': lowestTeam.price,
-          'aiPercentage': 'N/A',
+          'aiPercentage': isLoadingAi ? null : aiPrediction,
           'team': lowestTeam.teamName,
           'marketPlace': 'FanDuel',
           'is_nba_finals': true,
@@ -1023,6 +1046,10 @@ class SportsEventsController extends GetxController {
     final lowestTeam = nbaFinalsController?.getLowestOddsTeam('DraftKings');
 
     if (lowestTeam != null) {
+      // Get AI prediction from the updated odds in controller
+      final aiPrediction = lowestTeam.aiPrediction;
+      final isLoadingAi = aiPrediction == null;
+
       _draftkingsEvents.assignAll([
         {
           'event_id': 'dk3',
@@ -1030,7 +1057,7 @@ class SportsEventsController extends GetxController {
           'subtitle': '',
           'endDate': lowestTeam.date,
           'marketPercentage': lowestTeam.price,
-          'aiPercentage': 'N/A',
+          'aiPercentage': isLoadingAi ? null : aiPrediction,
           'team': lowestTeam.teamName,
           'marketPlace': 'DraftKings',
           'is_nba_finals': true,
@@ -1073,6 +1100,10 @@ class SportsEventsController extends GetxController {
     print('=== _loadBetMgmNbaFinals: lowestTeam = ${lowestTeam?.teamName ?? "null"} ===');
 
     if (lowestTeam != null) {
+      // Get AI prediction from the updated odds in controller
+      final aiPrediction = lowestTeam.aiPrediction;
+      final isLoadingAi = aiPrediction == null;
+
       _betmgmEvents.assignAll([
         {
           'event_id': 'mgm3',
@@ -1080,7 +1111,7 @@ class SportsEventsController extends GetxController {
           'subtitle': '',
           'endDate': lowestTeam.date,
           'marketPercentage': lowestTeam.price,
-          'aiPercentage': 'N/A',
+          'aiPercentage': isLoadingAi ? null : aiPrediction,
           'team': lowestTeam.teamName,
           'marketPlace': 'BetMGM',
           'is_nba_finals': true,

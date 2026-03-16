@@ -279,15 +279,6 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(
-                widget.isPolymarket
-                    ? 'assets/icons/polymarket.png'
-                    : 'assets/icons/kalshi.png',
-                width: 44.w,
-                height: 44.h,
-                fit: BoxFit.contain,
-              ),
-              SizedBox(width: 12.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,7 +325,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                   color: widget.bgColor,
                   borderRadius: BorderRadius.circular(6.r),
                   border: Border.all(
-                    color: widget.isPolymarket ? AppColors.notBlue : AppColors.blue,
+                    color: widget.bgColor,
                     width: 1.w,
                   ),
                 ),

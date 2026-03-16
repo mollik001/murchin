@@ -22,9 +22,9 @@ class _EventScreenState extends State<EventScreen> {
   final EventsController controller = Get.put(EventsController());
   final ScrollController _scrollController = ScrollController();
 
-  final Color unselectedBgColor = const Color(0xFFBDC4D2);
-  final Color polymarketBgColor = const Color(0xff607D3B);
-  final Color kalshiBgColor = const Color(0xFF6678F3);
+  final Color unselectedBgColor = const Color(0xFF8D9AB1);
+  final Color polymarketBgColor = const Color(0xFF585858);
+  final Color kalshiBgColor = const Color(0xFF259A2C);
 
   @override
   void initState() {
@@ -492,7 +492,7 @@ class _EventScreenState extends State<EventScreen> {
 
   Widget _buildPlatformTag(bool isKalshi) {
     final bgColor = isKalshi ? kalshiBgColor : polymarketBgColor;
-    final borderColor = isKalshi ? const Color(0xFF007AFF) : AppColors.primary;
+    final borderColor = isKalshi ? kalshiBgColor : polymarketBgColor;
     final displayText = isKalshi ? 'Kalshi' : 'Polymarket';
 
     return Container(
@@ -564,7 +564,7 @@ class _EventScreenState extends State<EventScreen> {
       team: event['team'] ?? '',
       isPolymarket: !isKalshi,
       bgColor: isKalshi ? kalshiBgColor : polymarketBgColor,
-      eventId: event['event_id'] as int?,
+      eventId: event['event_id'] is int ? event['event_id'] as int? : int.tryParse(event['event_id']?.toString() ?? ''),
       eventIdString: event['event_ticker'] as String?,
       slug: event['slug'] as String?,
       seriesTicker: event['series_ticker'] as String?,

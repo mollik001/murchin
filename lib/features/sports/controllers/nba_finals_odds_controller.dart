@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murchin/const/service/endpoint.dart';
 import 'package:murchin/const/service/shared_preference_helper.dart';
 import 'package:murchin/features/sports/model/nba_finals_odds_model.dart';
@@ -22,6 +24,18 @@ class NbaFinalsOddsController extends GetxController {
   final Set<String> _savedFanduelEventIds = <String>{};
   final Set<String> _savedDraftkingsEventIds = <String>{};
   final Set<String> _savedBetMgmEventIds = <String>{};
+
+  // NBA Finals odds caching - 30 minutes cache for event page
+  static const String _nbaFinalsCacheKey = 'cached_nba_finals_odds_v1';
+  static const String _nbaFinalsCacheTimestampKey = 'cached_nba_finals_timestamp_v1';
+  static const Duration _nbaFinalsCacheDuration = Duration(minutes: 30);
+
+  // Singleton HTTP client for connection reuse (keep-alive)
+  final http.Client _httpClient = http.Client();
+
+  // Request deduplication for AI predictions
+  final Map<String, DateTime> _lastAiRequestTime = {};
+  final Map<String, Future<http.Response>> _pendingAiRequests = {};
 
   List<NbaFinalsOdd> getOddsForPlatform(String platform) {
     // Try exact match first
@@ -66,7 +80,7 @@ class NbaFinalsOddsController extends GetxController {
   String? getAiPrediction(String platform, String teamName) {
     final platformPredictions = _aiPredictions[platform];
     if (platformPredictions == null) return null;
-    
+
     // Case-insensitive search
     for (var entry in platformPredictions.entries) {
       if (entry.key.toLowerCase() == teamName.toLowerCase()) {
@@ -86,6 +100,35 @@ class NbaFinalsOddsController extends GetxController {
     final odds = getOddsForPlatform(platform);
     if (odds.isEmpty) return;
 
+    // Create cache key for deduplication
+    final cacheKey = 'nba_finals_$platform';
+
+    // Check if request is already in progress
+    if (_pendingAiRequests.containsKey(cacheKey)) {
+      print("⏳ Waiting for pending NBA Finals AI request: $cacheKey");
+      try {
+        final response = await _pendingAiRequests[cacheKey]!.timeout(
+          const Duration(seconds: 30),
+        );
+        await _processNbaAiResponse(response, platform, odds);
+      } on TimeoutException {
+        print("⚠️ NBA Finals AI API timeout after 30s for $cacheKey");
+        _setAiLoadingComplete(platform);
+      }
+      return;
+    }
+
+    // Check if we made a recent request (within 3 seconds)
+    final now = DateTime.now();
+    if (_lastAiRequestTime.containsKey(cacheKey)) {
+      final timeDiff = now.difference(_lastAiRequestTime[cacheKey]!);
+      if (timeDiff.inSeconds < 3) {
+        print("⚡ Skipping duplicate NBA Finals AI request (too soon): $cacheKey");
+        _setAiLoadingComplete(platform);
+        return;
+      }
+    }
+
     isAiLoading.value = true;
     update(); // Notify listeners that AI is loading
 
@@ -101,25 +144,55 @@ class NbaFinalsOddsController extends GetxController {
         }
       }).toList();
 
-      final response = await http.post(
+      // Mark request as pending
+      final future = _httpClient.post(
         Uri.parse('${Urls.aiBaseUrl}/nba-finals'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Connection': 'keep-alive',
+        },
         body: jsonEncode({
           'team_names': teamNames,
           'team_values': teamValues,
         }),
-      ).timeout(const Duration(seconds: 15));
+      );
 
-      print('AI Prediction Response Status: ${response.statusCode}');
+      _pendingAiRequests[cacheKey] = future;
+      _lastAiRequestTime[cacheKey] = now;
 
-      if (response.statusCode == 200) {
+      http.Response response;
+      try {
+        response = await future.timeout(const Duration(seconds: 30)); // Increased from 15s to 30s
+      } on TimeoutException {
+        print("⚠️ NBA Finals AI API timeout after 30s for $platform");
+        response = http.Response('{"error": "timeout"}', 408);
+      }
+
+      await _processNbaAiResponse(response, platform, odds);
+    } catch (e) {
+      print('Error fetching AI predictions for $platform: $e');
+      // Set AI loading to false even on error to stop shimmer
+      _setAiLoadingComplete(platform);
+    } finally {
+      _pendingAiRequests.remove(cacheKey);
+    }
+  }
+
+  /// Process NBA Finals AI response
+  Future<void> _processNbaAiResponse(http.Response response, String platform, List<NbaFinalsOdd> odds) async {
+    print('AI Prediction Response Status: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      try {
         final data = jsonDecode(response.body);
         final aiPredictions = data['AI_prediction'] as List<dynamic>? ?? [];
 
-        print('AI Predictions received: $aiPredictions (${aiPredictions.length} predictions for ${teamNames.length} teams)');
+        print('AI Predictions received: $aiPredictions (${aiPredictions.length} predictions for ${odds.length} teams)');
 
         // Store predictions as map of team name to AI value
         final predictionsMap = <String, String>{};
+        final teamNames = odds.map((odd) => odd.teamName).toList();
+
         for (int i = 0; i < teamNames.length && i < aiPredictions.length; i++) {
           predictionsMap[teamNames[i]] = aiPredictions[i].toString();
         }
@@ -129,14 +202,13 @@ class NbaFinalsOddsController extends GetxController {
 
         // Update odds with AI predictions
         _updateOddsWithAiPredictions(platform);
-      } else {
-        print('Failed to fetch AI predictions for $platform: ${response.statusCode}');
-        // Set AI loading to false even on failure to stop shimmer
+      } catch (e) {
+        print('Error decoding NBA Finals AI response: $e');
         _setAiLoadingComplete(platform);
       }
-    } catch (e) {
-      print('Error fetching AI predictions for $platform: $e');
-      // Set AI loading to false even on error to stop shimmer
+    } else {
+      print('Failed to fetch AI predictions for $platform: ${response.statusCode}');
+      // Set AI loading to false even on failure to stop shimmer
       _setAiLoadingComplete(platform);
     }
   }
@@ -144,14 +216,19 @@ class NbaFinalsOddsController extends GetxController {
   /// Set AI loading complete for a platform (stops shimmer)
   void _setAiLoadingComplete(String platform) {
     isAiLoading.value = false;
-    
+
     // Update odds to mark them as not loading
+    // IMPORTANT: Don't overwrite existing aiPrediction values
     final odds = _platformOdds[platform] ?? [];
     final updatedOdds = odds.map((odd) {
-      return odd.copyWith(isLoadingAi: false);
+      return odd.copyWith(
+        isLoadingAi: false,
+        // Preserve existing aiPrediction if it exists
+        aiPrediction: odd.aiPrediction,
+      );
     }).toList();
     _platformOdds[platform] = updatedOdds;
-    
+
     update();
     refresh();
   }
@@ -171,21 +248,10 @@ class NbaFinalsOddsController extends GetxController {
 
     _platformOdds[platform] = updatedOdds;
     print('Updated ${updatedOdds.length} odds with AI predictions for $platform');
-    
+
     // Notify all listeners
     update();
     refresh();
-  }
-
-  @override
-  void onInit() {
-    super.onInit();
-    // Make this controller permanent to prevent disposal
-    Get.config(enableLog: false);
-    // Load all odds data for all platforms in parallel, then fetch AI predictions
-    fetchAllPagesForPlatform('FanDuel').then((_) => fetchAiPredictions('FanDuel'));
-    fetchAllPagesForPlatform('DraftKings').then((_) => fetchAiPredictions('DraftKings'));
-    fetchAllPagesForPlatform('BetMGM').then((_) => fetchAiPredictions('BetMGM'));
   }
 
   /// Fetch all pages for a platform
@@ -212,7 +278,7 @@ class NbaFinalsOddsController extends GetxController {
     }
 
     print('=== All pages loaded for $platform ($pageCount pages) ===');
-    
+
     // Re-apply AI predictions to the final odds list if they exist
     if (_aiPredictions.containsKey(platform) && _aiPredictions[platform]!.isNotEmpty) {
       _updateOddsWithAiPredictions(platform);
@@ -236,7 +302,7 @@ class NbaFinalsOddsController extends GetxController {
       final fetchUrl = url ?? Urls.nbaFinalsOddsUrl(platform);
       print('URL: $fetchUrl');
 
-      final response = await http.get(Uri.parse(fetchUrl));
+      final response = await _httpClient.get(Uri.parse(fetchUrl));
 
       print('Response Status: ${response.statusCode}');
 
@@ -259,7 +325,7 @@ class NbaFinalsOddsController extends GetxController {
         _nextPageUrls[platform] = nbaFinalsResponse.next;
 
         print('Odds loaded successfully for $platform!');
-        
+
         // Re-apply existing AI predictions to newly loaded odds
         if (_aiPredictions.containsKey(platform) && _aiPredictions[platform]!.isNotEmpty) {
           _updateOddsWithAiPredictions(platform);
@@ -411,8 +477,150 @@ class NbaFinalsOddsController extends GetxController {
     }
   }
 
+  // ================= NBA FINALS ODDS CACHING (30 MIN) =================
+
+  /// Load cached NBA Finals odds
+  Future<bool> loadCachedNbaFinalsOdds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedTimestampStr = prefs.getString(_nbaFinalsCacheTimestampKey);
+
+      if (cachedTimestampStr == null) {
+        print('No cached NBA Finals odds found');
+        return false;
+      }
+
+      final timestamp = DateTime.parse(cachedTimestampStr);
+      final now = DateTime.now();
+
+      if (now.difference(timestamp) > _nbaFinalsCacheDuration) {
+        print('NBA Finals odds cache expired (30 min) - will fetch fresh data');
+        return false;
+      }
+
+      final cachedData = prefs.getString(_nbaFinalsCacheKey);
+      if (cachedData == null) return false;
+
+      final List decoded = jsonDecode(cachedData);
+
+      // Restore odds from cache
+      if (decoded is List && decoded.isNotEmpty) {
+        for (var item in decoded) {
+          if (item is Map<String, dynamic>) {
+            final platform = item['platform'] as String?;
+            final oddsData = item['odds'] as List<dynamic>?;
+
+            if (platform == null || oddsData == null) continue;
+
+            final oddsList = oddsData
+                .map((o) => NbaFinalsOdd.fromJson(o as Map<String, dynamic>))
+                .toList();
+
+            if (oddsList.isNotEmpty) {
+              _platformOdds[platform] = oddsList;
+              print('Loaded ${oddsList.length} cached NBA Finals odds for $platform');
+            }
+          }
+        }
+
+        if (_platformOdds.isNotEmpty) {
+          update();
+          return true;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      print('Error loading cached NBA Finals odds: $e');
+      return false;
+    }
+  }
+
+  /// Cache NBA Finals odds to local storage (30 min)
+  Future<void> cacheNbaFinalsOdds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final List<Map<String, dynamic>> dataToCache = [];
+
+      // Cache odds for each platform
+      for (var entry in _platformOdds.entries) {
+        final platform = entry.key;
+        final odds = entry.value;
+
+        dataToCache.add({
+          'platform': platform,
+          'odds': odds.map((odd) => odd.toJson()).toList(),
+        });
+      }
+
+      if (dataToCache.isEmpty) return;
+
+      await prefs.setString(_nbaFinalsCacheKey, jsonEncode(dataToCache));
+      await prefs.setString(
+        _nbaFinalsCacheTimestampKey,
+        DateTime.now().toIso8601String(),
+      );
+
+      print('Cached NBA Finals odds for ${_platformOdds.length} platforms (30 min)');
+    } catch (e) {
+      print('Error caching NBA Finals odds: $e');
+    }
+  }
+
+  /// Fetch NBA Finals odds with caching
+  Future<void> fetchNbaFinalsOddsWithCache() async {
+    // Try to load cached data first
+    final hasValidCache = await loadCachedNbaFinalsOdds();
+
+    if (hasValidCache) {
+      print('NBA Finals: Loaded from cache, fetching fresh data in background');
+      // Fetch fresh data in background
+      _fetchNbaFinalsOddsInBackground();
+    } else {
+      print('NBA Finals: No valid cache, fetching fresh data');
+      // No valid cache, fetch fresh data
+      await _fetchNbaFinalsOddsInBackground();
+    }
+  }
+
+  /// Fetch fresh NBA Finals odds in background
+  Future<void> _fetchNbaFinalsOddsInBackground() async {
+    try {
+      print('=== Fetching NBA Finals Odds in Background ===');
+
+      // Fetch for all platforms
+      await Future.wait([
+        fetchAllPagesForPlatform('FanDuel'),
+        fetchAllPagesForPlatform('DraftKings'),
+        fetchAllPagesForPlatform('BetMGM'),
+      ]);
+
+      // Fetch AI predictions for all platforms after odds are loaded
+      await Future.wait([
+        fetchAiPredictions('FanDuel'),
+        fetchAiPredictions('DraftKings'),
+        fetchAiPredictions('BetMGM'),
+      ]);
+
+      // Cache the fresh data
+      cacheNbaFinalsOdds();
+    } catch (e) {
+      print('Error fetching NBA Finals odds in background: $e');
+    }
+  }
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Make this controller permanent to prevent disposal
+    Get.config(enableLog: false);
+    // Load cached NBA Finals odds first, then fetch fresh data in background
+    fetchNbaFinalsOddsWithCache();
+  }
+
   @override
   void onClose() {
+    _httpClient.close();
     // Don't dispose - keep controller persistent
     // This prevents data loss when navigating between screens
     super.onClose();

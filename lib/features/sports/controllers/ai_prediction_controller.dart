@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -6,6 +7,13 @@ import 'package:murchin/const/service/endpoint.dart';
 class AiPredictionController extends GetxController {
   final isLoading = false.obs;
   final RxMap<String, String> aiPredictions = <String, String>{}.obs;
+
+  // Singleton HTTP client for connection reuse (keep-alive)
+  final http.Client _httpClient = http.Client();
+
+  // Request deduplication
+  final Map<String, DateTime> _lastRequestTime = {};
+  final Map<String, Future<http.Response>> _pendingRequests = {};
 
   /// Fetch AI prediction for a specific event and platform
   Future<Map<String, String>?> fetchAiPredictions({
@@ -18,8 +26,35 @@ class AiPredictionController extends GetxController {
     required String? totalOver,
     required String? totalUnder,
   }) async {
+    // Create cache key for deduplication
+    final cacheKey = '${awayTeam}_vs_${homeTeam}';
+
+    // Check if request is already in progress
+    if (_pendingRequests.containsKey(cacheKey)) {
+      print("⏳ Waiting for pending AI request: $cacheKey");
+      try {
+        final response = await _pendingRequests[cacheKey]!.timeout(
+          const Duration(seconds: 30),
+        );
+        return _processResponse(response);
+      } on TimeoutException {
+        print("⚠️ AI API timeout after 30s for $cacheKey");
+        return null;
+      }
+    }
+
+    // Check if we made a recent request (within 3 seconds)
+    final now = DateTime.now();
+    if (_lastRequestTime.containsKey(cacheKey)) {
+      final timeDiff = now.difference(_lastRequestTime[cacheKey]!);
+      if (timeDiff.inSeconds < 3) {
+        print("⚡ Skipping duplicate AI request (too soon): $cacheKey");
+        return null;
+      }
+    }
+
     isLoading.value = true;
-    
+
     try {
       // Build team names list
       final teamNames = [awayTeam, homeTeam];
@@ -61,15 +96,43 @@ class AiPredictionController extends GetxController {
       print("URL: ${Urls.aiSportsbookGameLinesUrl}");
       print("Request Body: $requestBody");
 
-      final response = await http.post(
+      // Mark request as pending
+      final future = _httpClient.post(
         Uri.parse(Urls.aiSportsbookGameLinesUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Connection': 'keep-alive',
+        },
         body: jsonEncode(requestBody),
       );
 
+      _pendingRequests[cacheKey] = future;
+      _lastRequestTime[cacheKey] = now;
+
+      http.Response response;
+      try {
+        response = await future.timeout(const Duration(seconds: 30));
+      } on TimeoutException {
+        print("⚠️ AI API timeout after 30s for $cacheKey");
+        response = http.Response('{"error": "timeout"}', 408);
+      }
+
       print("AI Response Status: ${response.statusCode}");
 
-      if (response.statusCode == 200) {
+      return _processResponse(response);
+    } catch (e) {
+      print("❌ Error fetching AI predictions: $e");
+      return null;
+    } finally {
+      isLoading.value = false;
+      _pendingRequests.remove(cacheKey);
+    }
+  }
+
+  /// Process AI response and extract predictions
+  Map<String, String>? _processResponse(http.Response response) {
+    if (response.statusCode == 200) {
+      try {
         final data = jsonDecode(response.body);
         final aiPrediction = data['AI_prediction'];
 
@@ -86,12 +149,16 @@ class AiPredictionController extends GetxController {
             aiSpreadHomeValue = aiSpread[1].toString();
           }
 
-          // Format moneyline values - no '+' sign for positive values
+          // Format moneyline values
           String aiMoneylineAwayValue = 'N/A';
           String aiMoneylineHomeValue = 'N/A';
           if (aiMoneyline != null && aiMoneyline.length == 2) {
-            final awayValue = aiMoneyline[0] is int ? aiMoneyline[0] : (aiMoneyline[0] as num).toInt();
-            final homeValue = aiMoneyline[1] is int ? aiMoneyline[1] : (aiMoneyline[1] as num).toInt();
+            final awayValue = aiMoneyline[0] is int
+                ? aiMoneyline[0]
+                : (aiMoneyline[0] as num).toInt();
+            final homeValue = aiMoneyline[1] is int
+                ? aiMoneyline[1]
+                : (aiMoneyline[1] as num).toInt();
             aiMoneylineAwayValue = awayValue.toString();
             aiMoneylineHomeValue = homeValue.toString();
           }
@@ -104,7 +171,8 @@ class AiPredictionController extends GetxController {
             aiTotalUnderValue = aiTotals[1].toString();
           }
 
-          print("AI Predictions: Spread[$aiSpreadAwayValue, $aiSpreadHomeValue] Money[$aiMoneylineAwayValue, $aiMoneylineHomeValue] Total[$aiTotalOverValue, $aiTotalUnderValue]");
+          print(
+              "✅ AI Predictions: Spread[$aiSpreadAwayValue, $aiSpreadHomeValue] Money[$aiMoneylineAwayValue, $aiMoneylineHomeValue] Total[$aiTotalOverValue, $aiTotalUnderValue]");
 
           return {
             'aiSpreadAway': aiSpreadAwayValue,
@@ -115,15 +183,60 @@ class AiPredictionController extends GetxController {
             'aiTotalUnder': aiTotalUnderValue,
           };
         }
+      } catch (e) {
+        print("❌ Error decoding AI response: $e");
+      }
+    }
+
+    print("❌ AI prediction failed or returned invalid data");
+    return null;
+  }
+
+  /// Fetch with retry logic for critical predictions
+  Future<Map<String, String>?> fetchAiPredictionsWithRetry({
+    required String awayTeam,
+    required String homeTeam,
+    required String? spreadAway,
+    required String? spreadHome,
+    required String? moneylineAway,
+    required String? moneylineHome,
+    required String? totalOver,
+    required String? totalUnder,
+    int maxRetries = 2,
+  }) async {
+    int attempt = 0;
+    Duration delay = const Duration(seconds: 2);
+
+    while (attempt <= maxRetries) {
+      final result = await fetchAiPredictions(
+        awayTeam: awayTeam,
+        homeTeam: homeTeam,
+        spreadAway: spreadAway,
+        spreadHome: spreadHome,
+        moneylineAway: moneylineAway,
+        moneylineHome: moneylineHome,
+        totalOver: totalOver,
+        totalUnder: totalUnder,
+      );
+
+      if (result != null) {
+        return result;
       }
 
-      print("AI prediction failed or returned invalid data");
-      return null;
-    } catch (e) {
-      print("Error fetching AI predictions: $e");
-      return null;
-    } finally {
-      isLoading.value = false;
+      attempt++;
+      if (attempt <= maxRetries) {
+        print("🔄 AI Retry attempt $attempt/$maxRetries after ${delay.inSeconds}s");
+        await Future.delayed(delay);
+        delay *= 2; // Exponential backoff
+      }
     }
+
+    return null;
+  }
+
+  @override
+  void onClose() {
+    _httpClient.close();
+    super.onClose();
   }
 }

@@ -48,13 +48,26 @@ class SportsHomeController extends GetxController {
   static const Duration _cacheDuration = Duration(hours: 12);
   static const int _maxCachedEvents = 10;
 
+  // Saved events caching - 30 minutes cache
+  static const String _savedEventsCacheKey = 'cached_saved_sports_events_v1';
+  static const String _savedEventsCacheTimestampKey = 'cached_saved_sports_timestamp_v1';
+  static const Duration _savedCacheDuration = Duration(minutes: 30);
+
   final Set<int> _cachedEventIndexes = <int>{};
   static const int _maxEventsPerSection = 10;
 
   @override
   void onInit() {
     super.onInit();
-    fetchSavedEvents();
+    // Load cached saved events first
+    loadCachedSavedEvents().then((hasValidCache) async {
+      if (hasValidCache) {
+        // Fetch fresh data in background
+        _fetchSavedEventsInBackground();
+      } else {
+        await fetchSavedEvents();
+      }
+    });
 
     // Load cached sportsbook events first
     loadCachedSportsbookEvents().then((hasValidCache) async {
@@ -599,12 +612,15 @@ class SportsHomeController extends GetxController {
 
       final response = await http.post(
         Uri.parse(Urls.aiSportsbookGameLinesUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Connection': 'keep-alive',
+        },
         body: jsonEncode(requestBody),
       ).timeout(
-        Duration(seconds: 10),
+        const Duration(seconds: 30), // Increased from 10s to 30s
         onTimeout: () {
-          print("AI API request timed out for ${bookmark.marketTitle}");
+          print("⚠️ AI API request timed out for ${bookmark.marketTitle}");
           return http.Response('{"error": "timeout"}', 408);
         },
       );
@@ -1110,6 +1126,8 @@ class SportsHomeController extends GetxController {
     }
     
     print("Completed processing all saved events AI requests");
+    // Cache saved events after AI predictions are fetched
+    cacheSavedEvents();
   }
 
   /// Get index of saved event by event ID and market place
@@ -1160,6 +1178,197 @@ class SportsHomeController extends GetxController {
       return (awayValue < homeValue ? awayAmerican : homeAmerican).replaceAll('+', '');
     } catch (e) {
       return '-';
+    }
+  }
+
+  /// Fetch saved events in background (after 30 min cache)
+  Future<void> _fetchSavedEventsInBackground() async {
+    try {
+      print("=== Fetching Saved Events in Background ===");
+      final token = await SharedPreferencesHelper.getAccessToken();
+      if (token == null) return;
+
+      final url = Uri.parse('${Urls.baseUrl}/api/trade/saved-event-list/');
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final sportsbookEvents = data['sportsbook_events'] as List<dynamic>?;
+
+        if (sportsbookEvents != null && sportsbookEvents.isNotEmpty) {
+          // Process events and merge with cached AI data
+          for (var event in sportsbookEvents) {
+            final eventId = event['event_id']?.toString();
+            if (eventId == null) continue;
+
+            final bookmarks = event['bookmark'] as List<dynamic>?;
+            if (bookmarks == null) continue;
+
+            for (var bookmark in bookmarks) {
+              final marketPlace = bookmark['market_title'] as String?;
+              if (marketPlace == null) continue;
+
+              // Find existing cached event and preserve AI data
+              List<Map<String, dynamic>>? targetList;
+              switch (marketPlace) {
+                case 'FanDuel':
+                  targetList = _savedFanduelEvents;
+                  break;
+                case 'DraftKings':
+                  targetList = _savedDraftkingsEvents;
+                  break;
+                case 'BetMGM':
+                  targetList = _savedBetMgmEvents;
+                  break;
+              }
+
+              if (targetList != null) {
+                final idx = targetList.indexWhere((e) => e['event_id'] == eventId);
+                if (idx != -1) {
+                  // Preserve existing AI data
+                  final cachedAiAway = targetList[idx]['bookmark']?['ai_moneyline_away'] as String?;
+                  final cachedAiHome = targetList[idx]['bookmark']?['ai_moneyline_home'] as String?;
+                  
+                  if (cachedAiAway != null || cachedAiHome != null) {
+                    bookmark['ai_moneyline_away'] = cachedAiAway;
+                    bookmark['ai_moneyline_home'] = cachedAiHome;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Refresh data and fetch new AI predictions
+        await fetchSavedEvents();
+      }
+    } catch (e) {
+      print("Error fetching saved events in background: $e");
+    }
+  }
+
+  /// Load cached saved events
+  Future<bool> loadCachedSavedEvents() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedTimestampStr = prefs.getString(_savedEventsCacheTimestampKey);
+
+      if (cachedTimestampStr == null) {
+        print("No cached saved events found");
+        return false;
+      }
+
+      final timestamp = DateTime.parse(cachedTimestampStr);
+      final now = DateTime.now();
+
+      if (now.difference(timestamp) > _savedCacheDuration) {
+        print("Saved events cache expired (30 min) - will fetch fresh data");
+        return false;
+      }
+
+      final cachedData = prefs.getString(_savedEventsCacheKey);
+      if (cachedData == null) return false;
+
+      final List decoded = jsonDecode(cachedData);
+      
+      // Restore saved events from cache
+      if (decoded is List && decoded.isNotEmpty) {
+        for (var item in decoded) {
+          if (item is Map<String, dynamic>) {
+            final marketPlace = item['marketPlace'] as String?;
+            final eventData = item['data'] as Map<String, dynamic>?;
+            final eventId = eventData?['event_id'] as String?;
+
+            if (marketPlace == null || eventId == null || eventData == null) continue;
+
+            switch (marketPlace) {
+              case 'FanDuel':
+                if (!_savedFanduelEventIds.contains(eventId)) {
+                  _savedFanduelEventIds.add(eventId);
+                  _savedFanduelEvents.add(eventData);
+                }
+                break;
+              case 'DraftKings':
+                if (!_savedDraftkingsEventIds.contains(eventId)) {
+                  _savedDraftkingsEventIds.add(eventId);
+                  _savedDraftkingsEvents.add(eventData);
+                }
+                break;
+              case 'BetMGM':
+                if (!_savedBetMgmEventIds.contains(eventId)) {
+                  _savedBetMgmEventIds.add(eventId);
+                  _savedBetMgmEvents.add(eventData);
+                }
+                break;
+            }
+          }
+        }
+
+        final totalCount = _savedFanduelEvents.length + 
+                          _savedDraftkingsEvents.length + 
+                          _savedBetMgmEvents.length;
+        
+        if (totalCount > 0) {
+          print("Loaded $totalCount cached saved events");
+          update();
+          return true;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      print("Error loading cached saved events: $e");
+      return false;
+    }
+  }
+
+  /// Cache saved events to local storage
+  Future<void> cacheSavedEvents() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final List<Map<String, dynamic>> dataToCache = [];
+
+      // Cache FanDuel events
+      for (var event in _savedFanduelEvents) {
+        dataToCache.add({
+          'marketPlace': 'FanDuel',
+          'data': event,
+        });
+      }
+
+      // Cache DraftKings events
+      for (var event in _savedDraftkingsEvents) {
+        dataToCache.add({
+          'marketPlace': 'DraftKings',
+          'data': event,
+        });
+      }
+
+      // Cache BetMGM events
+      for (var event in _savedBetMgmEvents) {
+        dataToCache.add({
+          'marketPlace': 'BetMGM',
+          'data': event,
+        });
+      }
+
+      if (dataToCache.isEmpty) return;
+
+      await prefs.setString(_savedEventsCacheKey, jsonEncode(dataToCache));
+      await prefs.setString(
+        _savedEventsCacheTimestampKey,
+        DateTime.now().toIso8601String(),
+      );
+
+      print("Cached ${dataToCache.length} saved events (30 min)");
+    } catch (e) {
+      print("Error caching saved events: $e");
     }
   }
 

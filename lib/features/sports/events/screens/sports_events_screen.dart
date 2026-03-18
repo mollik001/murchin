@@ -541,71 +541,107 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
 
   /// Build NBA Finals cards
   List<Widget> _buildNbaFinalsCards() {
-    final events = _getCurrentNbaFinalsEvents();
-    return events.where((e) => e.isNotEmpty).map((e) {
-      final marketPlace = e['marketPlace'] as String?;
-      final isFanduel = marketPlace?.toLowerCase() == 'fanduel';
-      final isBetMgm = marketPlace?.toLowerCase() == 'betmgm';
-      
-      Color bgColor;
-      Color borderColor;
-      
-      if (isFanduel) {
-        bgColor = fanduelBgColor;
-        borderColor = fanduelBgColor;
-      } else if (isBetMgm) {
-        bgColor = betmgmBgColor;
-        borderColor = betmgmBgColor;
-      } else {
-        bgColor = draftkingsBgColor;
-        borderColor = draftkingsBgColor;
-      }
-      
-      final customOnTap = () {
-        Get.to(() => NbaFinalsDetailsScreen(
-          platform: e['platform'] as String? ?? 'FanDuel',
-          bgColor: bgColor,
-        ));
-      };
-      
-      if (isFanduel) {
-        return Padding(
+    // Read directly from controller to get latest AI predictions
+    final fanduelTeam = nbaFinalsController?.getLowestOddsTeam('FanDuel');
+    final draftkingsTeam = nbaFinalsController?.getLowestOddsTeam('DraftKings');
+    final betmgmTeam = nbaFinalsController?.getLowestOddsTeam('BetMGM');
+
+    final List<Widget> cards = [];
+
+    // FanDuel card
+    if (fanduelTeam != null) {
+      final aiPrediction = fanduelTeam.aiPrediction;
+      final isLoadingAi = aiPrediction == null;
+
+      cards.add(
+        Padding(
           padding: EdgeInsets.only(bottom: 20.h),
           child: FanduelCard(
-            eventId: e['event_id']?.toString(),
-            title: e['title'],
-            subtitle: e['subtitle'],
-            date: formatPrettyDate(e['endDate']),
-            marketPercentage: e['marketPercentage'],
-            aiPercentage: e['aiPercentage'],
-            team: e['team'],
-            bgColor: bgColor,
-            borderColor: borderColor,
-            platform: e['marketPlace'] as String? ?? 'FanDuel',
+            eventId: '3',
+            title: '2025-26 NBA Finals Winner',
+            subtitle: '',
+            date: formatPrettyDate(fanduelTeam.date),
+            marketPercentage: fanduelTeam.price,
+            aiPercentage: isLoadingAi ? null : aiPrediction,
+            team: fanduelTeam.teamName,
+            bgColor: fanduelBgColor,
+            borderColor: fanduelBgColor,
+            platform: 'FanDuel',
             isSaved: false,
-            customOnTap: customOnTap,
+            customOnTap: () {
+              Get.to(() => NbaFinalsDetailsScreen(
+                platform: 'FanDuel',
+                bgColor: fanduelBgColor,
+              ));
+            },
           ),
-        );
-      } else {
-        return Padding(
+        ),
+      );
+    }
+
+    // DraftKings card
+    if (draftkingsTeam != null) {
+      final aiPrediction = draftkingsTeam.aiPrediction;
+      final isLoadingAi = aiPrediction == null;
+
+      cards.add(
+        Padding(
           padding: EdgeInsets.only(bottom: 20.h),
           child: DraftkingsCard(
-            eventId: e['event_id']?.toString(),
-            title: e['title'],
-            subtitle: e['subtitle'],
-            date: formatPrettyDate(e['endDate']),
-            marketPercentage: e['marketPercentage'],
-            aiPercentage: e['aiPercentage'],
-            team: e['team'],
-            bgColor: bgColor,
-            borderColor: borderColor,
-            platform: e['marketPlace'] as String? ?? 'DraftKings',
+            eventId: 'dk3',
+            title: '2025-26 NBA Finals Winner',
+            subtitle: '',
+            date: formatPrettyDate(draftkingsTeam.date),
+            marketPercentage: draftkingsTeam.price,
+            aiPercentage: isLoadingAi ? null : aiPrediction,
+            team: draftkingsTeam.teamName,
+            bgColor: draftkingsBgColor,
+            borderColor: draftkingsBgColor,
+            platform: 'DraftKings',
             isSaved: false,
-            customOnTap: customOnTap,
+            customOnTap: () {
+              Get.to(() => NbaFinalsDetailsScreen(
+                platform: 'DraftKings',
+                bgColor: draftkingsBgColor,
+              ));
+            },
           ),
-        );
-      }
-    }).toList();
+        ),
+      );
+    }
+
+    // BetMGM card
+    if (betmgmTeam != null) {
+      final aiPrediction = betmgmTeam.aiPrediction;
+      final isLoadingAi = aiPrediction == null;
+
+      cards.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: 20.h),
+          child: DraftkingsCard(
+            eventId: 'mgm3',
+            title: '2025-26 NBA Finals Winner',
+            subtitle: '',
+            date: formatPrettyDate(betmgmTeam.date),
+            marketPercentage: betmgmTeam.price,
+            aiPercentage: isLoadingAi ? null : aiPrediction,
+            team: betmgmTeam.teamName,
+            bgColor: betmgmBgColor,
+            borderColor: betmgmBgColor,
+            platform: 'BetMGM',
+            isSaved: false,
+            customOnTap: () {
+              Get.to(() => NbaFinalsDetailsScreen(
+                platform: 'BetMGM',
+                bgColor: betmgmBgColor,
+              ));
+            },
+          ),
+        ),
+      );
+    }
+
+    return cards;
   }
 
   /// Build sportsbook cards for NBA Odds

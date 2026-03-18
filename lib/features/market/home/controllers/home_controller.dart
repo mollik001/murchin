@@ -51,6 +51,11 @@ class HomeController extends GetxController {
   static const String _kalshiCacheTimestampKey = 'cached_kalshi_ai_timestamp';
   static const String _kalshiEventsCacheKey = 'cached_kalshi_events';
 
+  // Saved events caching - 30 minutes cache
+  static const String _savedEventsCacheKey = 'cached_saved_market_events_v1';
+  static const String _savedEventsCacheTimestampKey = 'cached_saved_market_timestamp_v1';
+  static const Duration _savedCacheDuration = Duration(minutes: 30);
+
   bool _isLoadingCache = false;
 
   final Set<int> _cachedEventIndexes = <int>{};
@@ -65,6 +70,13 @@ class HomeController extends GetxController {
   Timer? _debounceTimer;
   final TextEditingController searchController = TextEditingController();
 
+  // Singleton HTTP client for connection reuse (keep-alive)
+  final http.Client _httpClient = http.Client();
+
+  // Request deduplication for AI predictions
+  final Map<String, DateTime> _lastAiRequestTime = {};
+  final Map<String, Future<http.Response>> _pendingAiRequests = {};
+
   @override
   void onInit() {
     super.onInit();
@@ -73,8 +85,15 @@ class HomeController extends GetxController {
     loadCachedEvents();
     loadCachedKalshiEvents();
 
-    // Fetch saved events to populate saved event IDs
-    fetchSavedEvents();
+    // Load cached saved events first
+    loadCachedSavedEvents().then((hasValidCache) async {
+      if (hasValidCache) {
+        // Fetch fresh data in background
+        _fetchSavedEventsInBackground();
+      } else {
+        await fetchSavedEvents();
+      }
+    });
 
     Future.delayed(Duration.zero, () {
       // Load Polymarket with AI cache check
@@ -878,6 +897,33 @@ class HomeController extends GetxController {
     required Map<String, dynamic> baseEvent,
     List<int>? originalIndices,
   }) async {
+    // Create cache key for deduplication
+    final cacheKey = 'market_ai_$eventName';
+
+    // Check if request is already in progress
+    if (_pendingAiRequests.containsKey(cacheKey)) {
+      print("⏳ Waiting for pending market AI request: $cacheKey");
+      try {
+        final response = await _pendingAiRequests[cacheKey]!.timeout(
+          const Duration(seconds: 30),
+        );
+        return _processMarketAiResponse(response, baseEvent, options, originalIndices);
+      } on TimeoutException {
+        print("⚠️ Market AI API timeout after 30s for $cacheKey");
+        return baseEvent;
+      }
+    }
+
+    // Check if we made a recent request (within 3 seconds)
+    final now = DateTime.now();
+    if (_lastAiRequestTime.containsKey(cacheKey)) {
+      final timeDiff = now.difference(_lastAiRequestTime[cacheKey]!);
+      if (timeDiff.inSeconds < 3) {
+        print("⚡ Skipping duplicate market AI request (too soon): $cacheKey");
+        return baseEvent;
+      }
+    }
+
     try {
       var request = http.MultipartRequest('POST', Uri.parse(aiUrl));
 
@@ -892,66 +938,85 @@ class HomeController extends GetxController {
         request.fields['market_prediction'] = decimalPredictions.join(',');
       }
 
-      final streamed = await request.send();
-      final response = await http.Response.fromStream(streamed);
+      // Mark request as pending
+      final future = _httpClient.send(request);
+      _pendingAiRequests[cacheKey] = future.then((streamed) => http.Response.fromStream(streamed));
+      _lastAiRequestTime[cacheKey] = now;
 
-      if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
+      final streamed = await future;
+      final response = await http.Response.fromStream(streamed).timeout(
+        const Duration(seconds: 30), // Increased timeout from default to 30s
+      );
 
-        List<dynamic> probs = json['probabilities'] ?? [];
-        List explanations = json['explanations'] ?? [];
-
-        if (probs.isEmpty) return baseEvent;
-
-        List<double> aiPercentages = probs
-            .map((e) => (double.tryParse(e.toString()) ?? 0) * 100)
-            .toList();
-
-        List<String> optionTitles = List<String>.from(
-          baseEvent['optionTitles'],
-        );
-
-        List<double> finalAiPercentages = List<double>.filled(
-          optionTitles.length,
-          0.0,
-        );
-
-        if (originalIndices != null && originalIndices.isNotEmpty) {
-          int safeLength = originalIndices.length < aiPercentages.length
-              ? originalIndices.length
-              : aiPercentages.length;
-
-          for (int i = 0; i < safeLength; i++) {
-            int originalIndex = originalIndices[i];
-
-            if (originalIndex < finalAiPercentages.length) {
-              finalAiPercentages[originalIndex] = aiPercentages[i];
-            }
-          }
-        }
-
-        String marketTeam = baseEvent['team'] ?? '';
-        int marketIndex = optionTitles.indexOf(marketTeam);
-
-        double aiValueForMarket = 0;
-
-        if (marketIndex != -1 && marketIndex < finalAiPercentages.length) {
-          aiValueForMarket = finalAiPercentages[marketIndex];
-        }
-
-        return {
-          ...baseEvent,
-          'aiPercentage': '${aiValueForMarket.round()}%',
-          'aiExplanation': explanations.isNotEmpty ? explanations.first : '',
-          'aiPercentages': finalAiPercentages,
-        };
-      }
-
-      return baseEvent;
+      return _processMarketAiResponse(response, baseEvent, options, originalIndices);
     } catch (e) {
       print("AI Error: $e");
       return baseEvent;
+    } finally {
+      _pendingAiRequests.remove(cacheKey);
     }
+  }
+
+  /// Process market AI response
+  Map<String, dynamic> _processMarketAiResponse(
+    http.Response response,
+    Map<String, dynamic> baseEvent,
+    List<String> options,
+    List<int>? originalIndices,
+  ) {
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+
+      List<dynamic> probs = json['probabilities'] ?? [];
+      List explanations = json['explanations'] ?? [];
+
+      if (probs.isEmpty) return baseEvent;
+
+      List<double> aiPercentages = probs
+          .map((e) => (double.tryParse(e.toString()) ?? 0) * 100)
+          .toList();
+
+      List<String> optionTitles = List<String>.from(
+        baseEvent['optionTitles'],
+      );
+
+      List<double> finalAiPercentages = List<double>.filled(
+        optionTitles.length,
+        0.0,
+      );
+
+      if (originalIndices != null && originalIndices.isNotEmpty) {
+        int safeLength = originalIndices.length < aiPercentages.length
+            ? originalIndices.length
+            : aiPercentages.length;
+
+        for (int i = 0; i < safeLength; i++) {
+          int originalIndex = originalIndices[i];
+
+          if (originalIndex < finalAiPercentages.length) {
+            finalAiPercentages[originalIndex] = aiPercentages[i];
+          }
+        }
+      }
+
+      String marketTeam = baseEvent['team'] ?? '';
+      int marketIndex = optionTitles.indexOf(marketTeam);
+
+      double aiValueForMarket = 0;
+
+      if (marketIndex != -1 && marketIndex < finalAiPercentages.length) {
+        aiValueForMarket = finalAiPercentages[marketIndex];
+      }
+
+      return {
+        ...baseEvent,
+        'aiPercentage': '${aiValueForMarket.round()}%',
+        'aiExplanation': explanations.isNotEmpty ? explanations.first : '',
+        'aiPercentages': finalAiPercentages,
+      };
+    }
+
+    return baseEvent;
   }
 
   // ================= SEARCH =================
@@ -1260,6 +1325,9 @@ class HomeController extends GetxController {
                 update(); // Force UI refresh
                 print("AI data updated for saved event: ${aiData['title']}");
               }
+              
+              // Cache saved events after AI is fetched
+              cacheSavedEvents();
             });
           }
         } else {
@@ -1301,6 +1369,9 @@ class HomeController extends GetxController {
                 update(); // Force UI refresh
                 print("AI data updated for saved Kalshi event: ${aiData['title']}");
               }
+              
+              // Cache saved events after AI is fetched
+              cacheSavedEvents();
             });
           }
         } else {
@@ -1504,6 +1575,133 @@ class HomeController extends GetxController {
       );
     } catch (e) {
       print("Error saving AI data to cache: $e");
+    }
+  }
+
+  // ================= SAVED EVENTS CACHE (30 MIN) =================
+
+  /// Fetch saved events in background after 30 min cache expires
+  Future<void> _fetchSavedEventsInBackground() async {
+    try {
+      print("=== Fetching Saved Market Events in Background ===");
+      final token = await SharedPreferencesHelper.getAccessToken();
+      if (token == null) return;
+
+      final url = Uri.parse('${Urls.baseUrl}/api/trade/saved-event-list/');
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Refresh data and fetch new AI predictions
+        await fetchSavedEvents();
+      }
+    } catch (e) {
+      print("Error fetching saved market events in background: $e");
+    }
+  }
+
+  /// Load cached saved market events (30 min cache)
+  Future<bool> loadCachedSavedEvents() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedTimestampStr = prefs.getString(_savedEventsCacheTimestampKey);
+
+      if (cachedTimestampStr == null) {
+        print("No cached saved market events found");
+        return false;
+      }
+
+      final timestamp = DateTime.parse(cachedTimestampStr);
+      final now = DateTime.now();
+
+      if (now.difference(timestamp) > _savedCacheDuration) {
+        print("Saved market events cache expired (30 min) - will fetch fresh data");
+        return false;
+      }
+
+      final cachedData = prefs.getString(_savedEventsCacheKey);
+      if (cachedData == null) return false;
+
+      final List decoded = jsonDecode(cachedData);
+
+      // Restore saved events from cache
+      if (decoded is List && decoded.isNotEmpty) {
+        for (var item in decoded) {
+          if (item is Map<String, dynamic>) {
+            final marketPlace = item['marketPlace'] as String?;
+            final eventData = item['data'] as Map<String, dynamic>?;
+            final eventId = eventData?['event_id'];
+
+            if (marketPlace == null || eventData == null) continue;
+
+            if (marketPlace == 'Polymarket') {
+              _savedPolymarketEvents.add(eventData);
+              if (eventId is int) {
+                _savedEventIds.add(eventId);
+              }
+            } else if (marketPlace == 'Kalshi') {
+              _savedKalshiEvents.add(eventData);
+              if (eventId is String) {
+                _savedKalshiEventIds.add(eventId);
+              }
+            }
+          }
+        }
+
+        final totalCount = _savedPolymarketEvents.length + _savedKalshiEvents.length;
+
+        if (totalCount > 0) {
+          print("Loaded $totalCount cached saved market events");
+          update();
+          return true;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      print("Error loading cached saved market events: $e");
+      return false;
+    }
+  }
+
+  /// Cache saved market events to local storage (30 min)
+  Future<void> cacheSavedEvents() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final List<Map<String, dynamic>> dataToCache = [];
+
+      // Cache Polymarket events
+      for (var event in _savedPolymarketEvents) {
+        dataToCache.add({
+          'marketPlace': 'Polymarket',
+          'data': event,
+        });
+      }
+
+      // Cache Kalshi events
+      for (var event in _savedKalshiEvents) {
+        dataToCache.add({
+          'marketPlace': 'Kalshi',
+          'data': event,
+        });
+      }
+
+      if (dataToCache.isEmpty) return;
+
+      await prefs.setString(_savedEventsCacheKey, jsonEncode(dataToCache));
+      await prefs.setString(
+        _savedEventsCacheTimestampKey,
+        DateTime.now().toIso8601String(),
+      );
+
+      print("Cached ${dataToCache.length} saved market events (30 min)");
+    } catch (e) {
+      print("Error caching saved market events: $e");
     }
   }
 }

@@ -62,7 +62,22 @@ class NbaFinalsOdd {
       teamName: json['team_name'] ?? '',
       price: json['price'] ?? '',
       date: json['date'] ?? '',
+      aiPrediction: json['ai_prediction'],
+      isLoadingAi: json['is_loading_ai'] ?? false,
     );
+  }
+
+  /// Convert to JSON for caching
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'bookmark_title': bookmarkTitle,
+      'team_name': teamName,
+      'price': price,
+      'date': date,
+      'ai_prediction': aiPrediction,
+      'is_loading_ai': isLoadingAi,
+    };
   }
 
   /// Create a copy with updated AI prediction

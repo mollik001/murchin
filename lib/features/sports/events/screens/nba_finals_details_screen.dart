@@ -34,6 +34,27 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
       controller = Get.put(NbaFinalsOddsController(), permanent: true);
     }
     _scrollController.addListener(_onScroll);
+    
+    // Re-apply AI predictions when entering details screen
+    // This ensures odds have AI data even if AI loaded after the odds were fetched
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureAiPredictionsApplied();
+    });
+  }
+
+  /// Ensure AI predictions are applied to current odds
+  void _ensureAiPredictionsApplied() {
+    final odds = controller.getOddsForPlatform(widget.platform);
+    if (odds.isEmpty) return;
+
+    // Check if we have AI predictions for this platform
+    if (controller.hasAiPredictions(widget.platform)) {
+      // Re-apply AI predictions to ensure they're reflected in the UI
+      controller.update();
+    } else if (!controller.isAiLoading.value) {
+      // AI not loading and no predictions - fetch them
+      controller.fetchAiPredictions(widget.platform);
+    }
   }
 
   @override
@@ -184,14 +205,15 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
             Expanded(
               child: GetBuilder<NbaFinalsOddsController>(
                 builder: (controller) {
-                  final isAiLoading = controller.isAiLoading.value;
+                  // Check if AI is still loading OR if we have odds without AI predictions
+                  final odds = controller.getOddsForPlatform(widget.platform);
+                  final hasOddsWithoutAi = odds.any((odd) => odd.aiPrediction == null);
+                  final shouldShowShimmer = controller.isAiLoading.value || 
+                      (controller.hasAiPredictions(widget.platform) && hasOddsWithoutAi);
 
-                  if (controller.isLoading.value &&
-                      controller.getOddsForPlatform(widget.platform).isEmpty) {
+                  if (controller.isLoading.value && odds.isEmpty) {
                     return Center(child: CircularProgressIndicator());
                   }
-
-                  final odds = controller.getOddsForPlatform(widget.platform);
 
                   if (odds.isEmpty) {
                     return Center(
@@ -211,7 +233,7 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
                     itemCount: odds.length + 1,
                     itemBuilder: (context, index) {
                       if (index < odds.length) {
-                        return _buildOddCard(odds[index], isAiLoading: isAiLoading);
+                        return _buildOddCard(odds[index], isAiLoading: shouldShowShimmer);
                       } else {
                         if (controller.isRefreshing.value) {
                           return Padding(
@@ -234,7 +256,9 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
   }
 
   Widget _buildOddCard(NbaFinalsOdd odd, {bool? isAiLoading}) {
-    final bool isLoadingAi = isAiLoading == true || odd.aiPrediction == null || odd.isLoadingAi;
+    // Check if this specific odd has AI prediction
+    final bool hasAiPrediction = odd.aiPrediction != null && odd.aiPrediction!.isNotEmpty;
+    final bool isLoadingAi = !hasAiPrediction;
     final String aiValue = odd.aiPrediction ?? 'N/A';
 
     return Padding(

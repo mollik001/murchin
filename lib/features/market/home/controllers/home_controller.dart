@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -75,7 +76,12 @@ class HomeController extends GetxController {
 
   // Request deduplication for AI predictions
   final Map<String, DateTime> _lastAiRequestTime = {};
-  final Map<String, Future<http.Response>> _pendingAiRequests = {};
+  final Map<String, Future<Map<String, dynamic>>> _pendingAiRequests = {};
+  
+  // Limit concurrent AI requests to avoid overwhelming the API
+  int _activeAiRequests = 0;
+  static const int _maxConcurrentAiRequests = 2;  // Reduced from 3 to 2
+  final Queue<_AiRequest> _aiRequestQueue = Queue();
 
   @override
   void onInit() {
@@ -890,40 +896,14 @@ class HomeController extends GetxController {
 
   // ================= AI API =================
 
-  Future<Map<String, dynamic>> fetchAIValue({
+  /// Internal method to actually make the AI request
+  Future<Map<String, dynamic>> _executeAiRequest({
     required String eventName,
     required List<String> options,
     required List<double> marketPredictions,
     required Map<String, dynamic> baseEvent,
     List<int>? originalIndices,
   }) async {
-    // Create cache key for deduplication
-    final cacheKey = 'market_ai_$eventName';
-
-    // Check if request is already in progress
-    if (_pendingAiRequests.containsKey(cacheKey)) {
-      print("⏳ Waiting for pending market AI request: $cacheKey");
-      try {
-        final response = await _pendingAiRequests[cacheKey]!.timeout(
-          const Duration(seconds: 30),
-        );
-        return _processMarketAiResponse(response, baseEvent, options, originalIndices);
-      } on TimeoutException {
-        print("⚠️ Market AI API timeout after 30s for $cacheKey");
-        return baseEvent;
-      }
-    }
-
-    // Check if we made a recent request (within 3 seconds)
-    final now = DateTime.now();
-    if (_lastAiRequestTime.containsKey(cacheKey)) {
-      final timeDiff = now.difference(_lastAiRequestTime[cacheKey]!);
-      if (timeDiff.inSeconds < 3) {
-        print("⚡ Skipping duplicate market AI request (too soon): $cacheKey");
-        return baseEvent;
-      }
-    }
-
     try {
       var request = http.MultipartRequest('POST', Uri.parse(aiUrl));
 
@@ -938,22 +918,119 @@ class HomeController extends GetxController {
         request.fields['market_prediction'] = decimalPredictions.join(',');
       }
 
-      // Mark request as pending
-      final future = _httpClient.send(request);
-      _pendingAiRequests[cacheKey] = future.then((streamed) => http.Response.fromStream(streamed));
-      _lastAiRequestTime[cacheKey] = now;
+      print("🚀 Making AI request for: $eventName (active: $_activeAiRequests/$_maxConcurrentAiRequests)");
 
-      final streamed = await future;
-      final response = await http.Response.fromStream(streamed).timeout(
-        const Duration(seconds: 30), // Increased timeout from default to 30s
-      );
+      final streamed = await _httpClient.send(request);
+      final response = await http.Response.fromStream(streamed);
 
       return _processMarketAiResponse(response, baseEvent, options, originalIndices);
     } catch (e) {
       print("AI Error: $e");
       return baseEvent;
-    } finally {
-      _pendingAiRequests.remove(cacheKey);
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchAIValue({
+    required String eventName,
+    required List<String> options,
+    required List<double> marketPredictions,
+    required Map<String, dynamic> baseEvent,
+    List<int>? originalIndices,
+  }) async {
+    // Create cache key for deduplication
+    final cacheKey = 'market_ai_$eventName';
+
+    // Check if request is already in progress
+    if (_pendingAiRequests.containsKey(cacheKey)) {
+      print("⏳ Waiting for pending market AI request: $cacheKey");
+      return _pendingAiRequests[cacheKey]!;
+    }
+
+    // Check if we made a recent request (within 3 seconds)
+    final now = DateTime.now();
+    if (_lastAiRequestTime.containsKey(cacheKey)) {
+      final timeDiff = now.difference(_lastAiRequestTime[cacheKey]!);
+      if (timeDiff.inSeconds < 3) {
+        print("⚡ Skipping duplicate market AI request (too soon): $cacheKey");
+        return baseEvent;
+      }
+    }
+
+    // Use queue system to limit concurrent requests
+    final completer = Completer<Map<String, dynamic>>();
+    _aiRequestQueue.add(_AiRequest(
+      eventName: eventName,
+      options: options,
+      marketPredictions: marketPredictions,
+      baseEvent: baseEvent,
+      originalIndices: originalIndices,
+      completer: completer,
+      cacheKey: cacheKey,
+    ));
+
+    // Process queue if not already processing
+    _processAiRequestQueue();
+
+    _lastAiRequestTime[cacheKey] = now;
+    return completer.future.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        print("⚠️ Market AI API timeout after 30s for $cacheKey (queued)");
+        return baseEvent;
+      },
+    );
+  }
+
+  /// Process the AI request queue
+  void _processAiRequestQueue() async {
+    // If we're at max concurrent requests, wait
+    if (_activeAiRequests >= _maxConcurrentAiRequests) {
+      print("⏸️ AI request queue paused: $_activeAiRequests/$_maxConcurrentAiRequests active");
+      return;
+    }
+
+    // Process requests from queue
+    while (_aiRequestQueue.isNotEmpty && _activeAiRequests < _maxConcurrentAiRequests) {
+      final request = _aiRequestQueue.removeFirst();
+      
+      // Check if this request is already pending
+      if (_pendingAiRequests.containsKey(request.cacheKey)) {
+        request.completer.complete(_pendingAiRequests[request.cacheKey]);
+        continue;
+      }
+
+      // Execute the request
+      _activeAiRequests++;
+      
+      final future = _executeAiRequest(
+        eventName: request.eventName,
+        options: request.options,
+        marketPredictions: request.marketPredictions,
+        baseEvent: request.baseEvent,
+        originalIndices: request.originalIndices,
+      );
+
+      // Store in pending requests
+      _pendingAiRequests[request.cacheKey] = future;
+
+      // Complete the completer when done
+      future.then((result) {
+        _activeAiRequests--;
+        _pendingAiRequests.remove(request.cacheKey);
+        request.completer.complete(result);
+        
+        // Process next item in queue
+        _processAiRequestQueue();
+        
+        print("✅ AI request completed for: ${request.eventName} (active: $_activeAiRequests/$_maxConcurrentAiRequests)");
+      }).catchError((error) {
+        _activeAiRequests--;
+        _pendingAiRequests.remove(request.cacheKey);
+        request.completer.completeError(error);
+        
+        // Process next item in queue
+        _processAiRequestQueue();
+      });
     }
   }
 
@@ -1704,4 +1781,25 @@ class HomeController extends GetxController {
       print("Error caching saved market events: $e");
     }
   }
+}
+
+/// AI Request class for queue
+class _AiRequest {
+  final String eventName;
+  final List<String> options;
+  final List<double> marketPredictions;
+  final Map<String, dynamic> baseEvent;
+  final List<int>? originalIndices;
+  final Completer<Map<String, dynamic>> completer;
+  final String cacheKey;
+
+  _AiRequest({
+    required this.eventName,
+    required this.options,
+    required this.marketPredictions,
+    required this.baseEvent,
+    this.originalIndices,
+    required this.completer,
+    required this.cacheKey,
+  });
 }

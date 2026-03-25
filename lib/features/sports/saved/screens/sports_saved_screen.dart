@@ -8,6 +8,7 @@ import 'package:murchin/const/widgets/custom_appbar.dart';
 import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
 import 'package:murchin/features/sports/home/widgets/fanduel_card.dart';
 import 'package:murchin/features/sports/home/widgets/draftkings_card.dart';
+import 'package:murchin/features/sports/home/widgets/betmgm_card.dart';
 import 'package:shimmer/shimmer.dart';
 
 class SportsSavedScreen extends StatefulWidget {
@@ -19,12 +20,6 @@ class SportsSavedScreen extends StatefulWidget {
 
 class _SportsSavedScreenState extends State<SportsSavedScreen> {
   final SportsHomeController controller = Get.find<SportsHomeController>();
-
-  @override
-  void initState() {
-    super.initState();
-    controller.fetchSavedEvents();
-  }
 
   String formatPrettyDate(String dateStr) {
     try {
@@ -91,6 +86,7 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
   Widget _buildSavedCardsList() {
     final Color fanduelBgColor = const Color(0xFF559CEE);
     final Color draftkingsBgColor = const Color(0xFF218B28);
+    final Color betmgmBgColor = const Color(0xFFA79D2C);
 
     return GetX<SportsHomeController>(
       builder: (controller) {
@@ -99,8 +95,10 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
           return _buildLoadingShimmer();
         }
 
+        // Check if all saved lists are empty
         if (controller.savedFanduelEvents.isEmpty &&
-            controller.savedDraftkingsEvents.isEmpty) {
+            controller.savedDraftkingsEvents.isEmpty &&
+            controller.savedBetMgmEvents.isEmpty) {
           return Center(
             child: Column(
               children: [
@@ -125,18 +123,19 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
 
         return Column(
           children: [
-            ...controller.savedFanduelEvents.asMap().entries.map((entry) {
-              int index = entry.key;
-              final e = entry.value;
-
+            // FanDuel Events
+            ...controller.savedFanduelEvents.map((e) {
               // Show shimmer if AI data is not yet loaded (null or 'N/A')
               String? aiPercentage = e['aiPercentage'] as String?;
               bool isLoadingAI = aiPercentage == null || aiPercentage == 'N/A' || aiPercentage.isEmpty;
+              
+              // Debug: log event data
+              print('📄 FD Saved Event: event_id=${e['event_id']}, marketPlace=${e['marketPlace']}');
 
               return Padding(
                 padding: EdgeInsets.only(bottom: 20.h),
                 child: FanduelCard(
-                  eventId: e['event_id']?.toString(),
+                  eventId: e['event_id'] as String?,
                   title: 'NBA Championship Odds 2026',
                   subtitle: e['subtitle'] ?? '',
                   date: formatPrettyDate(e['endDate']),
@@ -145,24 +144,27 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
                   team: e['team'],
                   bgColor: fanduelBgColor,
                   borderColor: fanduelBgColor,
+                  platformTagBgColor: AppColors.fanduelColor,
+                  platformTagBorderColor: Colors.black,
                   platform: e['marketPlace'] as String? ?? 'FanDuel',
                   isSaved: true,
                   eventRef: e,
                 ),
               );
             }),
-            ...controller.savedDraftkingsEvents.asMap().entries.map((entry) {
-              int index = entry.key;
-              final e = entry.value;
-
+            // DraftKings Events
+            ...controller.savedDraftkingsEvents.map((e) {
               // Show shimmer if AI data is not yet loaded (null or 'N/A')
               String? aiPercentage = e['aiPercentage'] as String?;
               bool isLoadingAI = aiPercentage == null || aiPercentage == 'N/A' || aiPercentage.isEmpty;
+              
+              // Debug: log event data
+              print('📄 DK Saved Event: event_id=${e['event_id']}, marketPlace=${e['marketPlace']}');
 
               return Padding(
                 padding: EdgeInsets.only(bottom: 20.h),
                 child: DraftkingsCard(
-                  eventId: e['event_id']?.toString(),
+                  eventId: e['event_id'] as String?,
                   title: 'NBA Championship Odds 2026',
                   subtitle: e['subtitle'] ?? '',
                   date: formatPrettyDate(e['endDate']),
@@ -171,7 +173,38 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
                   team: e['team'],
                   bgColor: draftkingsBgColor,
                   borderColor: draftkingsBgColor,
+                  platformTagBgColor: AppColors.draftkingsColor,
+                  platformTagBorderColor: Colors.black,
                   platform: e['marketPlace'] as String? ?? 'DraftKings',
+                  isSaved: true,
+                  eventRef: e,
+                ),
+              );
+            }),
+            // BetMGM Events
+            ...controller.savedBetMgmEvents.map((e) {
+              // Show shimmer if AI data is not yet loaded (null or 'N/A')
+              String? aiPercentage = e['aiPercentage'] as String?;
+              bool isLoadingAI = aiPercentage == null || aiPercentage == 'N/A' || aiPercentage.isEmpty;
+              
+              // Debug: log event data
+              print('📄 MGM Saved Event: event_id=${e['event_id']}, marketPlace=${e['marketPlace']}');
+
+              return Padding(
+                padding: EdgeInsets.only(bottom: 20.h),
+                child: BetmgmCard(
+                  eventId: e['event_id'] as String?,
+                  title: 'NBA Championship Odds 2026',
+                  subtitle: e['subtitle'] ?? '',
+                  date: formatPrettyDate(e['endDate']),
+                  marketPercentage: e['marketPercentage'],
+                  aiPercentage: isLoadingAI ? null : aiPercentage,
+                  team: e['team'],
+                  bgColor: betmgmBgColor,
+                  borderColor: betmgmBgColor,
+                  platformTagBgColor: AppColors.betmgmColor,
+                  platformTagBorderColor: Colors.black,
+                  platform: e['marketPlace'] as String? ?? 'BetMGM',
                   isSaved: true,
                   eventRef: e,
                 ),

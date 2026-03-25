@@ -14,6 +14,8 @@ class PolymarketCard extends StatelessWidget {
   final String team;
   final Color bgColor;
   final Color borderColor;
+  final Color? platformTagBgColor;
+  final Color? platformTagBorderColor;
   final String? slug;
   final List<String>? optionTitles;
   final List<double>? marketProbs;
@@ -22,6 +24,7 @@ class PolymarketCard extends StatelessWidget {
   final bool isSaved;
   final VoidCallback? onSaved;
   final Map<String, dynamic>? eventRef;
+  final bool canToggleSave; // Allow disabling bookmark tap
 
   const PolymarketCard({
     super.key,
@@ -42,6 +45,9 @@ class PolymarketCard extends StatelessWidget {
     this.isSaved = false,
     this.onSaved,
     this.eventRef,
+    this.canToggleSave = true,
+    this.platformTagBgColor,
+    this.platformTagBorderColor,
   });
 
   @override
@@ -94,13 +100,41 @@ class PolymarketCard extends StatelessWidget {
         team: team,
         bgColor: bgColor,
         borderColor: borderColor,
+        platformTagBgColor: platformTagBgColor,
+        platformTagBorderColor: platformTagBorderColor,
         platform: 'Polymarket',
         iconAsset: 'assets/icons/polymarket.png',
         initiallySaved: isSaved,
+        canToggleSave: canToggleSave,
         onSaved: onSaved ??
             () {
               if (eventId != null) {
-                controller.saveEvent(eventId: eventId!, marketPlace: 'Polymarket');
+                controller.saveEvent(
+                  eventId: eventId,
+                  marketPlace: 'Polymarket',
+                  title: title,
+                  slug: eventRef != null
+                      ? (eventRef!['slug'] as String?) ?? slug
+                      : slug,
+                  endDate: date,
+                  team: team,
+                  marketPercentage: marketPercentage,
+                  aiPercentage: eventRef != null
+                      ? (eventRef!['aiPercentage'] as String?) ?? aiPercentage
+                      : aiPercentage,
+                  aiExplanation: eventRef != null
+                      ? (eventRef!['aiExplanation'] as String?) ?? aiExplanation
+                      : aiExplanation,
+                  optionTitles: eventRef != null
+                      ? (eventRef!['optionTitles'] as List<String>?) ?? optionTitles
+                      : optionTitles,
+                  marketProbs: eventRef != null
+                      ? (eventRef!['marketProbs'] as List<double>?) ?? marketProbs
+                      : marketProbs,
+                  aiPercentages: eventRef != null
+                      ? (eventRef!['aiPercentages'] as List<double>?) ?? aiPercentages
+                      : aiPercentages,
+                );
               }
             },
       ),

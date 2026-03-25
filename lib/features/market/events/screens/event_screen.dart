@@ -23,8 +23,8 @@ class _EventScreenState extends State<EventScreen> {
   final ScrollController _scrollController = ScrollController();
 
   final Color unselectedBgColor = const Color(0xFF8D9AB1);
-  final Color polymarketBgColor = const Color(0xFF585858);
-  final Color kalshiBgColor = const Color(0xFF259A2C);
+  final Color polymarketBgColor = AppColors.polymarketColor;
+  final Color kalshiBgColor = AppColors.kalshiCardBg;
 
   @override
   void initState() {
@@ -394,9 +394,11 @@ class _EventScreenState extends State<EventScreen> {
   List<Map<String, dynamic>> _getCurrentEvents() {
     final platform = controller.selectedPlatform.value;
     if (platform == 1) {
-      return controller.events;
+      // Polymarket tab - show all loaded events
+      return controller.events.toList();
     } else if (platform == 2) {
-      return controller.kalshiEvents;
+      // Kalshi tab - show all loaded events
+      return controller.kalshiEvents.toList();
     } else {
       // All tab - show all events from both platforms
       return [...controller.events, ...controller.kalshiEvents];
@@ -491,8 +493,8 @@ class _EventScreenState extends State<EventScreen> {
   }
 
   Widget _buildPlatformTag(bool isKalshi) {
-    final bgColor = isKalshi ? kalshiBgColor : polymarketBgColor;
-    final borderColor = isKalshi ? kalshiBgColor : polymarketBgColor;
+    final bgColor = isKalshi ? AppColors.kalshiColor : AppColors.polymarketColor;
+    final borderColor = isKalshi ? Colors.black : Colors.grey;
     final displayText = isKalshi ? 'Kalshi' : 'Polymarket';
 
     return Container(
@@ -529,7 +531,7 @@ class _EventScreenState extends State<EventScreen> {
             width: percentage * (Get.width - 72.w),
             height: 24.h,
             decoration: BoxDecoration(
-              color: const Color(0xFF3CB043),
+              color: const Color(0xFF1493FF),
               borderRadius: BorderRadius.circular(10.r),
             ),
             child: Stack(
@@ -856,42 +858,18 @@ class EventsController extends GetxController {
 
         // Always replace events list when switching categories
         _events.assignAll(tempEvents);
-        
+
         print("=== Polymarket Events Loaded ===");
         print("Total Events: ${_events.length}");
         print("Category: $category");
-        
+        print("✅ Events screen using cached AI data only (AI fetched on detail view only)");
+
         update(); // Trigger UI refresh
 
         final nextPageUrl = data['next'];
         setPolymarketNextPageUrl(category, nextPageUrl);
 
-        // Fetch AI for first 5 events using HomeController
-        final homeController = Get.find<HomeController>();
-        for (int i = 0; i < tempEvents.length && i < 5; i++) {
-          final e = tempEvents[i];
-          final filtered = _buildFilteredOptions(e);
-
-          homeController.fetchAIValue(
-            eventName: e['title'],
-            options: filtered['options'],
-            marketPredictions: filtered['marketProbs'],
-            baseEvent: e,
-            originalIndices: filtered['originalIndices'],
-          ).then((aiData) async {
-            if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
-              return;
-            }
-
-            final idx = _events.indexWhere((ev) => ev['title'] == aiData['title']);
-            if (idx != -1) {
-              List<Map<String, dynamic>> newEvents = List.from(_events);
-              newEvents[idx] = aiData;
-              _events.assignAll(newEvents);
-              update();
-            }
-          });
-        }
+        // NO AI calls here - only fetch AI when user opens detail page
       }
     } catch (e) {
       print("Error fetching Polymarket events: $e");
@@ -1054,38 +1032,14 @@ class EventsController extends GetxController {
         print("=== Kalshi Events Loaded ===");
         print("Total Events: ${_kalshiEvents.length}");
         print("Category: $category");
+        print("✅ Events screen using cached AI data only (AI fetched on detail view only)");
         
         update(); // Trigger UI refresh
 
         final nextPageUrl = data['next'];
         setKalshiNextPageUrl(category, nextPageUrl);
 
-        // Fetch AI for first 5 events using HomeController
-        final homeController = Get.find<HomeController>();
-        for (int i = 0; i < tempEvents.length && i < 5; i++) {
-          final e = tempEvents[i];
-          final filtered = _buildFilteredOptions(e);
-
-          homeController.fetchAIValue(
-            eventName: e['title'],
-            options: filtered['options'],
-            marketPredictions: filtered['marketProbs'],
-            baseEvent: e,
-            originalIndices: filtered['originalIndices'],
-          ).then((aiData) async {
-            if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
-              return;
-            }
-
-            final idx = _kalshiEvents.indexWhere((ev) => ev['event_id'] == aiData['event_id']);
-            if (idx != -1) {
-              List<Map<String, dynamic>> newEvents = List.from(_kalshiEvents);
-              newEvents[idx] = aiData;
-              _kalshiEvents.assignAll(newEvents);
-              update();
-            }
-          });
-        }
+        // NO AI calls here - only fetch AI when user opens detail page
       }
     } catch (e) {
       print("Error fetching Kalshi events: $e");

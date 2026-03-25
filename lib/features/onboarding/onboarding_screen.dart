@@ -290,22 +290,23 @@ class _LandingPageState extends State<LandingPage> {
 
     if (token != null && token.isNotEmpty) {
       print("✅ Token Found → Navigate To Home");
-      // Check last visited section first
-      String? lastSection = await SharedPreferencesHelper.getLastVisitedSection();
-      
+
+      String? lastSection =
+          await SharedPreferencesHelper.getLastVisitedSection();
+
       if (lastSection == 'sports') {
         Get.offAll(() => SportsNavbarScreen());
       } else if (lastSection == 'market') {
         Get.offAll(() => MarketNavbarScreen());
       } else {
-        // Fallback to sportsbook_mode preference for backward compatibility
-        bool? isSportsbook = await SharedPreferencesHelper.getSportsbookMode();
+        bool? isSportsbook =
+            await SharedPreferencesHelper.getSportsbookMode();
+
         if (isSportsbook == true) {
           Get.offAll(() => SportsNavbarScreen());
         } else if (isSportsbook == false) {
           Get.offAll(() => MarketNavbarScreen());
         } else {
-          // Default to SelectionScreen if no preference saved
           Get.offAll(() => const SelectionScreen());
         }
       }
@@ -320,37 +321,34 @@ class _LandingPageState extends State<LandingPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(),
-              Center(
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  width: 280.w,
-                  height: 220.h,
-                  fit: BoxFit.contain,
-                ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: 130.h,
+              child: Image.asset(
+                'assets/images/logo.jpg',
+                width: 400.w,
+                height: 350.h,
+                fit: BoxFit.contain,
               ),
-              SizedBox(height: 24.h),
-              Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6.w),
-                  child: Text(
-                    'Smarter Investments through\nArtificial Intelligence',
-                    style: AppTextStyles.headlineSmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16.sp,
-                      color: const Color(0xFF254577),
-                    ),
-                    textAlign: TextAlign.center,
+            ),
+            Positioned(
+              top: 415.h,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.w),
+                child: Text(
+                  'Smarter predictions through\nartificial intelligence.',
+                  style: AppTextStyles.headlineSmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 20.sp,
+                    color: const Color(0xFF254577),
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              const Spacer(),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

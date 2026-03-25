@@ -170,6 +170,9 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
 
   Future<void> _toggleSaveEvent() async {
     if (_isSaving) return;
+    
+    // If already saved, do nothing
+    if (_isSaved) return;
 
     // Check if we have an event ID and platform
     if (widget.eventId == null || widget.platform == null) {
@@ -193,21 +196,27 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
     final success = await controller.saveEvent(
       eventId: widget.eventId!,
       marketPlace: widget.platform!,
+      title: widget.title,
+      subtitle: '${widget.awayTeam ?? ''} vs ${widget.homeTeam ?? ''}',
+      endDate: widget.date,
+      marketPercentage: widget.marketPercentage,
+      aiPercentage: widget.aiPercentage,
+      team: widget.homeTeam ?? '',
     );
 
     if (success && mounted) {
       setState(() {
-        _isSaved = !_isSaved;
+        _isSaved = true;
       });
 
       // Refresh saved events list
       await controller.fetchSavedEvents();
 
       Get.snackbar(
-        _isSaved ? 'Saved' : 'Removed',
-        _isSaved ? 'Event saved to your list' : 'Event removed from saved list',
+        'Saved',
+        'Event saved to your list',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: _isSaved ? AppColors.primary.withOpacity(0.9) : Colors.red.withOpacity(0.9),
+        backgroundColor: AppColors.primary.withOpacity(0.9),
         colorText: Colors.white,
       );
     } else if (mounted) {
@@ -241,6 +250,26 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
         _expandedCards.add(index);
       }
     });
+  }
+
+  Color _getPlatformTagBgColor() {
+    final platform = widget.platform?.toLowerCase() ?? (widget.isFanduel ? 'fanduel' : 'draftkings');
+    if (platform == 'fanduel') return AppColors.fanduelColor;
+    if (platform == 'draftkings') return AppColors.draftkingsColor;
+    if (platform == 'betmgm') return AppColors.betmgmColor;
+    return widget.bgColor;
+  }
+
+  Color _getPlatformTagBorderColor() {
+    return Colors.black;
+  }
+
+  String _getPlatformDisplayText() {
+    final platform = widget.platform?.toLowerCase() ?? (widget.isFanduel ? 'fanduel' : 'draftkings');
+    if (platform == 'fanduel') return 'FanDuel';
+    if (platform == 'draftkings') return 'DraftKings';
+    if (platform == 'betmgm') return 'BetMGM';
+    return platform;
   }
 
   @override
@@ -327,15 +356,15 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
                             decoration: BoxDecoration(
-                            color: widget.bgColor,
+                            color: _getPlatformTagBgColor(),
                             borderRadius: BorderRadius.circular(6.r),
                             border: Border.all(
-                              color: widget.bgColor,
+                              color: _getPlatformTagBorderColor(),
                                 width: 1.w,
-                              ),
+                            ),
                             ),
                             child: Text(
-                              widget.isFanduel ? 'Fanduel' : 'Draftkings',
+                              _getPlatformDisplayText(),
                               style: AppTextStyles.bodySmall?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,

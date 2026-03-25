@@ -21,8 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController kalshiScrollController = ScrollController();
 
   final Color unselectedBgColor = const Color(0xFF8D9AB1);
-  final Color polymarketBgColor = const Color(0xFF585858);
-  final Color kalshiBgColor = const Color(0xFF259A2C);
+  final Color polymarketBgColor = AppColors.polymarketColor;
+  final Color kalshiBgColor = AppColors.kalshiCardBg;
 
   @override
   void initState() {
@@ -138,6 +138,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           team: e['team'],
                           bgColor: polymarketBgColor,
                           borderColor: polymarketBgColor,
+                          platformTagBgColor: AppColors.polymarketColor,
+                          platformTagBorderColor: Colors.grey,
                           slug: slug,
                           isSaved: eventId != null && controller.isEventSaved(eventId),
                           optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
@@ -185,6 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           team: e['team'],
                           bgColor: kalshiBgColor,
                           borderColor: kalshiBgColor,
+                          platformTagBgColor: AppColors.kalshiColor,
+                          platformTagBorderColor: Colors.black,
                           seriesTicker: seriesTicker,
                           isSaved: false, // TODO: Implement Kalshi save functionality
                           optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
@@ -228,6 +232,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               team: e['team'],
                               bgColor: polymarketBgColor,
                               borderColor: polymarketBgColor,
+                              platformTagBgColor: AppColors.polymarketColor,
+                              platformTagBorderColor: Colors.grey,
                               slug: slug,
                               isSaved: eventId != null && controller.isEventSaved(eventId),
                               optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,
@@ -256,6 +262,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               team: e['team'],
                               bgColor: kalshiBgColor,
                               borderColor: kalshiBgColor,
+                              platformTagBgColor: AppColors.kalshiColor,
+                              platformTagBorderColor: Colors.black,
                               seriesTicker: seriesTicker,
                               isSaved: false, // TODO: Implement Kalshi save functionality
                               optionTitles: e['optionTitles'] != null ? List<String>.from(e['optionTitles']) : null,

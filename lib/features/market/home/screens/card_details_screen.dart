@@ -161,6 +161,17 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
 
   Future<void> _toggleSaveEvent() async {
     if (_isSaving) return;
+    
+    // If already saved, do nothing
+    if (_isSaved) return;
+
+    // Debug: Print event IDs
+    print('=== Save Event Debug ===');
+    print('eventId: ${widget.eventId}');
+    print('eventIdString: ${widget.eventIdString}');
+    print('isPolymarket: ${widget.isPolymarket}');
+    print('title: ${widget.title}');
+    print('========================');
 
     // Check if we have an event ID to save
     if (widget.eventId == null && widget.eventIdString == null) {
@@ -179,34 +190,58 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
     });
 
     final controller = Get.find<HomeController>();
-    
+
     // Save event
     bool success = false;
     if (widget.eventId != null) {
+      print('Saving Polymarket event with ID: ${widget.eventId}');
       success = await controller.saveEvent(
         eventId: widget.eventId!,
-        marketPlace: widget.isPolymarket ? 'Polymarket' : 'Kalshi',
+        marketPlace: 'Polymarket',
+        title: widget.title,
+        slug: widget.slug,
+        seriesTicker: widget.seriesTicker,
+        endDate: widget.date,
+        team: widget.team,
+        marketPercentage: widget.marketPercentage,
+        aiPercentage: widget.aiPercentage,
+        aiExplanation: widget.aiExplanation,
+        optionTitles: widget.optionTitles,
+        marketProbs: widget.marketProbs,
+        aiPercentages: widget.aiPercentages,
       );
     } else if (widget.eventIdString != null) {
+      print('Saving Kalshi event with ID: ${widget.eventIdString}');
       success = await controller.saveEvent(
         eventIdString: widget.eventIdString!,
-        marketPlace: widget.isPolymarket ? 'Polymarket' : 'Kalshi',
+        marketPlace: 'Kalshi',
+        title: widget.title,
+        slug: widget.slug,
+        seriesTicker: widget.seriesTicker,
+        endDate: widget.date,
+        team: widget.team,
+        marketPercentage: widget.marketPercentage,
+        aiPercentage: widget.aiPercentage,
+        aiExplanation: widget.aiExplanation,
+        optionTitles: widget.optionTitles,
+        marketProbs: widget.marketProbs,
+        aiPercentages: widget.aiPercentages,
       );
     }
 
     if (success && mounted) {
       setState(() {
-        _isSaved = !_isSaved;
+        _isSaved = true;
       });
-      
+
       // Refresh saved events list in Saved screen
       await controller.fetchSavedEvents();
-      
+
       Get.snackbar(
-        _isSaved ? 'Saved' : 'Removed',
-        _isSaved ? 'Event saved to your list' : 'Event removed from saved list',
+        'Saved',
+        'Event saved to your list',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: _isSaved ? AppColors.primary.withOpacity(0.9) : Colors.red.withOpacity(0.9),
+        backgroundColor: AppColors.primary.withOpacity(0.9),
         colorText: Colors.white,
       );
     } else if (mounted) {
@@ -322,10 +357,10 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
                 decoration: BoxDecoration(
-                  color: widget.bgColor,
+                  color: widget.isPolymarket ? AppColors.polymarketColor : AppColors.kalshiColor,
                   borderRadius: BorderRadius.circular(6.r),
                   border: Border.all(
-                    color: widget.bgColor,
+                    color: widget.isPolymarket ? Colors.grey : Colors.black,
                     width: 1.w,
                   ),
                 ),
@@ -399,16 +434,34 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                   color: AppColors.pickfairTextColor,
                 ),
                 SizedBox(width: 12.w),
-                Expanded(
-                  child: Text(
-                    'Pickfair Insights',
-                    style: AppTextStyles.headlineMedium.copyWith(
-                      color: AppColors.pickfairTextColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14.sp,
-                    ),
-                  ),
-                ),
+             Expanded(
+  child: Text.rich(
+    TextSpan(
+      style: AppTextStyles.headlineMedium.copyWith(
+        fontWeight: FontWeight.w700,
+        fontSize: 14.sp,
+      ),
+      children: [
+        const TextSpan(
+          text: 'Pickf',
+          style: TextStyle(color: Color(0xFF06205B)),
+        ),
+        const TextSpan(
+          text: 'ai',
+          style: TextStyle(color: Color(0xFFCF152D)),
+        ),
+        const TextSpan(
+          text: 'r',
+          style: TextStyle(color: Color(0xFF06205B)),
+        ),
+        const TextSpan(
+          text: ' Insights',
+          style: TextStyle(color: Color(0xFF06205B)),
+        ),
+      ],
+    ),
+  ),
+),
               ],
             ),
             SizedBox(height: 6.h),

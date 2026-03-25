@@ -31,11 +31,15 @@ class NbaFinalsOddsController extends GetxController {
   static const Duration _nbaFinalsCacheDuration = Duration(minutes: 30);
 
   // Singleton HTTP client for connection reuse (keep-alive)
-  final http.Client _httpClient = http.Client();
+  final http.Client httpClient = http.Client();
 
   // Request deduplication for AI predictions
   final Map<String, DateTime> _lastAiRequestTime = {};
   final Map<String, Future<http.Response>> _pendingAiRequests = {};
+
+  // Public getters for details page access
+  Map<String, Future<http.Response>> get pendingAiRequests => _pendingAiRequests;
+  Map<String, Map<String, String>> get aiPredictions => _aiPredictions;
 
   List<NbaFinalsOdd> getOddsForPlatform(String platform) {
     // Try exact match first
@@ -49,6 +53,11 @@ class NbaFinalsOddsController extends GetxController {
       }
     }
     return [];
+  }
+
+  /// Check if there are more pages to load for a platform
+  bool hasMorePages(String platform) {
+    return _nextPageUrls[platform] != null;
   }
 
   /// Get the team with lowest odds (favorite) for a platform
@@ -135,8 +144,11 @@ class NbaFinalsOddsController extends GetxController {
     try {
       print('=== Fetching AI Predictions for $platform ===');
 
-      final teamNames = odds.map((odd) => odd.teamName).toList();
-      final teamValues = odds.map((odd) {
+      // AI API can only handle 10 teams at a time, so fetch for first 10 teams (favorites)
+      final teamsToFetch = odds.length > 10 ? odds.take(10).toList() : odds;
+      
+      final teamNames = teamsToFetch.map((odd) => odd.teamName).toList();
+      final teamValues = teamsToFetch.map((odd) {
         try {
           return (double.parse(odd.price)).toInt();
         } catch (e) {
@@ -144,8 +156,10 @@ class NbaFinalsOddsController extends GetxController {
         }
       }).toList();
 
+      print('Fetching AI for ${teamNames.length} teams: $teamNames');
+
       // Mark request as pending
-      final future = _httpClient.post(
+      final future = httpClient.post(
         Uri.parse('${Urls.aiBaseUrl}/nba-finals'),
         headers: {
           'Content-Type': 'application/json',
@@ -233,6 +247,9 @@ class NbaFinalsOddsController extends GetxController {
     refresh();
   }
 
+  /// Expose setAiLoadingComplete for details page
+  void setAiLoadingComplete(String platform) => _setAiLoadingComplete(platform);
+
   /// Update odds list with AI predictions
   void _updateOddsWithAiPredictions(String platform) {
     final odds = _platformOdds[platform] ?? [];
@@ -253,6 +270,9 @@ class NbaFinalsOddsController extends GetxController {
     update();
     refresh();
   }
+
+  /// Expose updateOddsWithAiPredictions for details page
+  void updateOddsWithAiPredictions(String platform) => _updateOddsWithAiPredictions(platform);
 
   /// Fetch all pages for a platform
   Future<void> fetchAllPagesForPlatform(String platform) async {
@@ -302,7 +322,7 @@ class NbaFinalsOddsController extends GetxController {
       final fetchUrl = url ?? Urls.nbaFinalsOddsUrl(platform);
       print('URL: $fetchUrl');
 
-      final response = await _httpClient.get(Uri.parse(fetchUrl));
+      final response = await httpClient.get(Uri.parse(fetchUrl));
 
       print('Response Status: ${response.statusCode}');
 
@@ -588,14 +608,15 @@ class NbaFinalsOddsController extends GetxController {
     try {
       print('=== Fetching NBA Finals Odds in Background ===');
 
-      // Fetch for all platforms
+      // Only fetch FIRST page for each platform (not all pages)
+      // User can scroll to load more pages via infinite scroll
       await Future.wait([
-        fetchAllPagesForPlatform('FanDuel'),
-        fetchAllPagesForPlatform('DraftKings'),
-        fetchAllPagesForPlatform('BetMGM'),
+        fetchNbaFinalsOdds('FanDuel'),
+        fetchNbaFinalsOdds('DraftKings'),
+        fetchNbaFinalsOdds('BetMGM'),
       ]);
 
-      // Fetch AI predictions for all platforms after odds are loaded
+      // Fetch AI predictions for first 5 teams only (for event page display)
       await Future.wait([
         fetchAiPredictions('FanDuel'),
         fetchAiPredictions('DraftKings'),
@@ -620,7 +641,7 @@ class NbaFinalsOddsController extends GetxController {
 
   @override
   void onClose() {
-    _httpClient.close();
+    httpClient.close();
     // Don't dispose - keep controller persistent
     // This prevents data loss when navigating between screens
     super.onClose();

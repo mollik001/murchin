@@ -4,7 +4,7 @@ import 'package:murchin/features/sports/home/controllers/sports_home_controller.
 import 'package:murchin/features/sports/home/widgets/sports_card_details_screen.dart';
 import 'package:murchin/features/sports/home/widgets/sports_base_card.dart';
 
-class DraftkingsCard extends StatelessWidget {
+class BetmgmCard extends StatelessWidget {
   final String? eventId;
   final String title;
   final String subtitle;
@@ -27,7 +27,7 @@ class DraftkingsCard extends StatelessWidget {
   final VoidCallback? customOnTap;
   final bool showBookmark;
 
-  const DraftkingsCard({
+  const BetmgmCard({
     super.key,
     this.eventId,
     required this.title,

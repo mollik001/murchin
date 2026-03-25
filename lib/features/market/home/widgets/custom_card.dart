@@ -15,10 +15,13 @@ class BaseCard extends StatefulWidget {
   final String team;
   final Color bgColor;
   final Color borderColor;
+  final Color? platformTagBgColor;
+  final Color? platformTagBorderColor;
   final String platform;
   final String iconAsset;
   final bool initiallySaved;
   final VoidCallback? onSaved;
+  final bool canToggleSave; // Allow disabling bookmark tap
 
   const BaseCard({
     super.key,
@@ -30,10 +33,13 @@ class BaseCard extends StatefulWidget {
     required this.team,
     required this.bgColor,
     required this.borderColor,
+    this.platformTagBgColor,
+    this.platformTagBorderColor,
     required this.platform,
     required this.iconAsset,
     this.initiallySaved = false,
     this.onSaved,
+    this.canToggleSave = true, // Default to true for backward compatibility
   });
 
   @override
@@ -50,27 +56,31 @@ class _BaseCardState extends State<BaseCard> {
   }
 
   void _toggleSaved() {
-    setState(() => isSaved = !isSaved);
+    // Only toggle if allowed
+    if (!widget.canToggleSave) return;
+    
+    // If already saved, do nothing
+    if (isSaved) return;
+
+    setState(() => isSaved = true);
 
     // Call the callback if provided
     widget.onSaved?.call();
 
-    if (isSaved) {
-      Get.snackbar(
-        'Saved',
-        'Event saved to your list',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.primary.withOpacity(0.9),
-        colorText: Colors.white,
-      );
-    }
+    Get.snackbar(
+      'Saved',
+      'Event saved to your list',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: AppColors.primary.withOpacity(0.9),
+      colorText: Colors.white,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     bool isLoadingValues =
-        widget.aiPercentage == null || 
-        widget.aiPercentage!.isEmpty || 
+        widget.aiPercentage == null ||
+        widget.aiPercentage!.isEmpty ||
         widget.aiPercentage == 'N/A' ||
         widget.aiPercentage == 'NA';
 
@@ -99,7 +109,7 @@ class _BaseCardState extends State<BaseCard> {
                 ),
               ),
               GestureDetector(
-                onTap: _toggleSaved,
+                onTap: widget.canToggleSave ? _toggleSaved : null,
                 child: Container(
                   padding: EdgeInsets.all(4.w),
                   child: Image.asset(
@@ -119,9 +129,9 @@ class _BaseCardState extends State<BaseCard> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
                 decoration: BoxDecoration(
-                  color: widget.bgColor,
+                  color: widget.platformTagBgColor ?? widget.bgColor,
                   borderRadius: BorderRadius.circular(6.r),
-                  border: Border.all(color: widget.borderColor, width: 1.w),
+                  border: Border.all(color: widget.platformTagBorderColor ?? widget.borderColor, width: 1.w),
                 ),
                 child: Text(widget.platform,
                     style: AppTextStyles.bodySmall?.copyWith(

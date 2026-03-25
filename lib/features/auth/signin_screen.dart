@@ -43,14 +43,33 @@ class SignInPage extends StatelessWidget {
                 SizedBox(height: 60.h),
 
                 /// Title
-                Text(
-                  'Welcome to Pickfair',
-                  style: AppTextStyles.authSubtitle?.copyWith(
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+               Text.rich(
+  TextSpan(
+    style: AppTextStyles.authSubtitle?.copyWith(
+      fontSize: 24.sp,
+      fontWeight: FontWeight.w700,
+      color: Colors.black,
+    ),
+    children: [
+      const TextSpan(
+        text: 'Welcome to ',
+      ),
+      const TextSpan(
+        text: 'Pickf',
+        style: TextStyle(color: Color(0xFF06205B)),
+      ),
+      const TextSpan(
+        text: 'ai',
+        style: TextStyle(color: Color(0xFFCF152D)),
+      ),
+      const TextSpan(
+        text: 'r',
+        style: TextStyle(color: Color(0xFF06205B)),
+      ),
+    ],
+  ),
+  textAlign: TextAlign.center,
+),
 
                 SizedBox(height: 16.h),
 
@@ -90,12 +109,12 @@ class SignInPage extends StatelessWidget {
                       ),
                       SizedBox(height: 12.h),
                       Text(
-                        'We\'re currently onboarding users via Google sign-in only. '
+                        'We\'re currently onboarding users via Google \nsign-in only. '
                         'Email registration will be available in a future update.',
                         style: AppTextStyles.bodySmall?.copyWith(
                           color: const Color(0xff848484),
                           fontWeight: FontWeight.w500,
-                          fontSize: 13.sp,
+                          fontSize: 14.sp,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -143,7 +162,7 @@ class SignInPage extends StatelessWidget {
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16.w),
                       child: Text(
-                        'Secure and private sign in',
+                        'Secure and private sign-in',
                         style: AppTextStyles.authSubtitle?.copyWith(
                           color: AppColors.gray600,
                           fontSize: 13.sp,
@@ -175,7 +194,7 @@ class SignInPage extends StatelessWidget {
                           children: [
                             const TextSpan(text: 'By clicking the '),
                             TextSpan(
-                              text: '"sign up"',
+                              text: '"sign-up"',
                               style: AppTextStyles.bodySmall?.copyWith(
                                 color: const Color(0xff848484),
                                 fontWeight: FontWeight.w700,

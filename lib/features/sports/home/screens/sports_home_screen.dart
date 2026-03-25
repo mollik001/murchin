@@ -64,6 +64,23 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
     }
   }
 
+  Color _getPlatformTagBgColor(String marketTitle) {
+    switch (marketTitle.toLowerCase()) {
+      case 'fanduel':
+        return AppColors.fanduelColor;
+      case 'draftkings':
+        return AppColors.draftkingsColor;
+      case 'betmgm':
+        return AppColors.betmgmColor;
+      default:
+        return _getBgColor(marketTitle);
+    }
+  }
+
+  Color _getPlatformTagBorderColor(String marketTitle) {
+    return Colors.black;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -171,6 +188,9 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
                           event.eventId,
                           bookmark.marketTitle,
                         );
+                        
+                        // Debug print
+                        print('🔍 Event ID: ${event.eventId}, Away: ${event.awayTeam}, Home: ${event.homeTeam}');
 
                         // Get AI moneyline from bookmark - match with the displayed moneyline team
                         // If we're showing the favorite's moneyline, show the AI's prediction for that same team
@@ -238,6 +258,8 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
                               team: favoriteTeam,
                               bgColor: _getBgColor(bookmark.marketTitle),
                               borderColor: _getBgColor(bookmark.marketTitle),
+                              platformTagBgColor: _getPlatformTagBgColor(bookmark.marketTitle),
+                              platformTagBorderColor: _getPlatformTagBorderColor(bookmark.marketTitle),
                               platform: bookmark.marketTitle,
                               iconAsset: _getIconAsset(bookmark.marketTitle),
                               initiallySaved: isSaved,
@@ -572,6 +594,8 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
               team: event.homeTeam,
               bgColor: _getBgColor(bookmark.marketTitle),
               borderColor: _getBgColor(bookmark.marketTitle),
+              platformTagBgColor: _getPlatformTagBgColor(bookmark.marketTitle),
+              platformTagBorderColor: _getPlatformTagBorderColor(bookmark.marketTitle),
               platform: bookmark.marketTitle,
               iconAsset: _getIconAsset(bookmark.marketTitle),
               initiallySaved: isSaved,

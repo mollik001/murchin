@@ -52,18 +52,19 @@ class HomeController extends GetxController {
   static const String _kalshiCacheTimestampKey = 'cached_kalshi_ai_timestamp';
   static const String _kalshiEventsCacheKey = 'cached_kalshi_events';
 
-  // Saved events caching - 30 minutes cache
+  // Saved events caching - 12 hours cache (same as homepage)
   static const String _savedEventsCacheKey = 'cached_saved_market_events_v1';
   static const String _savedEventsCacheTimestampKey = 'cached_saved_market_timestamp_v1';
-  static const Duration _savedCacheDuration = Duration(minutes: 30);
+  static const Duration _savedCacheDuration = Duration(hours: 12);
 
   bool _isLoadingCache = false;
 
   final Set<int> _cachedEventIndexes = <int>{};
 
-  static const int _maxEventsPerSection = 10;
+  static const int _maxEventsPerSection = 5; // Show only 5 events per platform
   static const int _eventsPerPage = 5;
-  static const int _maxPagesToLoad = 10; // Load up to 10 pages to get 10 valid events
+  static const int _maxPagesToLoad = 10; // Load up to 10 pages to get 5 valid events
+  static const int _maxAllTabEvents = 3; // Show 3 events from each platform in All tab
 
   int _polymarketPagesLoaded = 0;
   int _kalshiPagesLoaded = 0;
@@ -74,57 +75,27 @@ class HomeController extends GetxController {
   // Singleton HTTP client for connection reuse (keep-alive)
   final http.Client _httpClient = http.Client();
 
-  // Request deduplication for AI predictions
-  final Map<String, DateTime> _lastAiRequestTime = {};
+  // Request deduplication for AI predictions - track pending requests
   final Map<String, Future<Map<String, dynamic>>> _pendingAiRequests = {};
-  
-  // Limit concurrent AI requests to avoid overwhelming the API
-  int _activeAiRequests = 0;
-  static const int _maxConcurrentAiRequests = 2;  // Reduced from 3 to 2
-  final Queue<_AiRequest> _aiRequestQueue = Queue();
+  final Map<String, DateTime> _aiRequestTimestamps = {};
 
   @override
   void onInit() {
     super.onInit();
 
-    // Load cached events immediately for both platforms
-    loadCachedEvents();
-    loadCachedKalshiEvents();
+    // Fetch fresh data when controller initializes
+    _fetchFreshDataInBackground();
+  }
 
-    // Load cached saved events first
-    loadCachedSavedEvents().then((hasValidCache) async {
-      if (hasValidCache) {
-        // Fetch fresh data in background
-        _fetchSavedEventsInBackground();
-      } else {
-        await fetchSavedEvents();
-      }
-    });
-
-    Future.delayed(Duration.zero, () {
-      // Load Polymarket with AI cache check
-      loadCachedAIData().then((hasValidCache) async {
-        if (hasValidCache) {
-          loadEventsWithCachedAI();
-          await fetchPolymarketEvents(backgroundOnly: true);
-        } else {
-          await fetchPolymarketEvents();
-        }
-      });
-
-      // Load Kalshi with AI cache check - show cached data first
-      loadCachedKalshiEventsData().then((hasValidCache) async {
-        if (hasValidCache) {
-          print("Kalshi has valid cache, fetching in background");
-          // Has valid AI cache, fetch fresh events in background (AI will be merged inside fetchKalshiEvents)
-          await fetchKalshiEvents(backgroundOnly: true);
-        } else {
-          print("Kalshi no valid cache, fetching fresh");
-          // No valid AI cache, fetch fresh events and AI data
-          await fetchKalshiEvents();
-        }
-      });
-    });
+  /// Fetch fresh data in background (completely non-blocking, parallel loading)
+  Future<void> _fetchFreshDataInBackground() async {
+    // Fetch saved events from API every time
+    await fetchSavedEvents();
+    
+    // Fetch Polymarket and Kalshi events SIMULTANEOUSLY (no delays, no awaits)
+    // Both run in parallel for faster loading
+    fetchPolymarketEvents(backgroundOnly: true);
+    fetchKalshiEvents(backgroundOnly: true);
   }
 
   void selectPlatform(int index) {
@@ -457,59 +428,41 @@ class HomeController extends GetxController {
           }
         }
 
-        if (await loadCachedAIData()) {
+        // Load cached AI values
+        final hasValidCache = await loadCachedAIData();
+        if (hasValidCache) {
           loadEventsWithCachedAI();
-        }
-
-        int aiFetchCount = 0;
-
-        for (int i = 0; i < tempEvents.length; i++) {
-          final e = tempEvents[i];
-
-          final filtered = _buildFilteredOptions(e);
-
-          fetchAIValue(
-            eventName: e['title'],
-            options: filtered['options'],
-            marketPredictions: filtered['marketProbs'],
-            baseEvent: e,
-            originalIndices: filtered['originalIndices'],
-          ).then((aiData) async {
-            // Skip if AI data is null or empty (API failed or returned invalid data)
-            if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
-              print("Polymarket AI returned null/empty, keeping cached value");
-              return;
-            }
-
-            final idx = events.indexWhere(
-              (ev) => ev['title'] == aiData['title'],
-            );
-
-            if (idx != -1 && !_cachedEventIndexes.contains(idx)) {
-              final currentEvent = events[idx];
-              
-              // Skip if current event already has AI data (from cache)
-              if (currentEvent['aiPercentage'] != null && 
-                  currentEvent['aiPercentage'].toString().isNotEmpty) {
-                print("Event already has AI data from cache, skipping update");
+          print("✅ Homepage using cached AI data (cache valid)");
+        } else {
+          print("⚠️ Homepage cache expired - fetching fresh AI for visible events");
+          // Cache expired - fetch fresh AI for first 5 events
+          for (int i = 0; i < tempEvents.length && i < 5; i++) {
+            final e = tempEvents[i];
+            final filtered = _buildFilteredOptions(e);
+            
+            fetchAIValue(
+              eventName: e['title'],
+              options: filtered['options'],
+              marketPredictions: filtered['marketProbs'],
+              baseEvent: e,
+              originalIndices: filtered['originalIndices'],
+            ).then((aiData) async {
+              if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
                 return;
               }
-
-              List<Map<String, dynamic>> newEvents = List.from(_events);
-              newEvents[idx] = aiData;
-
-              _events.assignAll(newEvents);
-
-              cacheEvents(_events);
-              update();
-
-              aiFetchCount++;
-
-              if (aiFetchCount <= _maxCachedEvents) {
+              
+              final idx = _events.indexWhere((ev) => ev['title'] == aiData['title']);
+              if (idx != -1) {
+                List<Map<String, dynamic>> newEvents = List.from(_events);
+                newEvents[idx] = aiData;
+                _events.assignAll(newEvents);
+                update();
+                
+                // Save to cache
                 await saveAIDataToCache();
               }
-            }
-          });
+            });
+          }
         }
       }
     } catch (e) {
@@ -708,7 +661,7 @@ class HomeController extends GetxController {
 
         // Fetch AI predictions for Kalshi events (only for events without AI data)
         int aiFetchCount = 0;
-        for (int i = 0; i < _kalshiEvents.length; i++) {
+        for (int i = 0; i < _kalshiEvents.length && i < 5; i++) {
           final e = _kalshiEvents[i];
 
           // Skip if AI data already exists
@@ -744,9 +697,9 @@ class HomeController extends GetxController {
             if (idx != -1) {
               // Only update if we got valid AI data
               final currentEvent = _kalshiEvents[idx];
-              
+
               // Skip if current event already has AI data (from cache)
-              if (currentEvent['aiPercentage'] != null && 
+              if (currentEvent['aiPercentage'] != null &&
                   currentEvent['aiPercentage'].toString().isNotEmpty) {
                 print("Event already has AI data from cache, skipping update");
                 return;
@@ -894,7 +847,71 @@ class HomeController extends GetxController {
     }
   }
 
-  // ================= AI API =================
+  // ================= AI API - SIMPLIFIED =================
+
+  /// Simple, direct AI API call with timing and deduplication
+  Future<Map<String, dynamic>> fetchAIValue({
+    required String eventName,
+    required List<String> options,
+    required List<double> marketPredictions,
+    required Map<String, dynamic> baseEvent,
+    List<int>? originalIndices,
+  }) async {
+    final cacheKey = 'ai_$eventName';
+    final startTime = DateTime.now();
+
+    // Check if request is already in progress - return the same future
+    if (_pendingAiRequests.containsKey(cacheKey)) {
+      print("⏳ AI request already in progress for: $eventName (reusing pending request)");
+      return _pendingAiRequests[cacheKey]!;
+    }
+
+    // Check if we made a request very recently (within 2 seconds) - return cached result
+    if (_aiRequestTimestamps.containsKey(cacheKey)) {
+      final lastRequest = _aiRequestTimestamps[cacheKey]!;
+      final timeDiff = startTime.difference(lastRequest);
+      if (timeDiff.inSeconds < 2) {
+        print("⚡ AI request too soon (${timeDiff.inMilliseconds}ms) for: $eventName - using existing data");
+        return baseEvent;
+      }
+    }
+
+    print("🕐 [${startTime.toString().substring(11, 19)}] 🤖 AI Request START: $eventName");
+    print("   Options count: ${options.length}, Market probs: ${marketPredictions.length}");
+
+    // Create the request future
+    final requestFuture = _executeAiRequest(
+      eventName: eventName,
+      options: options,
+      marketPredictions: marketPredictions,
+      baseEvent: baseEvent,
+      originalIndices: originalIndices,
+    ).then((result) {
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime);
+      print("🕐 [${endTime.toString().substring(11, 19)}] ✅ AI Request END: $eventName (${duration.inMilliseconds}ms)");
+      
+      // Clean up pending request
+      _pendingAiRequests.remove(cacheKey);
+      
+      return result;
+    }).catchError((error) {
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime);
+      print("🕐 [${endTime.toString().substring(11, 19)}] ❌ AI Request FAILED: $eventName (${duration.inMilliseconds}ms) - $error");
+      
+      // Clean up pending request
+      _pendingAiRequests.remove(cacheKey);
+      
+      return baseEvent;
+    });
+
+    // Store in pending requests
+    _pendingAiRequests[cacheKey] = requestFuture;
+    _aiRequestTimestamps[cacheKey] = startTime;
+
+    return requestFuture;
+  }
 
   /// Internal method to actually make the AI request
   Future<Map<String, dynamic>> _executeAiRequest({
@@ -904,7 +921,10 @@ class HomeController extends GetxController {
     required Map<String, dynamic> baseEvent,
     List<int>? originalIndices,
   }) async {
+    final requestStartTime = DateTime.now();
     try {
+      print("   📡 [${requestStartTime.toString().substring(11, 19)}] Preparing multipart request...");
+      
       var request = http.MultipartRequest('POST', Uri.parse(aiUrl));
 
       request.fields['event_name'] = eventName;
@@ -918,119 +938,28 @@ class HomeController extends GetxController {
         request.fields['market_prediction'] = decimalPredictions.join(',');
       }
 
-      print("🚀 Making AI request for: $eventName (active: $_activeAiRequests/$_maxConcurrentAiRequests)");
+      final prepareTime = DateTime.now();
+      final prepareDuration = prepareTime.difference(requestStartTime);
+      print("   📡 [${prepareTime.toString().substring(11, 19)}] Request prepared (${prepareDuration.inMilliseconds}ms), sending...");
 
       final streamed = await _httpClient.send(request);
+      
+      final sendTime = DateTime.now();
+      final sendDuration = sendTime.difference(requestStartTime);
+      print("   📡 [${sendTime.toString().substring(11, 19)}] Request sent (${sendDuration.inMilliseconds}ms), waiting for response...");
+
       final response = await http.Response.fromStream(streamed);
+      
+      final responseTime = DateTime.now();
+      final responseDuration = responseTime.difference(requestStartTime);
+      print("   📡 [${responseTime.toString().substring(11, 19)}] Response received (${responseDuration.inMilliseconds}ms), status: ${response.statusCode}");
 
       return _processMarketAiResponse(response, baseEvent, options, originalIndices);
     } catch (e) {
-      print("AI Error: $e");
+      final errorTime = DateTime.now();
+      final errorDuration = errorTime.difference(requestStartTime);
+      print("   ❌ [${errorTime.toString().substring(11, 19)}] AI Error for $eventName after ${errorDuration.inMilliseconds}ms: $e");
       return baseEvent;
-    }
-  }
-
-  Future<Map<String, dynamic>> fetchAIValue({
-    required String eventName,
-    required List<String> options,
-    required List<double> marketPredictions,
-    required Map<String, dynamic> baseEvent,
-    List<int>? originalIndices,
-  }) async {
-    // Create cache key for deduplication
-    final cacheKey = 'market_ai_$eventName';
-
-    // Check if request is already in progress
-    if (_pendingAiRequests.containsKey(cacheKey)) {
-      print("⏳ Waiting for pending market AI request: $cacheKey");
-      return _pendingAiRequests[cacheKey]!;
-    }
-
-    // Check if we made a recent request (within 3 seconds)
-    final now = DateTime.now();
-    if (_lastAiRequestTime.containsKey(cacheKey)) {
-      final timeDiff = now.difference(_lastAiRequestTime[cacheKey]!);
-      if (timeDiff.inSeconds < 3) {
-        print("⚡ Skipping duplicate market AI request (too soon): $cacheKey");
-        return baseEvent;
-      }
-    }
-
-    // Use queue system to limit concurrent requests
-    final completer = Completer<Map<String, dynamic>>();
-    _aiRequestQueue.add(_AiRequest(
-      eventName: eventName,
-      options: options,
-      marketPredictions: marketPredictions,
-      baseEvent: baseEvent,
-      originalIndices: originalIndices,
-      completer: completer,
-      cacheKey: cacheKey,
-    ));
-
-    // Process queue if not already processing
-    _processAiRequestQueue();
-
-    _lastAiRequestTime[cacheKey] = now;
-    return completer.future.timeout(
-      const Duration(seconds: 30),
-      onTimeout: () {
-        print("⚠️ Market AI API timeout after 30s for $cacheKey (queued)");
-        return baseEvent;
-      },
-    );
-  }
-
-  /// Process the AI request queue
-  void _processAiRequestQueue() async {
-    // If we're at max concurrent requests, wait
-    if (_activeAiRequests >= _maxConcurrentAiRequests) {
-      print("⏸️ AI request queue paused: $_activeAiRequests/$_maxConcurrentAiRequests active");
-      return;
-    }
-
-    // Process requests from queue
-    while (_aiRequestQueue.isNotEmpty && _activeAiRequests < _maxConcurrentAiRequests) {
-      final request = _aiRequestQueue.removeFirst();
-      
-      // Check if this request is already pending
-      if (_pendingAiRequests.containsKey(request.cacheKey)) {
-        request.completer.complete(_pendingAiRequests[request.cacheKey]);
-        continue;
-      }
-
-      // Execute the request
-      _activeAiRequests++;
-      
-      final future = _executeAiRequest(
-        eventName: request.eventName,
-        options: request.options,
-        marketPredictions: request.marketPredictions,
-        baseEvent: request.baseEvent,
-        originalIndices: request.originalIndices,
-      );
-
-      // Store in pending requests
-      _pendingAiRequests[request.cacheKey] = future;
-
-      // Complete the completer when done
-      future.then((result) {
-        _activeAiRequests--;
-        _pendingAiRequests.remove(request.cacheKey);
-        request.completer.complete(result);
-        
-        // Process next item in queue
-        _processAiRequestQueue();
-        
-        print("✅ AI request completed for: ${request.eventName} (active: $_activeAiRequests/$_maxConcurrentAiRequests)");
-      }).catchError((error) {
-        _activeAiRequests--;
-        _pendingAiRequests.remove(request.cacheKey);
-        request.completer.completeError(error);
-        
-        // Process next item in queue
-        _processAiRequestQueue();
-      });
     }
   }
 
@@ -1042,57 +971,68 @@ class HomeController extends GetxController {
     List<int>? originalIndices,
   ) {
     if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
+      try {
+        final json = jsonDecode(response.body);
 
-      List<dynamic> probs = json['probabilities'] ?? [];
-      List explanations = json['explanations'] ?? [];
+        List<dynamic> probs = json['probabilities'] ?? [];
+        List explanations = json['explanations'] ?? [];
 
-      if (probs.isEmpty) return baseEvent;
+        if (probs.isEmpty) {
+          print("⚠️ AI returned empty probabilities for ${baseEvent['title']}");
+          return baseEvent;
+        }
 
-      List<double> aiPercentages = probs
-          .map((e) => (double.tryParse(e.toString()) ?? 0) * 100)
-          .toList();
+        List<double> aiPercentages = probs
+            .map((e) => (double.tryParse(e.toString()) ?? 0) * 100)
+            .toList();
 
-      List<String> optionTitles = List<String>.from(
-        baseEvent['optionTitles'],
-      );
+        List<String> optionTitles = List<String>.from(
+          baseEvent['optionTitles'],
+        );
 
-      List<double> finalAiPercentages = List<double>.filled(
-        optionTitles.length,
-        0.0,
-      );
+        List<double> finalAiPercentages = List<double>.filled(
+          optionTitles.length,
+          0.0,
+        );
 
-      if (originalIndices != null && originalIndices.isNotEmpty) {
-        int safeLength = originalIndices.length < aiPercentages.length
-            ? originalIndices.length
-            : aiPercentages.length;
+        if (originalIndices != null && originalIndices.isNotEmpty) {
+          int safeLength = originalIndices.length < aiPercentages.length
+              ? originalIndices.length
+              : aiPercentages.length;
 
-        for (int i = 0; i < safeLength; i++) {
-          int originalIndex = originalIndices[i];
+          for (int i = 0; i < safeLength; i++) {
+            int originalIndex = originalIndices[i];
 
-          if (originalIndex < finalAiPercentages.length) {
-            finalAiPercentages[originalIndex] = aiPercentages[i];
+            if (originalIndex < finalAiPercentages.length) {
+              finalAiPercentages[originalIndex] = aiPercentages[i];
+            }
           }
         }
+
+        String marketTeam = baseEvent['team'] ?? '';
+        int marketIndex = optionTitles.indexOf(marketTeam);
+
+        double aiValueForMarket = 0;
+
+        if (marketIndex != -1 && marketIndex < finalAiPercentages.length) {
+          aiValueForMarket = finalAiPercentages[marketIndex];
+        }
+
+        print("✅ AI Success: ${baseEvent['title']} = ${aiValueForMarket.round()}%");
+
+        return {
+          ...baseEvent,
+          'aiPercentage': aiValueForMarket > 0 ? '${aiValueForMarket.round()}%' : null,
+          'aiExplanation': explanations.isNotEmpty ? explanations.first : '',
+          'aiPercentages': finalAiPercentages,
+        };
+      } catch (e) {
+        print("❌ AI response parse error: $e");
+        return baseEvent;
       }
-
-      String marketTeam = baseEvent['team'] ?? '';
-      int marketIndex = optionTitles.indexOf(marketTeam);
-
-      double aiValueForMarket = 0;
-
-      if (marketIndex != -1 && marketIndex < finalAiPercentages.length) {
-        aiValueForMarket = finalAiPercentages[marketIndex];
-      }
-
-      return {
-        ...baseEvent,
-        'aiPercentage': '${aiValueForMarket.round()}%',
-        'aiExplanation': explanations.isNotEmpty ? explanations.first : '',
-        'aiPercentages': finalAiPercentages,
-      };
     }
 
+    print("❌ AI API error: status ${response.statusCode}");
     return baseEvent;
   }
 
@@ -1269,6 +1209,18 @@ class HomeController extends GetxController {
     int? eventId,
     String? eventIdString,
     required String marketPlace,
+    String? title,
+    String? slug,
+    String? seriesTicker,
+    String? imageUrl,
+    String? endDate,
+    String? team,
+    String? marketPercentage,
+    String? aiPercentage,
+    String? aiExplanation,
+    List<String>? optionTitles,
+    List<double>? marketProbs,
+    List<double>? aiPercentages,
   }) async {
     try {
       final url = '${Urls.baseUrl}/api/trade/saved-event/';
@@ -1281,7 +1233,7 @@ class HomeController extends GetxController {
 
       // Determine which ID to use based on market place
       final dynamic idToSend = eventId ?? (eventIdString as dynamic);
-      
+
       print("Event ID: $idToSend (${eventId != null ? 'int' : 'String'})");
       print("Market Place: $marketPlace");
 
@@ -1304,12 +1256,47 @@ class HomeController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print("Event saved successfully!");
-        // Add to appropriate saved set
+
+        // Build event data to add to saved list with proper defaults
+        final eventData = <String, dynamic>{
+          'event_id': eventId ?? eventIdString,
+          'title': title ?? '',
+          'slug': slug ?? '',
+          'series_ticker': seriesTicker ?? '',
+          'imageUrl': imageUrl ?? '',
+          'endDate': endDate ?? '',
+          'team': team ?? '',
+          'marketPercentage': marketPercentage ?? '0%',
+          'aiPercentage': aiPercentage,
+          'aiExplanation': aiExplanation ?? '',
+          'optionTitles': optionTitles != null ? List<String>.from(optionTitles) : <String>[],
+          'marketProbs': marketProbs != null ? List<double>.from(marketProbs) : <double>[],
+          'aiPercentages': aiPercentages != null ? List<double>.from(aiPercentages) : <double>[],
+          'market_place': marketPlace,
+        };
+
+        // Add to appropriate saved set and list
         if (eventId != null) {
-          addSavedEventId(eventId);
+          if (_savedEventIds.contains(eventId)) {
+            _savedEventIds.remove(eventId);
+            _savedPolymarketEvents.removeWhere((e) => e['event_id'] == eventId);
+          } else {
+            _savedEventIds.add(eventId);
+            _savedPolymarketEvents.add(eventData);
+          }
         } else if (eventIdString != null) {
-          addSavedKalshiEventId(eventIdString);
+          if (_savedKalshiEventIds.contains(eventIdString)) {
+            _savedKalshiEventIds.remove(eventIdString);
+            _savedKalshiEvents.removeWhere((e) => e['event_id'] == eventIdString);
+          } else {
+            _savedKalshiEventIds.add(eventIdString);
+            _savedKalshiEvents.add(eventData);
+          }
         }
+
+        // Update cache
+        cacheSavedEvents();
+
         return true;
       } else {
         print("Failed to save event: ${response.statusCode}");
@@ -1328,6 +1315,7 @@ class HomeController extends GetxController {
   final RxList<Map<String, dynamic>> _savedKalshiEvents =
       <Map<String, dynamic>>[].obs;
   final isLoadingSaved = false.obs;
+  final hasLoadedSavedCache = false.obs; // Track if cache has been loaded
 
   Future<void> fetchSavedEvents() async {
     try {
@@ -1373,38 +1361,30 @@ class HomeController extends GetxController {
             }
           }
           print("Found ${_savedPolymarketEvents.length} saved Polymarket events");
-
-          // Fetch AI predictions for saved events (limited to first 5)
+          
+          // Fetch fresh AI for first 5 saved events (for display in saved page list)
           for (int i = 0; i < _savedPolymarketEvents.length && i < 5; i++) {
             final e = _savedPolymarketEvents[i];
             final filtered = _buildFilteredOptions(e);
-
+            
             fetchAIValue(
               eventName: e['title'],
               options: filtered['options'],
               marketPredictions: filtered['marketProbs'],
               baseEvent: e,
               originalIndices: filtered['originalIndices'],
-            ).then((aiData) {
-              // Skip if AI data is null or empty (API failed)
+            ).then((aiData) async {
               if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
                 return;
               }
-
-              final idx = _savedPolymarketEvents.indexWhere(
-                (ev) => ev['title'] == aiData['title'],
-              );
-
+              
+              final idx = _savedPolymarketEvents.indexWhere((ev) => ev['title'] == aiData['title']);
               if (idx != -1) {
                 List<Map<String, dynamic>> newList = List.from(_savedPolymarketEvents);
                 newList[idx] = aiData;
                 _savedPolymarketEvents.assignAll(newList);
-                update(); // Force UI refresh
-                print("AI data updated for saved event: ${aiData['title']}");
+                update();
               }
-              
-              // Cache saved events after AI is fetched
-              cacheSavedEvents();
             });
           }
         } else {
@@ -1417,43 +1397,38 @@ class HomeController extends GetxController {
             _processSavedEvents(kalshiEvents, 'Kalshi'),
           );
           print("Found ${_savedKalshiEvents.length} saved Kalshi events");
-
-          // Fetch AI predictions for saved Kalshi events (limited to first 5)
+          
+          // Fetch fresh AI for first 5 saved Kalshi events (for display in saved page list)
           for (int i = 0; i < _savedKalshiEvents.length && i < 5; i++) {
             final e = _savedKalshiEvents[i];
             final filtered = _buildFilteredOptions(e);
-
+            
             fetchAIValue(
               eventName: e['title'],
               options: filtered['options'],
               marketPredictions: filtered['marketProbs'],
               baseEvent: e,
               originalIndices: filtered['originalIndices'],
-            ).then((aiData) {
-              // Skip if AI data is null or empty (API failed)
+            ).then((aiData) async {
               if (aiData['aiPercentage'] == null || aiData['aiPercentage'].toString().isEmpty) {
                 return;
               }
-
-              final idx = _savedKalshiEvents.indexWhere(
-                (ev) => ev['event_id'] == aiData['event_id'],
-              );
-
+              
+              final idx = _savedKalshiEvents.indexWhere((ev) => ev['event_id'] == aiData['event_id']);
               if (idx != -1) {
                 List<Map<String, dynamic>> newList = List.from(_savedKalshiEvents);
                 newList[idx] = aiData;
                 _savedKalshiEvents.assignAll(newList);
-                update(); // Force UI refresh
-                print("AI data updated for saved Kalshi event: ${aiData['title']}");
+                update();
               }
-              
-              // Cache saved events after AI is fetched
-              cacheSavedEvents();
             });
           }
         } else {
           _savedKalshiEvents.clear();
         }
+        
+        // Cache saved events
+        cacheSavedEvents();
       } else {
         print("Failed to fetch saved events: ${response.statusCode}");
       }

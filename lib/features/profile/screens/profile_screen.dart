@@ -49,9 +49,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadModePreference() async {
-    bool? isSportsbook = await SharedPreferencesHelper.getSportsbookMode();
+    // First check lastVisitedSection (set during selection)
+    String? lastSection = await SharedPreferencesHelper.getLastVisitedSection();
+    
+    bool isSportsbook;
+    if (lastSection != null) {
+      // Use lastVisitedSection to determine mode
+      isSportsbook = lastSection == 'sports';
+    } else {
+      // Fall back to sportsbookMode preference
+      bool? mode = await SharedPreferencesHelper.getSportsbookMode();
+      isSportsbook = mode ?? true;
+    }
+    
     setState(() {
-      _isSportsbookMode = isSportsbook ?? true;
+      _isSportsbookMode = isSportsbook;
     });
   }
 
@@ -706,17 +718,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () async {
-                          // Handle delete account logic here
-                         // await _profileController.deleteAccount();
+                          // Close the dialog first before deleting account
                           Navigator.of(context).pop();
-                          Get.offAll(() =>  SignInPage());
-                          Get.snackbar(
-                            'Account Deleted',
-                            'Your account has been deleted',
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: const Color(0xFFF44336),
-                            colorText: Colors.white,
-                          );
+                          // Call delete account API
+                          await _profileController.deleteAccount();
                         },
                         child: Container(
                           height: 48.h,

@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:murchin/const/service/endpoint.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/features/sports/controllers/nba_finals_odds_controller.dart';
@@ -34,26 +36,99 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
       controller = Get.put(NbaFinalsOddsController(), permanent: true);
     }
     _scrollController.addListener(_onScroll);
+
+    // Load ALL pages and fetch AI for ALL teams when entering detail screen
+    _loadAllPagesAndFetchAi();
+  }
+
+  /// Load all pages and fetch AI for ALL teams
+  Future<void> _loadAllPagesAndFetchAi() async {
+    // Load all pages for this platform
+    await controller.fetchAllPagesForPlatform(widget.platform);
     
-    // Re-apply AI predictions when entering details screen
-    // This ensures odds have AI data even if AI loaded after the odds were fetched
+    // After all pages loaded, fetch AI for ALL teams (not just first 10)
+    // Use postFrameCallback to avoid calling update() during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureAiPredictionsApplied();
+      _fetchAiForAllTeams();
     });
   }
 
-  /// Ensure AI predictions are applied to current odds
-  void _ensureAiPredictionsApplied() {
+  /// Fetch AI predictions for ALL teams in batches (more stable)
+  void _fetchAiForAllTeams() async {
     final odds = controller.getOddsForPlatform(widget.platform);
     if (odds.isEmpty) return;
 
-    // Check if we have AI predictions for this platform
-    if (controller.hasAiPredictions(widget.platform)) {
-      // Re-apply AI predictions to ensure they're reflected in the UI
-      controller.update();
-    } else if (!controller.isAiLoading.value) {
-      // AI not loading and no predictions - fetch them
-      controller.fetchAiPredictions(widget.platform);
+    controller.isAiLoading.value = true;
+    controller.update();
+
+    try {
+      print('=== Fetching AI Predictions for ALL ${odds.length} teams ($widget.platform) in batches ===');
+
+      // Fetch in batches of 10 teams for stability
+      final batchSize = 10;
+      final allPredictions = <String, String>{};
+
+      for (int i = 0; i < odds.length; i += batchSize) {
+        final batchEnd = (i + batchSize < odds.length) ? i + batchSize : odds.length;
+        final batch = odds.sublist(i, batchEnd);
+        
+        print('Fetching batch ${i ~/ batchSize + 1}: teams ${i + 1}-${batchEnd}');
+
+        final teamNames = batch.map((odd) => odd.teamName).toList();
+        final teamValues = batch.map((odd) {
+          try {
+            return (double.parse(odd.price)).toInt();
+          } catch (e) {
+            return 0;
+          }
+        }).toList();
+
+        try {
+          final response = await controller.httpClient.post(
+            Uri.parse('${Urls.aiBaseUrl}/nba-finals'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Connection': 'keep-alive',
+            },
+            body: jsonEncode({
+              'team_names': teamNames,
+              'team_values': teamValues,
+            }),
+          ).timeout(const Duration(seconds: 30));
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            final aiPredictions = data['AI_prediction'] as List<dynamic>? ?? [];
+
+            print('Batch ${i ~/ batchSize + 1} received: ${aiPredictions.length} predictions');
+
+            for (int j = 0; j < teamNames.length && j < aiPredictions.length; j++) {
+              allPredictions[teamNames[j]] = aiPredictions[j].toString();
+            }
+          } else {
+            print('Batch ${i ~/ batchSize + 1} failed: ${response.statusCode}');
+          }
+        } catch (e) {
+          print('Batch ${i ~/ batchSize + 1} error: $e');
+        }
+
+        // Small delay between batches to avoid rate limiting
+        if (i + batchSize < odds.length) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+
+      if (allPredictions.isNotEmpty) {
+        controller.aiPredictions[widget.platform] = allPredictions;
+        print('AI predictions stored for $widget.platform: ${allPredictions.length} teams');
+        controller.updateOddsWithAiPredictions(widget.platform);
+      } else {
+        print('No AI predictions received for $widget.platform');
+        controller.setAiLoadingComplete(widget.platform);
+      }
+    } catch (e) {
+      print('Error fetching AI predictions for $widget.platform: $e');
+      controller.setAiLoadingComplete(widget.platform);
     }
   }
 
@@ -70,6 +145,30 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
         controller.getOddsForPlatform(widget.platform).isNotEmpty) {
       controller.loadMoreOdds(widget.platform);
     }
+  }
+
+  Color _getPlatformTagBgColor() {
+    final platform = widget.platform.toLowerCase();
+    if (platform == 'fanduel') return AppColors.fanduelColor;
+    if (platform == 'draftkings') return AppColors.draftkingsColor;
+    if (platform == 'betmgm') return AppColors.betmgmColor;
+    return widget.bgColor;
+  }
+
+  Color _getPlatformTagBorderColor() {
+    return Colors.black;
+  }
+
+  Color _getSportsbookValueColor() {
+    return _getPlatformTagBgColor();
+  }
+
+  String _getPlatformDisplayText() {
+    final platform = widget.platform.toLowerCase();
+    if (platform == 'fanduel') return 'FanDuel';
+    if (platform == 'draftkings') return 'DraftKings';
+    if (platform == 'betmgm') return 'BetMGM';
+    return widget.platform;
   }
 
   @override
@@ -132,11 +231,15 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
                               padding: EdgeInsets.symmetric(
                                   horizontal: 12.w, vertical: 4.h),
                               decoration: BoxDecoration(
-                                color: widget.bgColor,
+                                color: _getPlatformTagBgColor(),
                                 borderRadius: BorderRadius.circular(6.r),
+                                border: Border.all(
+                                  color: _getPlatformTagBorderColor(),
+                                  width: 1.w,
+                                ),
                               ),
                               child: Text(
-                                widget.platform,
+                                _getPlatformDisplayText(),
                                 style: AppTextStyles.bodySmall?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
@@ -196,6 +299,7 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
                           textAlign: TextAlign.center,
                         ),
                       ),
+                      SizedBox(width: 14.w),
                     ],
                   ),
                   SizedBox(height: 12.h),
@@ -205,7 +309,6 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
             Expanded(
               child: GetBuilder<NbaFinalsOddsController>(
                 builder: (controller) {
-                  // Check if AI is still loading OR if we have odds without AI predictions
                   final odds = controller.getOddsForPlatform(widget.platform);
                   final hasOddsWithoutAi = odds.any((odd) => odd.aiPrediction == null);
                   final shouldShowShimmer = controller.isAiLoading.value || 
@@ -256,7 +359,6 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
   }
 
   Widget _buildOddCard(NbaFinalsOdd odd, {bool? isAiLoading}) {
-    // Check if this specific odd has AI prediction
     final bool hasAiPrediction = odd.aiPrediction != null && odd.aiPrediction!.isNotEmpty;
     final bool isLoadingAi = !hasAiPrediction;
     final String aiValue = odd.aiPrediction ?? 'N/A';
@@ -297,7 +399,7 @@ class _NbaFinalsDetailsScreenState extends State<NbaFinalsDetailsScreen> {
                   width: 80.w,
                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 4.h),
                   decoration: BoxDecoration(
-                    color: widget.bgColor,
+                    color: _getSportsbookValueColor(),
                     borderRadius: BorderRadius.circular(4.r),
                   ),
                   child: Text(

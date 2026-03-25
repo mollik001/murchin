@@ -14,6 +14,8 @@ class FanduelCard extends StatelessWidget {
   final String team;
   final Color bgColor;
   final Color borderColor;
+  final Color? platformTagBgColor;
+  final Color? platformTagBorderColor;
   final String platform;
   final List<String>? optionTitles;
   final List<double>? marketProbs;
@@ -23,6 +25,7 @@ class FanduelCard extends StatelessWidget {
   final VoidCallback? onSaved;
   final Map<String, dynamic>? eventRef;
   final VoidCallback? customOnTap;
+  final bool showBookmark;
 
   const FanduelCard({
     super.key,
@@ -44,6 +47,9 @@ class FanduelCard extends StatelessWidget {
     this.onSaved,
     this.eventRef,
     this.customOnTap,
+    this.platformTagBgColor,
+    this.platformTagBorderColor,
+    this.showBookmark = true,
   });
 
   @override
@@ -136,13 +142,29 @@ class FanduelCard extends StatelessWidget {
         team: team,
         bgColor: bgColor,
         borderColor: borderColor,
+        platformTagBgColor: platformTagBgColor,
+        platformTagBorderColor: platformTagBorderColor,
         platform: platform,
         iconAsset: 'assets/images/NBA.png',
         initiallySaved: isSaved,
+        eventId: eventId,
+        showBookmark: showBookmark,
         onSaved: onSaved ??
             () {
               if (eventId != null) {
-                controller.saveEvent(eventId: eventId!, marketPlace: platform);
+                controller.saveEvent(
+                  eventId: eventId!,
+                  marketPlace: platform,
+                  title: title,
+                  subtitle: subtitle,
+                  endDate: date,
+                  marketPercentage: marketPercentage,
+                  aiPercentage: eventRef != null
+                      ? (eventRef!['aiPercentage'] as String?) ?? aiPercentage
+                      : aiPercentage,
+                  team: team,
+                  bookmark: eventRef?['bookmark'] as Map<String, dynamic>?,
+                );
               }
             },
       ),

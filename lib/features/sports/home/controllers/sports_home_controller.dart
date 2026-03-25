@@ -32,6 +32,7 @@ class SportsHomeController extends GetxController {
 
   List<Map<String, dynamic>> get savedFanduelEvents => _savedFanduelEvents;
   List<Map<String, dynamic>> get savedDraftkingsEvents => _savedDraftkingsEvents;
+  List<Map<String, dynamic>> get savedBetMgmEvents => _savedBetMgmEvents;
 
   final Set<String> _savedFanduelEventIds = <String>{};
   final Set<String> _savedDraftkingsEventIds = <String>{};
@@ -870,12 +871,13 @@ class SportsHomeController extends GetxController {
   }
 
   bool isEventSaved(String eventId, String marketPlace) {
-    switch (marketPlace) {
-      case 'FanDuel':
+    final platform = marketPlace.toLowerCase();
+    switch (platform) {
+      case 'fanduel':
         return _savedFanduelEventIds.contains(eventId);
-      case 'DraftKings':
+      case 'draftkings':
         return _savedDraftkingsEventIds.contains(eventId);
-      case 'BetMGM':
+      case 'betmgm':
         return _savedBetMgmEventIds.contains(eventId);
       default:
         return false;
@@ -911,6 +913,11 @@ class SportsHomeController extends GetxController {
         // Get only sportsbook_events from the response
         final sportsbookEvents = data['sportsbook_events'] as List<dynamic>?;
 
+        // Save current ID sets before clearing (to know which platforms user actually saved)
+        final savedFanduelIds = Set<String>.from(_savedFanduelEventIds);
+        final savedDraftkingsIds = Set<String>.from(_savedDraftkingsEventIds);
+        final savedBetMgmIds = Set<String>.from(_savedBetMgmEventIds);
+
         // Clear existing saved events
         _savedFanduelEventIds.clear();
         _savedDraftkingsEventIds.clear();
@@ -935,7 +942,25 @@ class SportsHomeController extends GetxController {
               final marketPlace = bookmark['market_title'] as String?;
               if (marketPlace == null) continue;
 
-              // Add to appropriate saved set
+              // Check if user actually saved this platform (using saved ID sets)
+              bool wasActuallySaved = false;
+              switch (marketPlace) {
+                case 'FanDuel':
+                  wasActuallySaved = savedFanduelIds.contains(eventId);
+                  break;
+                case 'DraftKings':
+                  wasActuallySaved = savedDraftkingsIds.contains(eventId);
+                  break;
+                case 'BetMGM':
+                  wasActuallySaved = savedBetMgmIds.contains(eventId);
+                  break;
+              }
+
+              // Only add to saved list if user actually saved this platform
+              if (!wasActuallySaved) continue;
+
+              // Add to appropriate saved set and event list
+              print('💾 Adding saved event: eventId=$eventId, marketPlace=$marketPlace, title=${event['title']}');
               switch (marketPlace) {
                 case 'FanDuel':
                   _savedFanduelEventIds.add(eventId);
@@ -945,11 +970,12 @@ class SportsHomeController extends GetxController {
                     'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
                     'endDate': event['date'] ?? '',
                     'marketPercentage': _getBestMoneyline(bookmark),
-                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'], // null if not available - shows shimmer
+                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'],
                     'team': event['home_team'] ?? '',
                     'marketPlace': marketPlace,
                     'bookmark': bookmark,
                   });
+                  print('💾 FD event added, event_id=${_savedFanduelEvents.last['event_id']}');
                   break;
                 case 'DraftKings':
                   _savedDraftkingsEventIds.add(eventId);
@@ -959,11 +985,12 @@ class SportsHomeController extends GetxController {
                     'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
                     'endDate': event['date'] ?? '',
                     'marketPercentage': _getBestMoneyline(bookmark),
-                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'], // null if not available - shows shimmer
+                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'],
                     'team': event['home_team'] ?? '',
                     'marketPlace': marketPlace,
                     'bookmark': bookmark,
                   });
+                  print('💾 DK event added, event_id=${_savedDraftkingsEvents.last['event_id']}');
                   break;
                 case 'BetMGM':
                   _savedBetMgmEventIds.add(eventId);
@@ -973,18 +1000,19 @@ class SportsHomeController extends GetxController {
                     'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
                     'endDate': event['date'] ?? '',
                     'marketPercentage': _getBestMoneyline(bookmark),
-                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'], // null if not available - shows shimmer
+                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'],
                     'team': event['home_team'] ?? '',
                     'marketPlace': marketPlace,
                     'bookmark': bookmark,
                   });
+                  print('💾 MGM event added, event_id=${_savedBetMgmEvents.last['event_id']}');
                   break;
               }
             }
           }
 
           print("Saved events processed: FD=${_savedFanduelEvents.length}, DK=${_savedDraftkingsEvents.length}, MGM=${_savedBetMgmEvents.length}");
-          
+
           // Fetch AI predictions for saved events (async, doesn't block UI)
           _fetchAiForSavedEvents();
         } else {
@@ -1375,7 +1403,17 @@ class SportsHomeController extends GetxController {
   Future<bool> saveEvent({
     required String eventId,
     required String marketPlace,
+    String? title,
+    String? subtitle,
+    String? endDate,
+    String? marketPercentage,
+    String? aiPercentage,
+    String? team,
+    Map<String, dynamic>? bookmark,
   }) async {
+    print('💾 saveEvent called - eventId: $eventId, marketPlace: $marketPlace');
+    print('💾 Current saved IDs - FanDuel: $_savedFanduelEventIds, DraftKings: $_savedDraftkingsEventIds, BetMGM: $_savedBetMgmEventIds');
+    
     try {
       final url = '${Urls.baseUrl}/api/trade/saved-event/';
       print("=== Save Sports Event API ===");
@@ -1404,30 +1442,58 @@ class SportsHomeController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print("Event saved successfully!");
-        // Toggle local state
+
+        // Build event data to add to saved list
+        final eventData = <String, dynamic>{
+          'event_id': eventId,
+          'title': title ?? 'NBA Championship Odds 2026',
+          'subtitle': subtitle ?? '',
+          'endDate': endDate ?? '',
+          'marketPercentage': marketPercentage ?? '',
+          'aiPercentage': aiPercentage, // null if not available - shows shimmer
+          'team': team ?? '',
+          'marketPlace': marketPlace,
+          'bookmark': bookmark ?? {},
+        };
+
+        // Update local state and notify listeners
         switch (marketPlace) {
           case 'FanDuel':
-            if (_savedFanduelEventIds.contains(eventId)) {
-              _savedFanduelEventIds.remove(eventId);
-            } else {
+            print('💾 Adding to FanDuel saved: $eventId');
+            if (!_savedFanduelEventIds.contains(eventId)) {
               _savedFanduelEventIds.add(eventId);
+              // Add to saved events list immediately
+              _savedFanduelEvents.add(eventData);
+              print('💾 FanDuel IDs now: $_savedFanduelEventIds');
             }
             break;
           case 'DraftKings':
-            if (_savedDraftkingsEventIds.contains(eventId)) {
-              _savedDraftkingsEventIds.remove(eventId);
-            } else {
+            print('💾 Adding to DraftKings saved: $eventId');
+            if (!_savedDraftkingsEventIds.contains(eventId)) {
               _savedDraftkingsEventIds.add(eventId);
+              // Add to saved events list immediately
+              _savedDraftkingsEvents.add(eventData);
+              print('💾 DraftKings IDs now: $_savedDraftkingsEventIds');
             }
             break;
           case 'BetMGM':
-            if (_savedBetMgmEventIds.contains(eventId)) {
-              _savedBetMgmEventIds.remove(eventId);
-            } else {
+            print('💾 Adding to BetMGM saved: $eventId');
+            if (!_savedBetMgmEventIds.contains(eventId)) {
               _savedBetMgmEventIds.add(eventId);
+              // Add to saved events list immediately
+              _savedBetMgmEvents.add(eventData);
+              print('💾 BetMGM IDs now: $_savedBetMgmEventIds');
             }
             break;
         }
+
+        // Update cache
+        cacheSavedEvents();
+
+        // Notify GetX listeners to rebuild UI
+        print('💾 Calling update() for saved_events');
+        update(['saved_events']);
+
         return true;
       } else {
         print("Failed to save event: ${response.statusCode}");
@@ -1438,7 +1504,6 @@ class SportsHomeController extends GetxController {
       return false;
     }
   }
-
   void saveDraftkingsEvent({required String eventId, required String marketPlace}) {
     saveEvent(eventId: eventId, marketPlace: marketPlace);
   }

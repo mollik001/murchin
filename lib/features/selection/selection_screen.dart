@@ -32,33 +32,52 @@ class SelectionScreen extends StatelessWidget {
                   fit: BoxFit.contain,
                 ),
 
-                SizedBox(height: 30.h),
+                SizedBox(height: 50.h),
 
-                /// Title
-                Text(
-                  'Where do you want to go?',
-                  style: AppTextStyles.authSubtitle?.copyWith(
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
+                /// Title (UPDATED COLORS)
+                Text.rich(
+                  TextSpan(
+                    style: AppTextStyles.authSubtitle?.copyWith(
+                      fontSize: 22.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                    children: [
+                      const TextSpan(
+                        text: 'Pickf',
+                        style: TextStyle(color: Color(0xFF06205B)),
+                      ),
+                      const TextSpan(
+                        text: 'ai',
+                        style: TextStyle(color: Color(0xFFCF152D)),
+                      ),
+                      const TextSpan(
+                        text: 'r',
+                        style: TextStyle(color: Color(0xFF06205B)),
+                      ),
+                      const TextSpan(
+                        text: ' AI mitigates financial risk',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                    ],
                   ),
                   textAlign: TextAlign.center,
                 ),
 
-                SizedBox(height: 12.h),
+                SizedBox(height: 88.h),
 
                 /// Subtitle
                 Text(
-                  'Choose to get started:',
+                  'Choose a platform',
                   style: AppTextStyles.authSubtitle?.copyWith(
                     color: const Color(0xff848484),
-                    fontSize: 16.sp,
+                    fontSize: 18.sp,
                     fontWeight: FontWeight.w400,
                   ),
                   textAlign: TextAlign.center,
                 ),
 
-                SizedBox(height: 120.h),
+                SizedBox(height: 40.h),
 
                 /// Market Button
                 GestureDetector(

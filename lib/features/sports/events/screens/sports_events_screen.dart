@@ -574,8 +574,11 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
               team: fanduelTeam.teamName,
               bgColor: fanduelBgColor,
               borderColor: fanduelBgColor,
+              platformTagBgColor: AppColors.fanduelColor,
+              platformTagBorderColor: Colors.black,
               platform: 'FanDuel',
               isSaved: false,
+              showBookmark: false, // Hide bookmark for NBA Finals
               customOnTap: () {
                 Get.to(() => NbaFinalsDetailsScreen(
                   platform: 'FanDuel',
@@ -607,8 +610,11 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
               team: draftkingsTeam.teamName,
               bgColor: draftkingsBgColor,
               borderColor: draftkingsBgColor,
+              platformTagBgColor: AppColors.draftkingsColor,
+              platformTagBorderColor: Colors.black,
               platform: 'DraftKings',
               isSaved: false,
+              showBookmark: false, // Hide bookmark for NBA Finals
               customOnTap: () {
                 Get.to(() => NbaFinalsDetailsScreen(
                   platform: 'DraftKings',
@@ -640,8 +646,11 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
               team: betmgmTeam.teamName,
               bgColor: betmgmBgColor,
               borderColor: betmgmBgColor,
+              platformTagBgColor: AppColors.betmgmColor,
+              platformTagBorderColor: Colors.black,
               platform: 'BetMGM',
               isSaved: false,
+              showBookmark: false, // Hide bookmark for NBA Finals
               customOnTap: () {
                 Get.to(() => NbaFinalsDetailsScreen(
                   platform: 'BetMGM',
@@ -730,19 +739,19 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
           final h2hMarket = bookmark.market.firstWhere((m) => m.key == 'h2h', orElse: () => bookmark.market.first);
           final spreadsMarket = bookmark.market.firstWhere((m) => m.key == 'spreads', orElse: () => bookmark.market.first);
           final totalsMarket = bookmark.market.firstWhere((m) => m.key == 'totals', orElse: () => bookmark.market.first);
-          
+
           // Get moneyline odds
           final awayMoneyline = h2hMarket.outcome.awayTeam?.american ?? '-';
           final homeMoneyline = h2hMarket.outcome.homeTeam?.american ?? '-';
-          
+
           // Get spread odds (american values)
           final awaySpread = spreadsMarket.outcome.awayTeam?.american ?? '-';
           final homeSpread = spreadsMarket.outcome.homeTeam?.american ?? '-';
-          
+
           // Get total values (just american odds, no points)
           final overTotal = totalsMarket.outcome.over?.american ?? '-';
           final underTotal = totalsMarket.outcome.under?.american ?? '-';
-          
+
           Get.to(() => SportsCardDetailsScreen(
             title: 'NBA Championship Odds 2026',
             subtitle: '${event.awayTeam} vs ${event.homeTeam}',
@@ -765,6 +774,18 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
           ));
         };
 
+        // Check if event is already saved
+        final isSaved = sportsController.isEventSaved(event.eventId, marketPlace);
+
+        // Build bookmark data for saving
+        final bookmarkData = <String, dynamic>{
+          'market_title': bookmark.marketTitle,
+          'h2h': {
+            'away_team': h2hMarket.outcome.awayTeam?.american,
+            'home_team': h2hMarket.outcome.homeTeam?.american,
+          },
+        };
+
         cards.add(
           Padding(
             padding: EdgeInsets.only(bottom: 16.h),
@@ -778,9 +799,13 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
                 team: favoriteTeam,
                 bgColor: bgColor,
                 borderColor: borderColor,
+                platformTagBgColor: isFanduel ? AppColors.fanduelColor : (isBetMgm ? AppColors.betmgmColor : AppColors.draftkingsColor),
+                platformTagBorderColor: Colors.black,
                 platform: marketPlace,
                 iconAsset: 'assets/images/NBA.png',
-                isSaved: false,
+                isSaved: isSaved,
+                eventId: event.eventId,
+                bookmark: bookmarkData,
               ),
             ),
           ),
@@ -800,110 +825,168 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
     required String team,
     required Color bgColor,
     required Color borderColor,
+    required Color platformTagBgColor,
+    required Color platformTagBorderColor,
     required String platform,
     required String iconAsset,
     required bool isSaved,
+    String? eventId,
+    Map<String, dynamic>? bookmark,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.gray300, width: 1.w),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return GetBuilder<SportsHomeController>(
+      id: 'saved_events',
+      builder: (sportsHomeController) {
+        // Check if event is saved (reactive)
+        final eventIsSaved = eventId != null 
+            ? sportsHomeController.isEventSaved(eventId, platform)
+            : false;
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: AppColors.gray300, width: 1.w),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(iconAsset, width: 44.w, height: 44.h),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: AppTextStyles.bodyLarge
-                            ?.copyWith(fontWeight: FontWeight.w700)),
-                    if (subtitle.isNotEmpty) ...[
-                      SizedBox(height: 4.h),
-                      Text(subtitle,
-                          style: AppTextStyles.bodyMedium?.copyWith(
-                            color: const Color(0xff848484),
-                            fontWeight: FontWeight.w400,
-                            fontSize: 14.sp,
-                          )),
-                    ],
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Get.snackbar(
-                    'Saved',
-                    'Event saved to your list',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: AppColors.primary.withOpacity(0.9),
-                    colorText: Colors.white,
-                  );
-                },
-                child: Container(
-                  padding: EdgeInsets.all(4.w),
-                  child: Image.asset(
-                    isSaved
-                        ? 'assets/icons/bookmark_active.png'
-                        : 'assets/icons/bookmark.png',
-                    width: 20.w,
-                    height: 20.h,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Image.asset(iconAsset, width: 44.w, height: 44.h),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title,
+                            style: AppTextStyles.bodyLarge
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        if (subtitle.isNotEmpty) ...[
+                          SizedBox(height: 4.h),
+                          Text(subtitle,
+                              style: AppTextStyles.bodyMedium?.copyWith(
+                                color: const Color(0xff848484),
+                                fontWeight: FontWeight.w400,
+                                fontSize: 14.sp,
+                              )),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
+                  GestureDetector(
+                    onTap: () async {
+                      // If already saved, do nothing
+                      if (eventIsSaved) {
+                        return;
+                      }
+
+                      // Check if we have an event ID
+                      if (eventId == null) {
+                        print('❌ Event ID is null');
+                        return;
+                      }
+
+                      print('✅ Saving event: $eventId on $platform');
+
+                      // Save event via API
+                      final success = await sportsHomeController.saveEvent(
+                        eventId: eventId,
+                        marketPlace: platform,
+                        title: title,
+                        subtitle: subtitle,
+                        endDate: date,
+                        marketPercentage: marketPercentage,
+                        team: team,
+                        bookmark: bookmark,
+                      );
+
+                      print('💾 Save result: $success');
+
+                      if (success) {
+                        // Refresh saved events list
+                        await sportsHomeController.fetchSavedEvents();
+
+                        Get.snackbar(
+                          'Saved',
+                          'Event saved to your list',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: AppColors.primary.withOpacity(0.9),
+                          colorText: Colors.white,
+                        );
+
+                        // Update the UI
+                        print('🔄 Calling controller.update()');
+                        sportsHomeController.update(['saved_events']);
+                      } else {
+                        Get.snackbar(
+                          'Error',
+                          'Failed to save event',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.red.withOpacity(0.9),
+                          colorText: Colors.white,
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: EdgeInsets.all(4.w),
+                      child: Image.asset(
+                        eventIsSaved
+                            ? 'assets/icons/bookmark_active.png'
+                            : 'assets/icons/bookmark.png',
+                        width: 20.w,
+                        height: 20.h,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16.h),
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                    decoration: BoxDecoration(
+                      color: platformTagBgColor,
+                      borderRadius: BorderRadius.circular(6.r),
+                      border: Border.all(color: platformTagBorderColor, width: 1.w),
+                    ),
+                    child: Text(platform,
+                        style: AppTextStyles.bodySmall?.copyWith(
+                            color: Colors.white, fontWeight: FontWeight.w600)),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Text(date,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w400,
+                            fontSize: 12.sp,
+                            color: const Color(0xff848484))),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20.h),
+              // Only show Sportsbook section (full width, no AI section)
+              Row(
+                children: [
+                  Expanded(
+                    child: SportsComparisonTab(
+                      title: 'Sportsbook',
+                      percentage: marketPercentage,
+                      team: team,
+                      percentageColor: const Color(0xff4588C6),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          SizedBox(height: 16.h),
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(6.r),
-                  border: Border.all(color: borderColor, width: 1.w),
-                ),
-                child: Text(platform,
-                    style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white, fontWeight: FontWeight.w600)),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Text(date,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w400,
-                        fontSize: 12.sp,
-                        color: const Color(0xff848484))),
-              ),
-            ],
-          ),
-          SizedBox(height: 20.h),
-          // Only show Sportsbook section (full width, no AI section)
-          Row(
-            children: [
-              Expanded(
-                child: SportsComparisonTab(
-                  title: 'Sportsbook',
-                  percentage: marketPercentage,
-                  team: team,
-                  percentageColor: const Color(0xff4588C6),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

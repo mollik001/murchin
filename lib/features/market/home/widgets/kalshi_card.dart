@@ -15,6 +15,8 @@ class KalshiCard extends StatelessWidget {
   final String team;
   final Color bgColor;
   final Color borderColor;
+  final Color? platformTagBgColor;
+  final Color? platformTagBorderColor;
   final String? seriesTicker;
   final List<String>? optionTitles;
   final List<double>? marketProbs;
@@ -23,6 +25,7 @@ class KalshiCard extends StatelessWidget {
   final bool isSaved;
   final VoidCallback? onSaved;
   final Map<String, dynamic>? eventRef;
+  final bool canToggleSave; // Allow disabling bookmark tap
 
   const KalshiCard({
     super.key,
@@ -43,6 +46,9 @@ class KalshiCard extends StatelessWidget {
     this.isSaved = false,
     this.onSaved,
     this.eventRef,
+    this.canToggleSave = true,
+    this.platformTagBgColor,
+    this.platformTagBorderColor,
   });
 
   /// Get option titles for details screen
@@ -50,14 +56,14 @@ class KalshiCard extends StatelessWidget {
     final ref = eventRef ?? {};
     final allOptionTitles = ref['optionTitles'] as List<dynamic>? ?? optionTitles ?? [];
     final allMarketProbs = ref['marketProbs'] as List<dynamic>? ?? marketProbs ?? [];
-    
+
     // If we only have one option (single outcome event), show both YES and NO
     if (allOptionTitles.length == 1 && allMarketProbs.length == 1) {
       // Single outcome - return YES title and NO title
       final titleNo = ref['title_no'] as String? ?? 'No';
       return [allOptionTitles[0], titleNo];
     }
-    
+
     // Multiple outcomes - return all valid options (non-0/non-100)
     List<String> validTitles = [];
     for (int i = 0; i < allOptionTitles.length && i < allMarketProbs.length; i++) {
@@ -74,14 +80,14 @@ class KalshiCard extends StatelessWidget {
     final ref = eventRef ?? {};
     final allOptionTitles = ref['optionTitles'] as List<dynamic>? ?? optionTitles ?? [];
     final allMarketProbs = ref['marketProbs'] as List<dynamic>? ?? marketProbs ?? [];
-    
+
     // If we only have one option (single outcome event), show both YES and NO probabilities
     if (allOptionTitles.length == 1 && allMarketProbs.length == 1) {
       final yesProb = allMarketProbs[0] is double ? allMarketProbs[0] as double : double.tryParse(allMarketProbs[0].toString()) ?? 0;
       final noProb = ref['probability_no'] as double? ?? (100 - yesProb);
       return [yesProb, noProb];
     }
-    
+
     // Multiple outcomes - return all valid probabilities (non-0/non-100)
     List<double> validProbs = [];
     for (int i = 0; i < allOptionTitles.length && i < allMarketProbs.length; i++) {
@@ -99,16 +105,16 @@ class KalshiCard extends StatelessWidget {
     final allAiPercentages = ref['aiPercentages'] as List<dynamic>? ?? aiPercentages ?? [];
     final allOptionTitles = ref['optionTitles'] as List<dynamic>? ?? optionTitles ?? [];
     final allMarketProbs = ref['marketProbs'] as List<dynamic>? ?? marketProbs ?? [];
-    
+
     // If we only have one option (single outcome event), show YES AI value (NO has no AI)
     if (allOptionTitles.length == 1 && allMarketProbs.length == 1) {
-      final yesAi = allAiPercentages.isNotEmpty 
+      final yesAi = allAiPercentages.isNotEmpty
           ? (allAiPercentages[0] is double ? allAiPercentages[0] as double : (double.tryParse(allAiPercentages[0].toString()) ?? 0.0))
           : 0.0;
       // For NO, we don't have AI prediction, so use 0
       return [yesAi, 0.0];
     }
-    
+
     // Multiple outcomes - return all valid AI percentages
     List<double> validAi = [];
     for (int i = 0; i < allOptionTitles.length && i < allAiPercentages.length; i++) {
@@ -165,16 +171,40 @@ class KalshiCard extends StatelessWidget {
         team: team,
         bgColor: bgColor,
         borderColor: borderColor,
+        platformTagBgColor: platformTagBgColor,
+        platformTagBorderColor: platformTagBorderColor,
         platform: 'Kalshi',
         iconAsset: 'assets/icons/kalshi.png',
         initiallySaved: isSaved,
         onSaved: onSaved ??
             () {
               if (eventId != null) {
-                // For Kalshi, we use the event ticker directly as a string identifier
-                // The saveEvent method will be updated to handle this
-                print("Save Kalshi event: $eventId");
-                // TODO: Implement Kalshi save with string ID
+                controller.saveEvent(
+                  eventIdString: eventId,
+                  marketPlace: 'Kalshi',
+                  title: title,
+                  seriesTicker: eventRef != null
+                      ? (eventRef!['series_ticker'] as String?) ?? seriesTicker
+                      : seriesTicker,
+                  endDate: date,
+                  team: team,
+                  marketPercentage: marketPercentage,
+                  aiPercentage: eventRef != null
+                      ? (eventRef!['aiPercentage'] as String?) ?? aiPercentage
+                      : aiPercentage,
+                  aiExplanation: eventRef != null
+                      ? (eventRef!['aiExplanation'] as String?) ?? aiExplanation
+                      : aiExplanation,
+                  optionTitles: eventRef != null
+                      ? (eventRef!['optionTitles'] as List<String>?) ?? optionTitles
+                      : optionTitles,
+                  marketProbs: eventRef != null
+                      ? (eventRef!['marketProbs'] as List<double>?) ?? marketProbs
+                      : marketProbs,
+                  aiPercentages: eventRef != null
+                      ? (eventRef!['aiPercentages'] as List<double>?) ?? aiPercentages
+                      : aiPercentages,
+                );
               }
             },
       ),

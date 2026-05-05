@@ -4,7 +4,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:murchin/features/onboarding/onboarding_screen.dart';
-import 'package:murchin/features/selection/selection_screen.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -71,3 +70,16 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+
+//onboarding selection page title double line
+//ai text color 
+//Navigation flow change
+//removing toggle from profile page
+// Terms & policy page
+
+
+//TODO:
+
+ //i can not find The Memphis Grizzlies vs New York Knicks game still.
+ //data handling issue with date and timel.

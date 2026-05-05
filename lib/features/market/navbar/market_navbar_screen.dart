@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:murchin/const/theme/app_color.dart';
 import 'package:murchin/features/market/events/screens/event_screen.dart';
 import 'package:murchin/features/market/home/screens/home_screen.dart';
+import 'package:murchin/features/market/home/controllers/home_controller.dart';
 import 'package:murchin/features/navbar/navbar_controller.dart';
 import 'package:murchin/features/profile/screens/profile_screen.dart';
 import 'package:murchin/features/market/saved/screens/saved_screens.dart';
@@ -34,17 +35,20 @@ class MarketNavbarScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BottomNavbarController controller =
-        Get.put(BottomNavbarController());
+    // Initialize controllers
+    Get.put(BottomNavbarController());
+    Get.put(HomeController());
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Obx(() => pages[controller.currentIndex.value]),
-      bottomNavigationBar: _buildBottomNavBar(controller),
+      body: Obx(() => pages[Get.find<BottomNavbarController>().currentIndex.value]),
+      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
-  Widget _buildBottomNavBar(BottomNavbarController controller) {
+  Widget _buildBottomNavBar() {
+    final BottomNavbarController controller = Get.find<BottomNavbarController>();
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.primary,
@@ -64,8 +68,7 @@ class MarketNavbarScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(normalIcons.length, (index) {
               return Obx(() {
-                final isSelected =
-                    controller.currentIndex.value == index;
+                final isSelected = controller.currentIndex.value == index;
 
                 return GestureDetector(
                   behavior: HitTestBehavior.opaque,

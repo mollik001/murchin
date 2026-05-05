@@ -29,15 +29,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _showPopup = false;
   final GlobalKey _threeDotsKey = GlobalKey();
   final ImagePicker _picker = ImagePicker(); // Declare at class level
-  
+
   // Edit profile variables
   String _name = '';
   String _email = '';
   File? _selectedProfileImage; // Store selected image at class level
   String? _profileImageUrl; // Store profile image URL from SharedPreferences
 
-  // Toggle between Sportsbook and Market
-  bool _isSportsbookMode = true;
+  // COMMENTED OUT - Toggle between Sportsbook and Market
+  // bool _isSportsbookMode = true;
 
   final ProfileController _profileController = Get.put(ProfileController());
 
@@ -45,44 +45,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadUserData();
-    _loadModePreference();
+    // _loadModePreference(); // COMMENTED OUT
   }
 
-  Future<void> _loadModePreference() async {
-    // First check lastVisitedSection (set during selection)
-    String? lastSection = await SharedPreferencesHelper.getLastVisitedSection();
-    
-    bool isSportsbook;
-    if (lastSection != null) {
-      // Use lastVisitedSection to determine mode
-      isSportsbook = lastSection == 'sports';
-    } else {
-      // Fall back to sportsbookMode preference
-      bool? mode = await SharedPreferencesHelper.getSportsbookMode();
-      isSportsbook = mode ?? true;
-    }
-    
-    setState(() {
-      _isSportsbookMode = isSportsbook;
-    });
-  }
+  // COMMENTED OUT - Mode preference loading
+  // Future<void> _loadModePreference() async {
+  //   // First check lastVisitedSection (set during selection)
+  //   String? lastSection = await SharedPreferencesHelper.getLastVisitedSection();
 
-  Future<void> _toggleMode(bool value) async {
-    setState(() {
-      _isSportsbookMode = value;
-    });
-    await SharedPreferencesHelper.saveSportsbookMode(value);
-    
-    // Also save last visited section
-    await SharedPreferencesHelper.saveLastVisitedSection(value ? 'sports' : 'market');
+  //   bool isSportsbook;
+  //   if (lastSection != null) {
+  //     // Use lastVisitedSection to determine mode
+  //     isSportsbook = lastSection == 'sports';
+  //   } else {
+  //     // Fall back to sportsbookMode preference
+  //     bool? mode = await SharedPreferencesHelper.getSportsbookMode();
+  //     isSportsbook = mode ?? true;
+  //   }
 
-    // Navigate to the other screen based on mode
-    if (value) {
-      Get.offAll(() => SportsNavbarScreen());
-    } else {
-      Get.offAll(() => MarketNavbarScreen());
-    }
-  }
+  //   setState(() {
+  //     _isSportsbookMode = isSportsbook;
+  //   });
+  // }
+
+  // COMMENTED OUT - Toggle mode function
+  // Future<void> _toggleMode(bool value) async {
+  //   setState(() {
+  //     _isSportsbookMode = value;
+  //   });
+  //   await SharedPreferencesHelper.saveSportsbookMode(value);
+
+  //   // Also save last visited section
+  //   await SharedPreferencesHelper.saveLastVisitedSection(value ? 'sports' : 'market');
+
+  //   // Navigate to the other screen based on mode
+  //   if (value) {
+  //     Get.offAll(() => SportsNavbarScreen());
+  //   } else {
+  //     Get.offAll(() => MarketNavbarScreen());
+  //   }
+  // }
 
   // Load user data from SharedPreferences
   Future<void> _loadUserData() async {
@@ -1010,74 +1012,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               
               SizedBox(height: 24.h),
-              
-              // Mode Toggle (Sportsbook vs Market)
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(16.w),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(
-                    color: AppColors.gray300 ?? const Color(0xFFE6E6E6),
-                    width: 1.w,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    // Prediction Market Label
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _toggleMode(false),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 10.h),
-                          decoration: BoxDecoration(
-                            color: !_isSportsbookMode ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Prediction Market',
-                              style: AppTextStyles.bodyMedium?.copyWith(
-                                color: !_isSportsbookMode ? Colors.white : AppColors.gray600,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    
-                    // Sportsbook Label
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _toggleMode(true),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 10.h),
-                          decoration: BoxDecoration(
-                            color: _isSportsbookMode ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Sportsbook',
-                              style: AppTextStyles.bodyMedium?.copyWith(
-                                color: _isSportsbookMode ? Colors.white : AppColors.gray600,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
+
+              // COMMENTED OUT - Mode Toggle (Sportsbook vs Market)
+              // Container(
+              //   width: double.infinity,
+              //   padding: EdgeInsets.all(16.w),
+              //   decoration: BoxDecoration(
+              //     color: Colors.transparent,
+              //     borderRadius: BorderRadius.circular(12.r),
+              //     border: Border.all(
+              //       color: AppColors.gray300 ?? const Color(0xFFE6E6E6),
+              //       width: 1.w,
+              //     ),
+              //   ),
+              //   child: Row(
+              //     children: [
+              //       // Prediction Market Label
+              //       Expanded(
+              //         child: GestureDetector(
+              //           onTap: () => _toggleMode(false),
+              //           child: Container(
+              //             padding: EdgeInsets.symmetric(vertical: 10.h),
+              //             decoration: BoxDecoration(
+              //               color: !_isSportsbookMode ? AppColors.primary : Colors.transparent,
+              //               borderRadius: BorderRadius.circular(8.r),
+              //             ),
+              //             child: Center(
+              //               child: Text(
+              //                 'Prediction Market',
+              //                 style: AppTextStyles.bodyMedium?.copyWith(
+              //                   color: !_isSportsbookMode ? Colors.white : AppColors.gray600,
+              //                   fontWeight: FontWeight.w600,
+              //                   fontSize: 14.sp,
+              //                 ),
+              //               ),
+              //             ),
+              //           ),
+              //         ),
+              //       ),
+
+              //       // Sportsbook Label
+              //       Expanded(
+              //         child: GestureDetector(
+              //           onTap: () => _toggleMode(true),
+              //           child: Container(
+              //             padding: EdgeInsets.symmetric(vertical: 10.h),
+              //             decoration: BoxDecoration(
+              //               color: _isSportsbookMode ? AppColors.primary : Colors.transparent,
+              //               borderRadius: BorderRadius.circular(8.r),
+              //             ),
+              //             child: Center(
+              //               child: Text(
+              //                 'Sportsbook',
+              //                 style: AppTextStyles.bodyMedium?.copyWith(
+              //                   color: _isSportsbookMode ? Colors.white : AppColors.gray600,
+              //                   fontWeight: FontWeight.w600,
+              //                   fontSize: 14.sp,
+              //                 ),
+              //               ),
+              //             ),
+              //           ),
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              // ),
+
               SizedBox(height: 32.h),
-              
+
               // Terms and Privacy Policy Option
               GestureDetector(
                 onTap: () {

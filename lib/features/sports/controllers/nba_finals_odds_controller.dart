@@ -346,6 +346,9 @@ class NbaFinalsOddsController extends GetxController {
 
         print('Odds loaded successfully for $platform!');
 
+        // Notify UI to rebuild after loading odds
+        update();
+
         // Re-apply existing AI predictions to newly loaded odds
         if (_aiPredictions.containsKey(platform) && _aiPredictions[platform]!.isNotEmpty) {
           _updateOddsWithAiPredictions(platform);

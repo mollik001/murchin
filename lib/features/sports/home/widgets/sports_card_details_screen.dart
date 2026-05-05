@@ -89,9 +89,6 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
   String? _aiTotalOver;
   String? _aiTotalUnder;
 
-  // Loading state for AI predictions
-  bool _isAiLoading = false;
-  
   // Save state
   bool _isSaved = false;
   bool _isSaving = false;
@@ -116,14 +113,18 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
 
     // Fetch player props data if eventId and platform are provided
     if (widget.eventId != null && widget.platform != null) {
+      final isMlb = widget.title.contains('MLB');
       _playerPropsController.fetchPlayerProps(
         eventId: widget.eventId!,
         platform: widget.platform!,
+        isMlb: isMlb,
       ).then((_) {
+        if (!mounted) return;
         // Fetch AI for all player props after player props are loaded
         if (widget.awayTeam != null && widget.homeTeam != null) {
           _playerPropsController.fetchAiForAllCategories(
             teamNames: [widget.awayTeam!, widget.homeTeam!],
+            isMlb: isMlb,
           );
         }
       });
@@ -136,10 +137,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
   Future<void> _fetchAiPredictions() async {
     if (widget.awayTeam == null || widget.homeTeam == null) return;
 
-    setState(() {
-      _isAiLoading = true;
-    });
-
+    final isMlb = widget.title.contains('MLB');
     final aiData = await _aiPredictionController.fetchAiPredictions(
       awayTeam: widget.awayTeam!,
       homeTeam: widget.homeTeam!,
@@ -149,6 +147,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
       moneylineHome: widget.moneylineHome,
       totalOver: widget.totalOver,
       totalUnder: widget.totalUnder,
+      isMlb: isMlb,
     );
 
     if (aiData != null && mounted) {
@@ -159,11 +158,16 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
         _aiMoneylineHome = aiData['aiMoneylineHome'];
         _aiTotalOver = aiData['aiTotalOver'];
         _aiTotalUnder = aiData['aiTotalUnder'];
-        _isAiLoading = false;
       });
     } else if (mounted) {
+      // API failed or returned null, stop shimmer by setting default values
       setState(() {
-        _isAiLoading = false;
+        _aiSpreadAway ??= 'N/A';
+        _aiSpreadHome ??= 'N/A';
+        _aiMoneylineAway ??= 'N/A';
+        _aiMoneylineHome ??= 'N/A';
+        _aiTotalOver ??= 'N/A';
+        _aiTotalUnder ??= 'N/A';
       });
     }
   }
@@ -665,22 +669,26 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                   final categories = _playerPropsController.getAvailableCategories();
                   
                   if (categories.isEmpty) {
-                    // Show static data if no API data
-                    return Column(
-                      children: [
-                        _buildExpandableCard(0, 'First Basket', false),
-                        SizedBox(height: 12.h),
-                        _buildExpandableCard(1, 'First team basket scorer', false),
-                        SizedBox(height: 12.h),
-                        _buildExpandableCard(2, 'To Score 10+ Points', true),
-                        SizedBox(height: 12.h),
-                        _buildExpandableCard(3, 'To Score 25+ Points', true),
-                        SizedBox(height: 12.h),
-                        _buildExpandableCard(4, '5+ Made Threes', true),
-                        SizedBox(height: 12.h),
-                        _buildExpandableCard(5, 'To record 10+ Rebounds', true),
-                      ],
-                    );
+                    // Only show static fallback for NBA events
+                    if (!widget.title.contains('MLB')) {
+                      return Column(
+                        children: [
+                          _buildExpandableCard(0, 'First Basket', false),
+                          SizedBox(height: 12.h),
+                          _buildExpandableCard(1, 'First team basket scorer', false),
+                          SizedBox(height: 12.h),
+                          _buildExpandableCard(2, 'To Score 10+ Points', true),
+                          SizedBox(height: 12.h),
+                          _buildExpandableCard(3, 'To Score 25+ Points', true),
+                          SizedBox(height: 12.h),
+                          _buildExpandableCard(4, '5+ Made Threes', true),
+                          SizedBox(height: 12.h),
+                          _buildExpandableCard(5, 'To record 10+ Rebounds', true),
+                        ],
+                      );
+                    }
+                    // For MLB, if no data, show nothing or empty message
+                    return const SizedBox.shrink();
                   }
 
                   // Show API data
@@ -689,15 +697,69 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                       final index = entry.key;
                       final category = entry.value;
                       final title = _playerPropsController.getCategoryTitle(category);
-                      final propsData = _playerPropsController.playerProps?.getPropsByCategory(category) ?? {};
+                      final rawPropsData = _playerPropsController.playerProps?.getPropsByCategory(category) ?? {};
 
-                      // Check if this category has over/under data
-                      final hasOverUnder = PlayerPropsResponse.hasOverUnder(propsData.values.first);
+                      if (rawPropsData.isEmpty) return const SizedBox.shrink();
+
+                      // Filter out players or direct props with no valid odds
+                      final Map<String, dynamic> filteredPropsData = {};
+                      
+                      // Check if it's a direct prop (keys are 'over', 'under', etc., not player names)
+                      final bool isDirectProp = rawPropsData.containsKey('over') || 
+                                               rawPropsData.containsKey('under') || 
+                                               rawPropsData.containsKey('result');
+
+                      if (isDirectProp) {
+                        // Direct Prop: only keep if it has at least one valid odd
+                        if (rawPropsData.containsKey('over') || 
+                            rawPropsData.containsKey('under') || 
+                            rawPropsData.containsKey('result')) {
+                          filteredPropsData.addAll(rawPropsData);
+                        }
+                      } else {
+                        // Player-Mapped Prop: filter players to keep only those with valid odds
+                        rawPropsData.forEach((playerName, playerData) {
+                          if (playerData is Map && (playerData.containsKey('over') || 
+                                                   playerData.containsKey('under') || 
+                                                   playerData.containsKey('result'))) {
+                            filteredPropsData[playerName] = playerData;
+                          }
+                        });
+                      }
+
+                      if (filteredPropsData.isEmpty) return const SizedBox.shrink();
+
+                      final firstValue = filteredPropsData.values.first;
+                      final isMlb = widget.title.contains('MLB');
+                      Map<String, dynamic> finalPropsData;
+                      bool hasOverUnder;
+
+                      if (isDirectProp) {
+                        // Direct Prop (e.g. totals_1st_1_innings)
+                        if (isMlb && (category == 'totals_1st_1_innings' || category == 'totals_1st_5_innings')) {
+                          // Special MLB Split logic: Treat "over" and "under" as separate players
+                          finalPropsData = {};
+                          if (filteredPropsData.containsKey('over')) {
+                            finalPropsData['Over'] = {'over': filteredPropsData['over'], 'point': filteredPropsData['point']};
+                          }
+                          if (filteredPropsData.containsKey('under')) {
+                            finalPropsData['Under'] = {'over': filteredPropsData['under'], 'point': filteredPropsData['point']};
+                          }
+                          hasOverUnder = false; // They are now Type 1 single value items
+                        } else {
+                          finalPropsData = {"Game Total": filteredPropsData};
+                          hasOverUnder = filteredPropsData.containsKey('over') && filteredPropsData.containsKey('under');
+                        }
+                      } else {
+                        // Player-Mapped Prop
+                        finalPropsData = filteredPropsData;
+                        hasOverUnder = PlayerPropsResponse.hasOverUnder(firstValue);
+                      }
 
                       return Column(
                         children: [
                           if (index > 0) SizedBox(height: 12.h),
-                          _buildPlayerPropsCard(index, title, category, propsData, hasOverUnder),
+                          _buildPlayerPropsCard(index, title, category, finalPropsData, hasOverUnder),
                         ],
                       );
                     }).toList(),
@@ -935,7 +997,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
               playerName,
               style: AppTextStyles.bodySmall?.copyWith(
                 color: Colors.black,
-                fontWeight: FontWeight.w400,
+                fontWeight: FontWeight.w700,
                 fontSize: 13.sp,
               ),
               maxLines: 1,
@@ -946,188 +1008,175 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
           Padding(
             padding: EdgeInsets.only(right: 16.w),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 54.w,
-                    child: Text(
-                      'Sportsbook',
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: const Color(0xFF3CB043),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(width: 14.w),
-                  SizedBox(
-                    width: 54.w,
-                    child: Text(
-                      'Sportsbook',
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: const Color(0xFF3CB043),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 4.h),
-              Row(
-                children: [
-                  Container(
-                    width: 50.w,
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3CB043),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Text(
-                      over,
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(width: 14.w),
-                  Container(
-                    width: 50.w,
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3CB043),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Text(
-                      under,
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 8.h),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 54.w,
-                    child: Text(
-                      'AI',
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: const Color(0xFFA81D06),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(width: 14.w),
-                  SizedBox(
-                    width: 54.w,
-                    child: Text(
-                      'AI',
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: const Color(0xFFA81D06),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 4.h),
-              Row(
-                children: [
-                  isAiLoading
-                    ? Shimmer.fromColors(
-                        baseColor: Colors.grey.shade300,
-                        highlightColor: Colors.grey.shade100,
-                        child: Container(
-                          width: 50.w,
-                          height: 24.h,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4.r),
-                          ),
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 54.w,
+                      child: Text(
+                        'Sportsbook',
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: const Color(0xFF3CB043),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.sp,
                         ),
-                      )
-                    : isAiLoading
-                      ? Shimmer.fromColors(
-                          baseColor: Colors.grey.shade300,
-                          highlightColor: Colors.grey.shade100,
-                          child: Container(
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(width: 14.w),
+                    SizedBox(
+                      width: 54.w,
+                      child: Text(
+                        'Sportsbook',
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: const Color(0xFF3CB043),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4.h),
+                Row(
+                  children: [
+                    Container(
+                      width: 50.w,
+                      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3CB043),
+                        borderRadius: BorderRadius.circular(4.r),
+                      ),
+                      child: Text(
+                        over,
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(width: 14.w),
+                    Container(
+                      width: 50.w,
+                      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3CB043),
+                        borderRadius: BorderRadius.circular(4.r),
+                      ),
+                      child: Text(
+                        under,
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8.h),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 54.w,
+                      child: Text(
+                        'AI',
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: const Color(0xFFA81D06),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(width: 14.w),
+                    SizedBox(
+                      width: 54.w,
+                      child: Text(
+                        'AI',
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: const Color(0xFFA81D06),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4.h),
+                Row(
+                  children: [
+                    isAiLoading
+                        ? Shimmer.fromColors(
+                            baseColor: Colors.grey.shade300,
+                            highlightColor: Colors.grey.shade100,
+                            child: Container(
+                              width: 50.w,
+                              height: 24.h,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4.r),
+                              ),
+                            ),
+                          )
+                        : Container(
                             width: 50.w,
-                            height: 24.h,
+                            padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: const Color(0xFFA81D06),
                               borderRadius: BorderRadius.circular(4.r),
                             ),
-                          ),
-                        )
-                      : Container(
-                          width: 50.w,
-                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFA81D06),
-                            borderRadius: BorderRadius.circular(4.r),
-                          ),
-                          child: Text(
-                            aiOver ?? '-',
-                            style: AppTextStyles.bodySmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12.sp,
+                            child: Text(
+                              aiOver ?? '-',
+                              style: AppTextStyles.bodySmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.sp,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
                           ),
-                        ),
-                  SizedBox(width: 14.w),
-                  isAiLoading
-                    ? Shimmer.fromColors(
-                        baseColor: Colors.grey.shade300,
-                        highlightColor: Colors.grey.shade100,
-                        child: Container(
-                          width: 50.w,
-                          height: 24.h,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4.r),
+                    SizedBox(width: 14.w),
+                    isAiLoading
+                        ? Shimmer.fromColors(
+                            baseColor: Colors.grey.shade300,
+                            highlightColor: Colors.grey.shade100,
+                            child: Container(
+                              width: 50.w,
+                              height: 24.h,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4.r),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            width: 50.w,
+                            padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFA81D06),
+                              borderRadius: BorderRadius.circular(4.r),
+                            ),
+                            child: Text(
+                              aiUnder ?? '-',
+                              style: AppTextStyles.bodySmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.sp,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                        ),
-                      )
-                    : Container(
-                        width: 50.w,
-                        padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFA81D06),
-                          borderRadius: BorderRadius.circular(4.r),
-                        ),
-                        child: Text(
-                          aiUnder ?? '-',
-                          style: AppTextStyles.bodySmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12.sp,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                ],
-              ),
-            ],
-          ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1175,7 +1224,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
               playerName,
               style: AppTextStyles.bodySmall?.copyWith(
                 color: Colors.black,
-                fontWeight: FontWeight.w400,
+                fontWeight: FontWeight.w700,
                 fontSize: 13.sp,
               ),
               maxLines: 1,
@@ -1518,150 +1567,150 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
           Padding(
             padding: EdgeInsets.only(right: 16.w),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 54.w,
-                    child: Text(
-                      'Sportsbook',
-                      style: AppTextStyles.bodySmall?.copyWith(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 54.w,
+                      child: Text(
+                        'Sportsbook',
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: const Color(0xFF3CB043),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(width: 14.w),
+                    SizedBox(
+                      width: 54.w,
+                      child: Text(
+                        'Sportsbook',
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: const Color(0xFF3CB043),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4.h),
+                Row(
+                  children: [
+                    Container(
+                      width: 50.w,
+                      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                      decoration: BoxDecoration(
                         color: const Color(0xFF3CB043),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10.sp,
+                        borderRadius: BorderRadius.circular(4.r),
                       ),
-                      textAlign: TextAlign.center,
+                      child: Text(
+                        sportsbookOver,
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
-                  SizedBox(width: 14.w),
-                  SizedBox(
-                    width: 54.w,
-                    child: Text(
-                      'Sportsbook',
-                      style: AppTextStyles.bodySmall?.copyWith(
+                    SizedBox(width: 14.w),
+                    Container(
+                      width: 50.w,
+                      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                      decoration: BoxDecoration(
                         color: const Color(0xFF3CB043),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10.sp,
+                        borderRadius: BorderRadius.circular(4.r),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 4.h),
-              Row(
-                children: [
-                  Container(
-                    width: 50.w,
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3CB043),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Text(
-                      sportsbookOver,
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.sp,
+                      child: Text(
+                        sportsbookUnder,
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.sp,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  SizedBox(width: 14.w),
-                  Container(
-                    width: 50.w,
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3CB043),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Text(
-                      sportsbookUnder,
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.sp,
+                  ],
+                ),
+                SizedBox(height: 8.h),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 54.w,
+                      child: Text(
+                        'AI',
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: const Color(0xFFA81D06),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.sp,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 8.h),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 54.w,
-                    child: Text(
-                      'AI',
-                      style: AppTextStyles.bodySmall?.copyWith(
+                    SizedBox(width: 14.w),
+                    SizedBox(
+                      width: 54.w,
+                      child: Text(
+                        'AI',
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: const Color(0xFFA81D06),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4.h),
+                Row(
+                  children: [
+                    Container(
+                      width: 50.w,
+                      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                      decoration: BoxDecoration(
                         color: const Color(0xFFA81D06),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10.sp,
+                        borderRadius: BorderRadius.circular(4.r),
                       ),
-                      textAlign: TextAlign.center,
+                      child: Text(
+                        aiOver,
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
-                  SizedBox(width: 14.w),
-                  SizedBox(
-                    width: 54.w,
-                    child: Text(
-                      'AI',
-                      style: AppTextStyles.bodySmall?.copyWith(
+                    SizedBox(width: 14.w),
+                    Container(
+                      width: 50.w,
+                      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
+                      decoration: BoxDecoration(
                         color: const Color(0xFFA81D06),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10.sp,
+                        borderRadius: BorderRadius.circular(4.r),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 4.h),
-              Row(
-                children: [
-                  Container(
-                    width: 50.w,
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFA81D06),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Text(
-                      aiOver,
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.sp,
+                      child: Text(
+                        aiUnder,
+                        style: AppTextStyles.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.sp,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  SizedBox(width: 14.w),
-                  Container(
-                    width: 50.w,
-                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFA81D06),
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                    child: Text(
-                      aiUnder,
-                      style: AppTextStyles.bodySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

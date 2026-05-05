@@ -281,7 +281,7 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   Future<void> _checkLoginAndNavigate() async {
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 3));
 
     final token = await SharedPreferencesHelper.getAccessToken();
     print(' 🔑 Retrieved Token:-------------------------- $token');

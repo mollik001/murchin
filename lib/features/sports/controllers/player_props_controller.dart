@@ -37,13 +37,18 @@ class PlayerPropsController extends GetxController {
   Future<void> fetchPlayerProps({
     required String eventId,
     required String platform,
+    bool isMlb = false,
   }) async {
     try {
       isLoading.value = true;
       print('=== Fetching Player Props ===');
-      print('Event ID: $eventId, Platform: $platform');
+      print('Event ID: $eventId, Platform: $platform, isMlb: $isMlb');
 
-      final url = '${Urls.baseUrl}/api/trade/sportsbook-players-data/$eventId/$platform/';
+      final endpoint = isMlb 
+          ? 'api/trade/mlb-players-data' 
+          : 'api/trade/sportsbook-players-data';
+          
+      final url = '${Urls.baseUrl}/$endpoint/$eventId/$platform/';
       print('URL: $url');
 
       final response = await http.get(Uri.parse(url));
@@ -69,65 +74,52 @@ class PlayerPropsController extends GetxController {
   /// Get display title for category
   String getCategoryTitle(String category) {
     switch (category) {
-      case 'First_Basket':
-        return 'First Basket';
-      case 'First_team_basket_scorer':
-        return 'First Team Basket Scorer';
-      case 'To_Score_10_Plus_Points':
-        return 'To Score 10+ Points';
-      case 'To_Score_25_Plus_Points':
-        return 'To Score 25+ Points';
-      case 'Five_Plus_Made_Threes':
-        return '5+ Made Threes';
-      case 'To_record_10_Plus_Rebounds':
-        return 'To Record 10+ Rebounds';
-      case 'To_record_10_Plus_Assist':
-        return 'To Record 10+ Assists';
-      case 'Player_Points':
-        return 'Player Points';
-      case 'Player_Made_Threes':
-        return 'Player Made Threes';
-      case 'Player_Rebounds':
-        return 'Player Rebounds';
-      case 'Player_Assists':
-        return 'Player Assists';
-      case 'Player_pts_plus_rebound':
-        return 'Player Pts + Rebound';
-      case 'Player_pts_plus_ast':
-        return 'Player Pts + Ast';
-      case 'Player_reb_plus_ast':
-        return 'Player Reb + Ast';
-      case 'To_record_a_triple_double':
-        return 'To Record a Triple Double';
-      default:
-        return category;
+      case 'First_Basket': return 'First Basket';
+      case 'First_team_basket_scorer': return 'First Team Basket Scorer';
+      case 'To_Score_10_Plus_Points': return 'To Score 10+ Points';
+      case 'To_Score_25_Plus_Points': return 'To Score 25+ Points';
+      case 'Five_Plus_Made_Threes': return '5+ Made Threes';
+      case 'To_record_10_Plus_Rebounds': return 'To Record 10+ Rebounds';
+      case 'To_record_10_Plus_Assist': return 'To Record 10+ Assists';
+      case 'Player_Points': return 'Player Points';
+      case 'Player_Made_Threes': return 'Player Made Threes';
+      case 'Player_Rebounds': return 'Player Rebounds';
+      case 'Player_Assists': return 'Player Assists';
+      case 'Player_pts_plus_rebound': return 'Player Pts + Rebound';
+      case 'Player_pts_plus_ast': return 'Player Pts + Ast';
+      case 'Player_reb_plus_ast': return 'Player Reb + Ast';
+      case 'To_record_a_triple_double': return 'To Record a Triple Double';
+      // MLB Categories
+      case 'batter_home_runs': return 'Batter Home Runs';
+      case 'batter_hits': return 'Batter Hits';
+      case 'batter_strikeouts': return 'Batter Strikeouts';
+      case 'batter_singles': return 'Batter Singles';
+      case 'batter_doubles': return 'Batter Doubles';
+      case 'batter_triples': return 'Batter Triples';
+      case 'totals_1st_1_innings': return 'Totals 1st 1 Inning';
+      case 'totals_1st_5_innings': return 'Totals 1st 5 Innings';
+      case 'batter_runs_scored': return 'Batter Runs Scored';
+      case 'batter_hits_runs_rbis': return 'Batter Hits+Runs+RBIs';
+      case 'batter_rbis': return 'Batter RBIs';
+      case 'batter_stolen_bases': return 'Batter Stolen Bases';
+      case 'pitcher_strikeouts': return 'Pitcher Strikeouts';
+      case 'pitcher_outs': return 'Pitcher Outs';
+      case 'pitcher_earned_runs': return 'Pitcher Earned Runs';
+      case 'pitcher_hits_allowed': return 'Pitcher Hits Allowed';
+      default: return category.replaceAll('_', ' ').capitalizeFirst ?? category;
     }
   }
 
   /// Get list of categories that have data
   List<String> getAvailableCategories() {
-    final props = _playerProps.value;
-    if (props == null) return [];
+    final propsResponse = _playerProps.value;
+    if (propsResponse == null) return [];
 
-    final categories = <String>[];
-    
-    if (props.firstBasket.isNotEmpty) categories.add('First_Basket');
-    if (props.firstTeamBasketScorer.isNotEmpty) categories.add('First_team_basket_scorer');
-    if (props.toScore10PlusPoints.isNotEmpty) categories.add('To_Score_10_Plus_Points');
-    if (props.toScore25PlusPoints.isNotEmpty) categories.add('To_Score_25_Plus_Points');
-    if (props.fivePlusMadeThrees.isNotEmpty) categories.add('Five_Plus_Made_Threes');
-    if (props.toRecord10PlusRebounds.isNotEmpty) categories.add('To_record_10_Plus_Rebounds');
-    if (props.toRecord10PlusAssist.isNotEmpty) categories.add('To_record_10_Plus_Assist');
-    if (props.playerPoints.isNotEmpty) categories.add('Player_Points');
-    if (props.playerMadeThrees.isNotEmpty) categories.add('Player_Made_Threes');
-    if (props.playerRebounds.isNotEmpty) categories.add('Player_Rebounds');
-    if (props.playerAssists.isNotEmpty) categories.add('Player_Assists');
-    if (props.playerPtsPlusRebound.isNotEmpty) categories.add('Player_pts_plus_rebound');
-    if (props.playerPtsPlusAst.isNotEmpty) categories.add('Player_pts_plus_ast');
-    if (props.playerRebPlusAst.isNotEmpty) categories.add('Player_reb_plus_ast');
-    if (props.toRecordATripleDouble.isNotEmpty) categories.add('To_record_a_triple_double');
-
-    return categories;
+    // Filter categories that actually have data (not empty maps)
+    return propsResponse.props.entries
+        .where((entry) => entry.value.isNotEmpty)
+        .map((entry) => entry.key)
+        .toList();
   }
 
   /// Clear player props data
@@ -139,6 +131,7 @@ class PlayerPropsController extends GetxController {
   Future<Map<String, String>?> fetchAiForPlayerProps({
     required String category,
     required List<String> teamNames,
+    bool isMlb = false,
   }) async {
     try {
       final propsData = _playerProps.value?.getPropsByCategory(category);
@@ -151,19 +144,38 @@ class PlayerPropsController extends GetxController {
       final playerNames = <String>[];
       final playerValues = <int>[];
 
-      for (var entry in propsData.entries) {
-        final playerName = entry.key;
-        final playerData = entry.value;
+      // Special handling for MLB Inning Totals: Treat as separate Type 1 entries
+      final bool isInningTotal = isMlb && (category == 'totals_1st_1_innings' || category == 'totals_1st_5_innings');
 
-        // Get sportsbook value (result or over)
-        final sportsbookValue = PlayerPropsResponse.getSportsbookValue(playerData);
-        if (sportsbookValue != null && sportsbookValue != '-') {
-          // Remove '+' and parse
-          final cleanValue = sportsbookValue.replaceAll('+', '');
-          final parsedValue = int.tryParse(cleanValue);
-          if (parsedValue != null) {
-            playerNames.add(playerName);
-            playerValues.add(parsedValue);
+      if (isInningTotal) {
+        // Doc says: Take over as one player "Over" and under as another "Under"
+        final overVal = propsData['over']?.toString().replaceAll('+', '');
+        final underVal = propsData['under']?.toString().replaceAll('+', '');
+        
+        if (overVal != null) {
+          playerNames.add('Over');
+          playerValues.add(int.tryParse(overVal) ?? 0);
+        }
+        if (underVal != null) {
+          playerNames.add('Under');
+          playerValues.add(int.tryParse(underVal) ?? 0);
+        }
+      } else {
+        // Standard Player Mapping
+        for (var entry in propsData.entries) {
+          final playerName = entry.key;
+          final playerData = entry.value;
+
+          // Get sportsbook value (result or over)
+          final sportsbookValue = PlayerPropsResponse.getSportsbookValue(playerData);
+          if (sportsbookValue != null && sportsbookValue != '-') {
+            // Remove '+' and parse
+            final cleanValue = sportsbookValue.replaceAll('+', '');
+            final parsedValue = int.tryParse(cleanValue);
+            if (parsedValue != null) {
+              playerNames.add(playerName);
+              playerValues.add(parsedValue);
+            }
           }
         }
       }
@@ -171,12 +183,13 @@ class PlayerPropsController extends GetxController {
       // Skip if no valid players
       if (playerNames.isEmpty || playerValues.isEmpty) {
         print('No valid players with values for category: $category');
+        markAiLoaded(category); // Mark as loaded to stop shimmer
         return null;
       }
 
       // Get endpoint and title for this category
-      final endpoint = PlayerPropsResponse.getEndpointForCategory(category);
-      final title = PlayerPropsResponse.getTitleForCategory(category);
+      final endpoint = PlayerPropsResponse.getEndpointForCategory(category, isMlb: isMlb);
+      final title = PlayerPropsResponse.getTitleForCategory(category, isMlb: isMlb);
 
       // Build request body
       final requestBody = {
@@ -186,11 +199,11 @@ class PlayerPropsController extends GetxController {
         'player_values': playerValues,
       };
 
-      final url = '${Urls.aiBaseUrl}$endpoint';
+      final mlbBaseUrl = 'https://ai.pickfair.ai/api/v1/mlb';
+      final url = '${isMlb ? mlbBaseUrl : Urls.aiBaseUrl}$endpoint';
 
-      print('=== Fetching AI for Player Props ===');
-      print('Category: $category');
-      print('Endpoint: $endpoint');
+      print('=== Fetching AI for Player Props (Type 1) ===');
+      print('Category: $category, MLB: $isMlb');
       print('URL: $url');
       print('Request Body: $requestBody');
 
@@ -198,7 +211,10 @@ class PlayerPropsController extends GetxController {
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
-      );
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        print('AI API timeout for $category');
+        return http.Response('{"error": "timeout"}', 408);
+      });
 
       print('AI Response Status: ${response.statusCode}');
 
@@ -210,16 +226,14 @@ class PlayerPropsController extends GetxController {
           // Map AI predictions to player names
           final aiValues = <String, String>{};
           for (int i = 0; i < playerNames.length; i++) {
-            final aiValue = aiPrediction[i].toString();
-            aiValues[playerNames[i]] = aiValue;
+            final val = aiPrediction[i] is int ? aiPrediction[i] : (aiPrediction[i] as num).toInt();
+            aiValues[playerNames[i]] = (val > 0 ? '+' : '') + val.toString();
           }
 
           print('AI Predictions for $category: $aiValues');
 
           // Cache the predictions
-          _aiPredictions[category] = aiValues.map((key, value) => 
-            MapEntry(key, value)
-          );
+          _aiPredictions[category] = aiValues;
           _aiPredictions.refresh();
           
           // Mark this category as loaded
@@ -228,45 +242,18 @@ class PlayerPropsController extends GetxController {
           return aiValues;
         } else {
           print('AI prediction length mismatch or null');
+          markAiLoaded(category);
         }
       } else {
         print('AI API failed with status: ${response.statusCode}');
+        markAiLoaded(category);
       }
 
       return null;
     } catch (e) {
       print('Error fetching AI for player props: $e');
+      markAiLoaded(category); // Ensure shimmer stops on error
       return null;
-    }
-  }
-
-  /// Fetch AI for all Type 1 categories
-  Future<void> fetchAiForAllType1Categories({
-    required List<String> teamNames,
-  }) async {
-    final type1Categories = [
-      'First_Basket',
-      'First_team_basket_scorer',
-      'To_Score_10_Plus_Points',
-      'To_Score_25_Plus_Points',
-      'Five_Plus_Made_Threes',
-      'To_record_10_Plus_Rebounds',
-      'To_record_10_Plus_Assist',
-      'To_record_a_triple_double',
-    ];
-
-    final futures = <Future>[];
-
-    for (var category in type1Categories) {
-      final propsData = _playerProps.value?.getPropsByCategory(category);
-      if (propsData != null && propsData.isNotEmpty) {
-        futures.add(fetchAiForPlayerProps(category: category, teamNames: teamNames));
-      }
-    }
-
-    if (futures.isNotEmpty) {
-      await Future.wait(futures);
-      print('All Type 1 AI predictions fetched!');
     }
   }
 
@@ -274,6 +261,7 @@ class PlayerPropsController extends GetxController {
   Future<Map<String, Map<String, String>>?> fetchAiForType2PlayerProps({
     required String category,
     required List<String> teamNames,
+    bool isMlb = false,
   }) async {
     try {
       final propsData = _playerProps.value?.getPropsByCategory(category);
@@ -309,12 +297,13 @@ class PlayerPropsController extends GetxController {
       // Skip if no valid players
       if (playerNames.isEmpty || overValues.isEmpty || underValues.isEmpty) {
         print('No valid players with over/under values for category: $category');
+        markAiLoaded(category); // Mark as loaded to stop shimmer
         return null;
       }
 
       // Get endpoint and title for this category
-      final endpoint = PlayerPropsResponse.getEndpointForCategory(category);
-      final title = PlayerPropsResponse.getTitleForCategory(category);
+      final endpoint = PlayerPropsResponse.getEndpointForCategory(category, isMlb: isMlb);
+      final title = PlayerPropsResponse.getTitleForCategory(category, isMlb: isMlb);
 
       // Build request body
       final requestBody = {
@@ -325,11 +314,11 @@ class PlayerPropsController extends GetxController {
         'under_values': underValues,
       };
 
-      final url = '${Urls.aiBaseUrl}$endpoint';
+      final mlbBaseUrl = 'https://ai.pickfair.ai/api/v1/mlb';
+      final url = '${isMlb ? mlbBaseUrl : Urls.aiBaseUrl}$endpoint';
 
-      print('=== Fetching AI for Type 2 Player Props ===');
-      print('Category: $category');
-      print('Endpoint: $endpoint');
+      print('=== Fetching AI for Player Props (Type 2) ===');
+      print('Category: $category, MLB: $isMlb');
       print('URL: $url');
       print('Request Body: $requestBody');
 
@@ -337,7 +326,10 @@ class PlayerPropsController extends GetxController {
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
-      );
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        print('AI API timeout for $category');
+        return http.Response('{"error": "timeout"}', 408);
+      });
 
       print('AI Response Status: ${response.statusCode}');
 
@@ -353,9 +345,12 @@ class PlayerPropsController extends GetxController {
           // Map AI predictions to player names with over/under keys
           final aiValues = <String, Map<String, String>>{};
           for (int i = 0; i < playerNames.length; i++) {
+            final overVal = aiPredictionOver[i] is int ? aiPredictionOver[i] : (aiPredictionOver[i] as num).toInt();
+            final underVal = aiPredictionUnder[i] is int ? aiPredictionUnder[i] : (aiPredictionUnder[i] as num).toInt();
+            
             aiValues[playerNames[i]] = {
-              'over': aiPredictionOver[i].toString(),
-              'under': aiPredictionUnder[i].toString(),
+              'over': (overVal > 0 ? '+' : '') + overVal.toString(),
+              'under': (underVal > 0 ? '+' : '') + underVal.toString(),
             };
           }
 
@@ -376,91 +371,73 @@ class PlayerPropsController extends GetxController {
           return aiValues;
         } else {
           print('AI prediction length mismatch or null');
+          markAiLoaded(category);
         }
       } else {
         print('AI API failed with status: ${response.statusCode}');
+        markAiLoaded(category);
       }
 
       return null;
     } catch (e) {
       print('Error fetching AI for Type 2 player props: $e');
+      markAiLoaded(category); // Ensure shimmer stops on error
       return null;
-    }
-  }
-
-  /// Fetch AI for all Type 2 categories
-  Future<void> fetchAiForAllType2Categories({
-    required List<String> teamNames,
-  }) async {
-    final type2Categories = [
-      'Player_Points',
-      'Player_Made_Threes',
-      'Player_Rebounds',
-      'Player_Assists',
-      'Player_pts_plus_rebound',
-      'Player_pts_plus_ast',
-      'Player_reb_plus_ast',
-    ];
-
-    final futures = <Future>[];
-
-    for (var category in type2Categories) {
-      final propsData = _playerProps.value?.getPropsByCategory(category);
-      if (propsData != null && propsData.isNotEmpty) {
-        futures.add(fetchAiForType2PlayerProps(category: category, teamNames: teamNames));
-      }
-    }
-
-    if (futures.isNotEmpty) {
-      await Future.wait(futures);
-      print('All Type 2 AI predictions fetched!');
     }
   }
 
   /// Fetch AI for all categories (Type 1 + Type 2) - Auto-detects type based on data structure
   Future<void> fetchAiForAllCategories({
     required List<String> teamNames,
+    bool isMlb = false,
   }) async {
-    final allCategories = [
-      'First_Basket',
-      'First_team_basket_scorer',
-      'To_Score_10_Plus_Points',
-      'To_Score_25_Plus_Points',
-      'Five_Plus_Made_Threes',
-      'To_record_10_Plus_Rebounds',
-      'To_record_10_Plus_Assist',
-      'To_record_a_triple_double',
-      'Player_Points',
-      'Player_Made_Threes',
-      'Player_Rebounds',
-      'Player_Assists',
-      'Player_pts_plus_rebound',
-      'Player_pts_plus_ast',
-      'Player_reb_plus_ast',
-    ];
+    final availableCategories = getAvailableCategories();
 
     final futures = <Future>[];
 
-    for (var category in allCategories) {
+    for (var category in availableCategories) {
       final propsData = _playerProps.value?.getPropsByCategory(category);
       if (propsData == null || propsData.isEmpty) continue;
 
+      // Special handling for MLB Inning Totals: Always Type 1 (split into Over/Under)
+      final bool isInningTotal = isMlb && (category == 'totals_1st_1_innings' || category == 'totals_1st_5_innings');
+
+      if (isInningTotal) {
+        futures.add(fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb));
+        continue;
+      }
+
       // Auto-detect type based on data structure
       final firstPlayerData = propsData.values.first;
-      final isType2 = PlayerPropsResponse.hasOverUnder(firstPlayerData);
+      
+      // If it's a direct prop (not player mapped) and not an inning total we missed
+      final bool isDirectProp = propsData.containsKey('over') || propsData.containsKey('result');
 
-      if (isType2) {
-        // Type 2: Has over/under values
-        futures.add(fetchAiForType2PlayerProps(category: category, teamNames: teamNames));
+      if (isDirectProp) {
+        // Direct Props in MLB usually have Over/Under (Type 2) or Single (Type 1)
+        final bool hasUnder = propsData.containsKey('under');
+        if (hasUnder) {
+           // We'll treat Direct Over/Under as Type 2 but wrap it
+           // Actually, doc says totals-1st-inning is Type 2 in list API 3-21
+           // but user asked to split them into Type 1 Over/Under players.
+           // I already handled that in the isInningTotal check above.
+        } else {
+          futures.add(fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb));
+        }
       } else {
-        // Type 1: Single value
-        futures.add(fetchAiForPlayerProps(category: category, teamNames: teamNames));
+        // Player-Mapped Prop
+        final isType2 = PlayerPropsResponse.hasOverUnder(firstPlayerData);
+        if (isType2) {
+          futures.add(fetchAiForType2PlayerProps(category: category, teamNames: teamNames, isMlb: isMlb));
+        } else {
+          futures.add(fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb));
+        }
       }
     }
 
     if (futures.isNotEmpty) {
       await Future.wait(futures);
-      print('All AI predictions fetched (auto-detected types)!');
+      print('All AI predictions fetched for categories!');
     }
   }
 

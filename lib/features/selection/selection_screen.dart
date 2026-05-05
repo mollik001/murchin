@@ -34,34 +34,28 @@ class SelectionScreen extends StatelessWidget {
 
                 SizedBox(height: 50.h),
 
-                /// Title (UPDATED COLORS)
-                Text.rich(
-                  TextSpan(
-                    style: AppTextStyles.authSubtitle?.copyWith(
-                      fontSize: 22.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                /// Title
+                Column(
+                  children: [
+                    Text(
+                      'Pickfair AI mitigates',
+                      style: AppTextStyles.authSubtitle?.copyWith(
+                        fontSize: 22.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    children: [
-                      const TextSpan(
-                        text: 'Pickf',
-                        style: TextStyle(color: Color(0xFF06205B)),
+                    Text(
+                      'financial risk',
+                      style: AppTextStyles.authSubtitle?.copyWith(
+                        fontSize: 22.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
                       ),
-                      const TextSpan(
-                        text: 'ai',
-                        style: TextStyle(color: Color(0xFFCF152D)),
-                      ),
-                      const TextSpan(
-                        text: 'r',
-                        style: TextStyle(color: Color(0xFF06205B)),
-                      ),
-                      const TextSpan(
-                        text: ' AI mitigates financial risk',
-                        style: TextStyle(color: Colors.black),
-                      ),
-                    ],
-                  ),
-                  textAlign: TextAlign.center,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
 
                 SizedBox(height: 88.h),

@@ -41,7 +41,7 @@ class HomeController extends GetxController {
 
   bool sendMarketPrediction = true;
 
-  final String aiUrl = "https://abc.dsrt321.online/api/v1/prediction/predict";
+  final String aiUrl = "https://ai.pickfair.ai/api/v1/prediction/predict";
 
   static const String _cacheKey = 'cached_ai_values';
   static const String _cacheTimestampKey = 'cached_ai_values_timestamp';

@@ -25,6 +25,7 @@ class AiPredictionController extends GetxController {
     required String? moneylineHome,
     required String? totalOver,
     required String? totalUnder,
+    bool isMlb = false,
   }) async {
     // Create cache key for deduplication
     final cacheKey = '${awayTeam}_vs_${homeTeam}';
@@ -92,13 +93,16 @@ class AiPredictionController extends GetxController {
         'market_values': marketValues,
       };
 
+      final url = isMlb ? Urls.mlbAiGameLinesUrl : Urls.aiSportsbookGameLinesUrl;
+
       print("=== Fetching AI Predictions ===");
-      print("URL: ${Urls.aiSportsbookGameLinesUrl}");
+      print("Type: ${isMlb ? 'MLB' : 'NBA/General'}");
+      print("URL: $url");
       print("Request Body: $requestBody");
 
       // Mark request as pending
       final future = _httpClient.post(
-        Uri.parse(Urls.aiSportsbookGameLinesUrl),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Connection': 'keep-alive',
@@ -159,8 +163,8 @@ class AiPredictionController extends GetxController {
             final homeValue = aiMoneyline[1] is int
                 ? aiMoneyline[1]
                 : (aiMoneyline[1] as num).toInt();
-            aiMoneylineAwayValue = awayValue.toString();
-            aiMoneylineHomeValue = homeValue.toString();
+            aiMoneylineAwayValue = (awayValue > 0 ? '+' : '') + awayValue.toString();
+            aiMoneylineHomeValue = (homeValue > 0 ? '+' : '') + homeValue.toString();
           }
 
           // Format totals values
@@ -202,6 +206,7 @@ class AiPredictionController extends GetxController {
     required String? moneylineHome,
     required String? totalOver,
     required String? totalUnder,
+    bool isMlb = false,
     int maxRetries = 2,
   }) async {
     int attempt = 0;
@@ -217,6 +222,7 @@ class AiPredictionController extends GetxController {
         moneylineHome: moneylineHome,
         totalOver: totalOver,
         totalUnder: totalUnder,
+        isMlb: isMlb,
       );
 
       if (result != null) {

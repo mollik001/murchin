@@ -4,33 +4,23 @@ class SportsbookResponse {
   final int count;
   final String? next;
   final String? previous;
-  final SportsbookResults results;
+  final List<SportsbookEvent> events;
 
   SportsbookResponse({
-    required this.count,
+    this.count = 0,
     this.next,
     this.previous,
-    required this.results,
+    required this.events,
   });
 
   factory SportsbookResponse.fromJson(Map<String, dynamic> json) {
+    // API returns events directly at root level, not nested in 'results'
+    final eventsList = json['events'] as List<dynamic>? ?? 
+                       json['results']?['events'] as List<dynamic>? ?? [];
     return SportsbookResponse(
-      count: json['count'] ?? 0,
+      count: json['count'] ?? eventsList.length,
       next: json['next'] as String?,
       previous: json['previous'] as String?,
-      results: SportsbookResults.fromJson(json['results'] ?? {}),
-    );
-  }
-}
-
-class SportsbookResults {
-  final List<SportsbookEvent> events;
-
-  SportsbookResults({required this.events});
-
-  factory SportsbookResults.fromJson(Map<String, dynamic> json) {
-    final eventsList = json['events'] as List<dynamic>? ?? [];
-    return SportsbookResults(
       events: eventsList.map((e) => SportsbookEvent.fromJson(e)).toList(),
     );
   }
@@ -64,13 +54,13 @@ class SportsbookEvent {
   factory SportsbookEvent.fromJson(Map<String, dynamic> json) {
     final bookmarkList = json['bookmark'] as List<dynamic>? ?? [];
     return SportsbookEvent(
-      eventId: json['event_id'] ?? '',
+      eventId: json['event_id']?.toString() ?? '',
       bookmark: bookmarkList.map((b) => Bookmark.fromJson(b)).toList(),
       date: json['date'] ?? '',
       homeTeam: json['home_team'] ?? '',
       awayTeam: json['away_team'] ?? '',
-      aiPercentage: json['ai_percentage'] as String?,
-      aiExplanation: json['ai_explanation'] as String?,
+      aiPercentage: json['ai_percentage']?.toString(),
+      aiExplanation: json['ai_explanation']?.toString(),
       optionTitles: json['option_titles'] != null ? List<String>.from(json['option_titles']) : null,
       marketProbs: json['market_probs'] != null ? List<double>.from(json['market_probs']) : null,
       aiPercentages: json['ai_percentages'] != null ? List<double>.from(json['ai_percentages']) : null,
@@ -153,13 +143,13 @@ class Bookmark {
       market: marketList.map((m) => Market.fromJson(m)).toList(),
       marketTitle: json['market_title'] ?? '',
       link: json['link'] ?? '',
-      event: json['event'] ?? '',
-      aiSpreadAway: json['ai_spread_away'] as String?,
-      aiSpreadHome: json['ai_spread_home'] as String?,
-      aiMoneylineAway: json['ai_moneyline_away'] as String?,
-      aiMoneylineHome: json['ai_moneyline_home'] as String?,
-      aiTotalOver: json['ai_total_over'] as String?,
-      aiTotalUnder: json['ai_total_under'] as String?,
+      event: json['event']?.toString() ?? '',
+      aiSpreadAway: json['ai_spread_away']?.toString(),
+      aiSpreadHome: json['ai_spread_home']?.toString(),
+      aiMoneylineAway: json['ai_moneyline_away']?.toString(),
+      aiMoneylineHome: json['ai_moneyline_home']?.toString(),
+      aiTotalOver: json['ai_total_over']?.toString(),
+      aiTotalUnder: json['ai_total_under']?.toString(),
     );
   }
 
@@ -279,7 +269,7 @@ class TeamOdds {
 
   factory TeamOdds.fromJson(Map<String, dynamic> json) {
     return TeamOdds(
-      american: json['american'] ?? '',
+      american: json['american']?.toString() ?? '',
     );
   }
 
@@ -299,7 +289,7 @@ class TotalOdds {
   factory TotalOdds.fromJson(Map<String, dynamic> json) {
     return TotalOdds(
       point: (json['point'] ?? 0).toDouble(),
-      american: json['american'] ?? '',
+      american: json['american']?.toString() ?? '',
     );
   }
 

@@ -43,33 +43,15 @@ class SignInPage extends StatelessWidget {
                 SizedBox(height: 60.h),
 
                 /// Title
-               Text.rich(
-  TextSpan(
-    style: AppTextStyles.authSubtitle?.copyWith(
-      fontSize: 24.sp,
-      fontWeight: FontWeight.w700,
-      color: Colors.black,
-    ),
-    children: [
-      const TextSpan(
-        text: 'Welcome to ',
-      ),
-      const TextSpan(
-        text: 'Pickf',
-        style: TextStyle(color: Color(0xFF06205B)),
-      ),
-      const TextSpan(
-        text: 'ai',
-        style: TextStyle(color: Color(0xFFCF152D)),
-      ),
-      const TextSpan(
-        text: 'r',
-        style: TextStyle(color: Color(0xFF06205B)),
-      ),
-    ],
-  ),
-  textAlign: TextAlign.center,
-),
+                Text(
+                  'Welcome to Pickfair AI',
+                  style: AppTextStyles.authSubtitle?.copyWith(
+                    fontSize: 24.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
 
                 SizedBox(height: 16.h),
 

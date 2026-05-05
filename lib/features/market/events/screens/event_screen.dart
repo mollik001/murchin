@@ -10,6 +10,7 @@ import 'package:murchin/const/theme/app_theme.dart';
 import 'package:murchin/const/widgets/custom_appbar.dart';
 import 'package:murchin/features/market/home/controllers/home_controller.dart';
 import 'package:murchin/features/market/home/screens/card_details_screen.dart';
+import 'package:shimmer/shimmer.dart';
 
 class EventScreen extends StatefulWidget {
   const EventScreen({super.key});
@@ -20,6 +21,7 @@ class EventScreen extends StatefulWidget {
 
 class _EventScreenState extends State<EventScreen> {
   final EventsController controller = Get.put(EventsController());
+  late final HomeController homeController;
   final ScrollController _scrollController = ScrollController();
 
   final Color unselectedBgColor = const Color(0xFF8D9AB1);
@@ -29,6 +31,12 @@ class _EventScreenState extends State<EventScreen> {
   @override
   void initState() {
     super.initState();
+    // Get or create HomeController
+    if (Get.isRegistered<HomeController>()) {
+      homeController = Get.find<HomeController>();
+    } else {
+      homeController = Get.put(HomeController());
+    }
     _scrollController.addListener(_onScroll);
   }
 
@@ -42,7 +50,7 @@ class _EventScreenState extends State<EventScreen> {
     final platform = controller.selectedPlatform.value;
     final maxScroll = _scrollController.position.maxScrollExtent;
     final currentScroll = _scrollController.position.pixels;
-    
+
     print('=== Scroll Debug ===');
     print('Platform: $platform');
     print('Current scroll: $currentScroll');
@@ -65,6 +73,50 @@ class _EventScreenState extends State<EventScreen> {
         controller.loadKalshiNextPage();
       }
     }
+  }
+
+  Widget _buildSearchBar() {
+    return Obx(() {
+      final hasText = homeController.searchController.text.isNotEmpty;
+      final isSearching = homeController.isSearching.value;
+      return Container(
+        height: 42.h,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(25.r),
+          border: Border.all(color: const Color(0xffE6E6E6)),
+        ),
+        child: Row(
+          children: [
+            Padding(
+              padding: EdgeInsets.only(left: 16.w, right: 12.w),
+              child: Image.asset('assets/icons/search.png', width: 20.w),
+            ),
+            Expanded(
+              child: TextField(
+                controller: homeController.searchController,
+                decoration: InputDecoration(
+                  hintText: isSearching ? 'Searching...' : 'Search',
+                  border: InputBorder.none,
+                ),
+                onChanged: homeController.onSearchQueryChanged,
+              ),
+            ),
+            if (hasText)
+              GestureDetector(
+                onTap: homeController.clearSearch,
+                child: Padding(
+                  padding: EdgeInsets.only(right: 12.w),
+                  child: Icon(
+                    Icons.clear,
+                    size: 18.sp,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    });
   }
 
   Map<String, dynamic> _buildFilteredOptions(Map<String, dynamic> e) {
@@ -177,6 +229,11 @@ class _EventScreenState extends State<EventScreen> {
           SizedBox(height: 20.h),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: _buildSearchBar(),
+          ),
+          SizedBox(height: 20.h),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Column(
               children: [
                 _buildSeparatePlatformTabs(),
@@ -188,19 +245,129 @@ class _EventScreenState extends State<EventScreen> {
           SizedBox(height: 16.h),
           Expanded(
             child: Obx(() {
-              if (controller.isLoading.value && controller.events.isEmpty) {
-                return const Center(child: CircularProgressIndicator());
+              // Check if there's an active search
+              if (homeController.isSearching.value) {
+                // Show search results
+                final searchResults = homeController.events;
+                
+                if (searchResults.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 40.w),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/logo.png',
+                            width: 120.w,
+                            height: 120.h,
+                            fit: BoxFit.contain,
+                            color: AppColors.gray400,
+                          ),
+                          SizedBox(height: 32.h),
+                          Text(
+                            'No search results found',
+                            style: AppTextStyles.bodyLarge?.copyWith(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 18.sp,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            'Try a different search term',
+                            style: AppTextStyles.bodyMedium?.copyWith(
+                              color: AppColors.gray600,
+                              fontSize: 14.sp,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 24.h),
+                          GestureDetector(
+                            onTap: homeController.clearSearch,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 32.w, vertical: 12.h),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(24.r),
+                              ),
+                              child: Text(
+                                'Clear Search',
+                                style: AppTextStyles.bodyMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14.sp,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  itemCount: searchResults.length,
+                  itemBuilder: (context, index) {
+                    final event = searchResults[index];
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: 16.h),
+                      child: _buildSearchResultCard(event),
+                    );
+                  },
+                );
               }
 
-              if (controller.events.isEmpty && controller.kalshiEvents.isEmpty) {
+              if (controller.isLoading.value && controller.events.isEmpty && controller.kalshiEvents.isEmpty) {
+                // Show loading state
                 return Center(
-                  child: Text(
-                    'No events found',
-                    style: AppTextStyles.bodyLarge?.copyWith(
-                      color: AppColors.gray600,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 60.w,
+                        height: 60.h,
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                          strokeWidth: 3.w,
+                        ),
+                      ),
+                      SizedBox(height: 24.h),
+                      Text(
+                        'Loading events...',
+                        style: AppTextStyles.bodyLarge?.copyWith(
+                          color: AppColors.gray600,
+                          fontSize: 16.sp,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Text(
+                        'Please wait',
+                        style: AppTextStyles.bodyMedium?.copyWith(
+                          color: AppColors.gray500,
+                          fontSize: 14.sp,
+                        ),
+                      ),
+                    ],
                   ),
                 );
+              }
+
+              // Check if data loaded but no events to show for the selected platform
+              final isNotLoading = !controller.isLoading.value;
+              final platform = controller.selectedPlatform.value;
+              final hasNoEvents = platform == 1 
+                  ? controller.events.isEmpty  // Polymarket tab
+                  : platform == 2 
+                      ? controller.kalshiEvents.isEmpty  // Kalshi tab
+                      : controller.events.isEmpty && controller.kalshiEvents.isEmpty;  // All tab
+              
+              if (isNotLoading && hasNoEvents) {
+                return _buildEmptyState();
               }
 
               return RefreshIndicator(
@@ -221,10 +388,12 @@ class _EventScreenState extends State<EventScreen> {
                         _buildFeaturedCard(),
                         SizedBox(height: 24.h),
                         _buildCardsList(),
-                        if (controller.isPolymarketLoading.value || controller.isKalshiLoading.value)
+                        if (controller.isPolymarketLoading.value ||
+                            controller.isKalshiLoading.value)
                           const Padding(
                             padding: EdgeInsets.all(16),
-                            child: Center(child: CircularProgressIndicator()),
+                            child:
+                                Center(child: CircularProgressIndicator()),
                           ),
                         SizedBox(height: 40.h),
                       ],
@@ -235,6 +404,80 @@ class _EventScreenState extends State<EventScreen> {
             }),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResultCard(Map<String, dynamic> event) {
+    final isKalshi = event['market_place'] == 'Kalshi';
+    final marketPercent =
+        double.tryParse(event['marketPercentage']?.replaceAll('%', '') ?? '0') ??
+            0;
+    final marketPercentDecimal = marketPercent / 100;
+
+    return GestureDetector(
+      onTap: () => _navigateToDetail(event),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: AppColors.gray300 ?? Colors.grey[300]!,
+            width: 1.w,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _buildPlatformTag(isKalshi),
+                const Spacer(),
+                Icon(
+                  Icons.chevron_right,
+                  size: 24.w,
+                  fontWeight: FontWeight.w700,
+                ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+            Text(
+              event['title'] ?? '',
+              style: AppTextStyles.bodyLarge?.copyWith(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+                fontSize: 16.sp,
+              ),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              'Top pick : ${event['team'] ?? 'N/A'}',
+              style: AppTextStyles.bodySmall?.copyWith(
+                color: const Color(0xffDC732D),
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 16.h),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Market : ${event['marketPercentage'] ?? '0%'}',
+                  style: AppTextStyles.bodySmall?.copyWith(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.sp,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                _buildMarketSlider(marketPercentDecimal),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -330,6 +573,12 @@ class _EventScreenState extends State<EventScreen> {
   Widget _buildFeaturedCard() {
     return Obx(() {
       final events = _getCurrentEvents();
+      
+      // Show shimmer loading state while data is loading
+      if (events.isEmpty && controller.isLoading.value) {
+        return _buildFeaturedCardShimmer();
+      }
+      
       if (events.isEmpty) {
         return const SizedBox.shrink();
       }
@@ -389,6 +638,130 @@ class _EventScreenState extends State<EventScreen> {
         ),
       );
     });
+  }
+
+  Widget _buildFeaturedCardShimmer() {
+    return Container(
+      width: double.infinity,
+      height: 123.h,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12.r),
+        image: const DecorationImage(
+          image: AssetImage('assets/images/gradient_bg2.png'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(16.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Shimmer.fromColors(
+              baseColor: Colors.white.withOpacity(0.3),
+              highlightColor: Colors.white.withOpacity(0.5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 200.w,
+                    height: 16.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Container(
+                    width: 120.w,
+                    height: 12.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Shimmer.fromColors(
+              baseColor: Colors.white.withOpacity(0.3),
+              highlightColor: Colors.white.withOpacity(0.5),
+              child: Row(
+                children: [
+                  Container(
+                    width: 80.w,
+                    height: 12.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 24.w,
+                    height: 12.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build empty state widget for when no events are available
+  Widget _buildEmptyState() {
+    final platform = controller.selectedPlatform.value;
+    final category = controller.selectedCategory.value;
+    
+    String platformText = 'All Platforms';
+    if (platform == 1) {
+      platformText = 'Polymarket';
+    } else if (platform == 2) {
+      platformText = 'Kalshi';
+    }
+
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 40.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/images/logo.png',
+              width: 120.w,
+              height: 120.h,
+              fit: BoxFit.contain,
+              color: AppColors.gray400,
+            ),
+            SizedBox(height: 32.h),
+            Text(
+              'No events available',
+              style: AppTextStyles.bodyLarge?.copyWith(
+                color: Colors.black,
+                fontWeight: FontWeight.w600,
+                fontSize: 18.sp,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              'No upcoming events found for\n$platformText in $category',
+              style: AppTextStyles.bodyMedium?.copyWith(
+                color: AppColors.gray600,
+                fontSize: 14.sp,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<Map<String, dynamic>> _getCurrentEvents() {
@@ -715,6 +1088,26 @@ class EventsController extends GetxController {
     }
   }
 
+  /// Helper method to check if a date string is today or in the future
+  /// Returns true if the date is today or upcoming, false if it's in the past
+  bool _isCurrentOrUpcomingDate(String dateStr) {
+    try {
+      // Parse the date string (handles ISO 8601 format)
+      final eventDate = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      
+      // Compare only the date parts (ignore time)
+      final eventDateOnly = DateTime(eventDate.year, eventDate.month, eventDate.day);
+      final nowDateOnly = DateTime(now.year, now.month, now.day);
+      
+      return eventDateOnly.isAtSameMomentAs(nowDateOnly) || eventDateOnly.isAfter(nowDateOnly);
+    } catch (e) {
+      // If parsing fails, include the event to be safe
+      print("Error parsing date '$dateStr': $e");
+      return true;
+    }
+  }
+
   Future<void> fetchPolymarketEvents({String category = 'Trending'}) async {
     isLoading.value = true;
 
@@ -774,8 +1167,8 @@ class EventsController extends GetxController {
           categoryParam = 'trending';
       }
 
-      final url = 'https://pickfair.dsrt321.online/api/trade/polymarket-event-list/?catagory=$categoryParam';
-      
+      final url = 'https://api.pickfair.ai/api/trade/polymarket-event-list/?catagory=$categoryParam';
+
       print("=== Events Screen: Fetching Polymarket ===");
       print("Category: $category");
       print("Category Param: $categoryParam");
@@ -799,6 +1192,12 @@ class EventsController extends GetxController {
 
           if (event['title'] == null || event['title'].toString().isEmpty) continue;
           if (outcomes == null || outcomes.isEmpty) continue;
+
+          // Filter by date: only include current or upcoming events
+          final endDate = event['end_date']?.toString() ?? '';
+          if (endDate.isNotEmpty && !_isCurrentOrUpcomingDate(endDate)) {
+            continue; // Skip past events
+          }
 
           final validOutcomes = outcomes.where((o) {
             final title = o['group_item_title']?.toString() ?? '';
@@ -860,7 +1259,7 @@ class EventsController extends GetxController {
         _events.assignAll(tempEvents);
 
         print("=== Polymarket Events Loaded ===");
-        print("Total Events: ${_events.length}");
+        print("Total Events (after date filter): ${_events.length}");
         print("Category: $category");
         print("✅ Events screen using cached AI data only (AI fetched on detail view only)");
 
@@ -937,7 +1336,7 @@ class EventsController extends GetxController {
           categoryParam = 'trending';
       }
 
-      final url = 'https://pickfair.dsrt321.online/api/trade/kalshi-event-list/?catagory=$categoryParam';
+      final url = 'https://api.pickfair.ai/api/trade/kalshi-event-list/?catagory=$categoryParam';
       
       print("=== Events Screen: Fetching Kalshi ===");
       print("Category: $category");
@@ -965,6 +1364,12 @@ class EventsController extends GetxController {
 
           if (event['title'] == null || event['title'].toString().isEmpty) continue;
           if (outcomes == null || outcomes.isEmpty) continue;
+
+          // Filter by date: only include current or upcoming events
+          final endDate = event['end_date']?.toString() ?? '';
+          if (endDate.isNotEmpty && !_isCurrentOrUpcomingDate(endDate)) {
+            continue; // Skip past events
+          }
 
           String highestTeam = '';
           double highestProb = -1;
@@ -1030,7 +1435,7 @@ class EventsController extends GetxController {
         _kalshiEvents.assignAll(tempEvents);
         
         print("=== Kalshi Events Loaded ===");
-        print("Total Events: ${_kalshiEvents.length}");
+        print("Total Events (after date filter): ${_kalshiEvents.length}");
         print("Category: $category");
         print("✅ Events screen using cached AI data only (AI fetched on detail view only)");
         

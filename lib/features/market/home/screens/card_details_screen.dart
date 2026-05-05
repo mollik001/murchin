@@ -434,34 +434,16 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                   color: AppColors.pickfairTextColor,
                 ),
                 SizedBox(width: 12.w),
-             Expanded(
-  child: Text.rich(
-    TextSpan(
-      style: AppTextStyles.headlineMedium.copyWith(
-        fontWeight: FontWeight.w700,
-        fontSize: 14.sp,
-      ),
-      children: [
-        const TextSpan(
-          text: 'Pickf',
-          style: TextStyle(color: Color(0xFF06205B)),
-        ),
-        const TextSpan(
-          text: 'ai',
-          style: TextStyle(color: Color(0xFFCF152D)),
-        ),
-        const TextSpan(
-          text: 'r',
-          style: TextStyle(color: Color(0xFF06205B)),
-        ),
-        const TextSpan(
-          text: ' Insights',
-          style: TextStyle(color: Color(0xFF06205B)),
-        ),
-      ],
-    ),
-  ),
-),
+                Expanded(
+                  child: Text(
+                    'Pickfair Insights',
+                    style: AppTextStyles.headlineMedium.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14.sp,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
               ],
             ),
             SizedBox(height: 6.h),

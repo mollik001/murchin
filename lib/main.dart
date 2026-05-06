@@ -72,14 +72,6 @@ class MyApp extends StatelessWidget {
 }
 
 
-//onboarding selection page title double line
-//ai text color 
-//Navigation flow change
-//removing toggle from profile page
-// Terms & policy page
 
-
-//TODO:
-
- //i can not find The Memphis Grizzlies vs New York Knicks game still.
- //data handling issue with date and timel.
+// on MLB section, the sportsbook logo need to change into  MLB logo
+// on the sign in page, need to remove the 'Coming soon..' card 

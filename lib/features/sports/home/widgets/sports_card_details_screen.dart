@@ -316,7 +316,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Image.asset(
-                            'assets/images/NBA.png',
+                            widget.title.contains('MLB') ? 'assets/images/mlb.png' : 'assets/images/NBA.png',
                             width: 44.w,
                             height: 44.h,
                             fit: BoxFit.contain,
@@ -392,11 +392,11 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
 
                 SizedBox(height: 24.h),
 
-                /// NBA Section Header
+                /// Section Header
                 Row(
                   children: [
                     Text(
-                      'NBA',
+                      widget.title.contains('MLB') ? 'MLB' : 'NBA',
                       style: AppTextStyles.bodyLarge?.copyWith(
                         color: Colors.black,
                         fontWeight: FontWeight.w700,
@@ -469,14 +469,14 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                   ),
                   child: Column(
                     children: [
-                      /// Away Team Section
-                      Row(
-                        children: [
-                          Image.asset(
-                            'assets/images/NBA.png',
-                            width: 32.w,
-                            height: 32.h,
-                          ),
+/// Away Team Section
+                       Row(
+                         children: [
+                           Image.asset(
+                             widget.title.contains('MLB') ? 'assets/images/mlb.png' : 'assets/images/NBA.png',
+                             width: 32.w,
+                             height: 32.h,
+                           ),
                           SizedBox(width: 14.w),
                           Expanded(
                             child: Text(
@@ -577,14 +577,14 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
 
                       SizedBox(height: 16.h),
 
-                      /// Team 2 Section
-                      Row(
-                        children: [
-                          Image.asset(
-                            'assets/images/NBA.png',
-                            width: 32.w,
-                            height: 32.h,
-                          ),
+/// Team 2 Section
+                       Row(
+                         children: [
+                           Image.asset(
+                             widget.title.contains('MLB') ? 'assets/images/mlb.png' : 'assets/images/NBA.png',
+                             width: 32.w,
+                             height: 32.h,
+                           ),
                           SizedBox(width: 14.w),
                           Expanded(
                             child: Text(

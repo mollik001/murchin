@@ -3,10 +3,10 @@ import 'package:image/image.dart' as img;
 
 void main() async {
   // Read the original image
-  final originalImage = File('assets/images/name.png');
+  final originalImage = File('assets/images/name_2.png');
   
   if (!await originalImage.exists()) {
-    print('Error: Original image not found at assets/images/name.png');
+    print('Error: Original image not found at assets/images/name_2.png');
     exit(1);
   }
 

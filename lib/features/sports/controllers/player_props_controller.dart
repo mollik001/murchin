@@ -406,7 +406,7 @@ class PlayerPropsController extends GetxController {
         futures.add(fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb));
         continue;
       }
-
+      
       // Auto-detect type based on data structure
       final firstPlayerData = propsData.values.first;
       

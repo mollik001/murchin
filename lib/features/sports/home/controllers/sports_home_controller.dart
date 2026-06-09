@@ -1196,9 +1196,11 @@ class SportsHomeController extends GetxController {
               bool wasActuallySaved = false;
               switch (marketPlace) {
                 case 'FanDuel':
+                case 'Fanduel':
                   wasActuallySaved = savedFanduelIds.contains(eventId);
                   break;
                 case 'DraftKings':
+                case 'Draftkings':
                   wasActuallySaved = savedDraftkingsIds.contains(eventId);
                   break;
                 case 'BetMGM':
@@ -1213,6 +1215,7 @@ class SportsHomeController extends GetxController {
               print('💾 Adding saved event: eventId=$eventId, marketPlace=$marketPlace, title=${event['title']}');
               switch (marketPlace) {
                 case 'FanDuel':
+                case 'Fanduel':
                   _savedFanduelEventIds.add(eventId);
                   _savedFanduelEvents.add({
                     'event_id': eventId,
@@ -1228,6 +1231,7 @@ class SportsHomeController extends GetxController {
                   print('💾 FD event added, event_id=${_savedFanduelEvents.last['event_id']}');
                   break;
                 case 'DraftKings':
+                case 'Draftkings':
                   _savedDraftkingsEventIds.add(eventId);
                   _savedDraftkingsEvents.add({
                     'event_id': eventId,
@@ -1708,6 +1712,7 @@ class SportsHomeController extends GetxController {
         // Update local state and notify listeners
         switch (marketPlace) {
           case 'FanDuel':
+          case 'Fanduel':
             print('💾 Adding to FanDuel saved: $eventId');
             if (!_savedFanduelEventIds.contains(eventId)) {
               _savedFanduelEventIds.add(eventId);
@@ -1717,6 +1722,7 @@ class SportsHomeController extends GetxController {
             }
             break;
           case 'DraftKings':
+          case 'Draftkings':
             print('💾 Adding to DraftKings saved: $eventId');
             if (!_savedDraftkingsEventIds.contains(eventId)) {
               _savedDraftkingsEventIds.add(eventId);

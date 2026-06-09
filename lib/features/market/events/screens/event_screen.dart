@@ -223,7 +223,7 @@ class _EventScreenState extends State<EventScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: CustomAppBar(imageAsset: 'assets/images/name.png'),
+      appBar: CustomAppBar(imageAsset: 'assets/images/name_2.png'),
       body: Column(
         children: [
           SizedBox(height: 20.h),
@@ -258,7 +258,7 @@ class _EventScreenState extends State<EventScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Image.asset(
-                            'assets/images/logo.png',
+                            'assets/images/logo_2.jpg',
                             width: 120.w,
                             height: 120.h,
                             fit: BoxFit.contain,
@@ -733,7 +733,7 @@ class _EventScreenState extends State<EventScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/images/logo.png',
+              'assets/images/logo_2.png',
               width: 120.w,
               height: 120.h,
               fit: BoxFit.contain,

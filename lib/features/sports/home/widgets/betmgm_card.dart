@@ -145,7 +145,7 @@ class BetmgmCard extends StatelessWidget {
         platformTagBgColor: platformTagBgColor,
         platformTagBorderColor: platformTagBorderColor,
         platform: platform,
-        iconAsset: 'assets/images/NBA.png',
+        iconAsset: title.contains('MLB') ? 'assets/images/mlb.png' : 'assets/images/NBA.png',
         initiallySaved: isSaved,
         eventId: eventId,
         showBookmark: showBookmark,

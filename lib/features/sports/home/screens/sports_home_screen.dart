@@ -81,7 +81,7 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      //appBar: CustomAppBar(imageAsset: 'assets/images/name.png'),
+      //appBar: CustomAppBar(imageAsset: 'assets/images/name_2.png'),
       body: const SelectionScreen(),
       // COMMENTED OUT - Old homepage content replaced with SelectionScreen
       // body: Column(
@@ -504,7 +504,7 @@ class _SportsHomeScreenState extends State<SportsHomeScreen> {
   //         mainAxisAlignment: MainAxisAlignment.center,
   //         children: [
   //           Image.asset(
-  //             'assets/images/logo.png',
+  //             'assets/images/logo_2.png',
   //             width: 120.w,
   //             height: 120.h,
   //             fit: BoxFit.contain,

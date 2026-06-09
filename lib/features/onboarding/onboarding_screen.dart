@@ -55,7 +55,7 @@
 //         backgroundColor: Colors.white,
 //         body: Center(
 //           child: Image.asset(
-//             'assets/images/logo.png',
+//             'assets/images/logo_2.png',
 //             width: 200.w,
 //             height: 200.h,
 //             fit: BoxFit.contain,
@@ -107,7 +107,7 @@
 
 //     return Center(
 //       child: Image.asset(
-//         'assets/images/logo.png',
+//         'assets/images/logo_2.png',
 //         width: 420.w,
 //         height: 360.w,
 //         fit: BoxFit.contain,
@@ -129,7 +129,7 @@
 //           children: [
 //             // Top Asset
 //             Image.asset(
-//               'assets/images/name.png',
+//               'assets/images/name_2.png',
 //               width: 109.w,
 //               height: 30.w,
 //               fit: BoxFit.contain,
@@ -281,7 +281,7 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   Future<void> _checkLoginAndNavigate() async {
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 5));
 
     final token = await SharedPreferencesHelper.getAccessToken();
     print(' 🔑 Retrieved Token:-------------------------- $token');
@@ -299,8 +299,7 @@ class _LandingPageState extends State<LandingPage> {
       } else if (lastSection == 'market') {
         Get.offAll(() => MarketNavbarScreen());
       } else {
-        bool? isSportsbook =
-            await SharedPreferencesHelper.getSportsbookMode();
+        bool? isSportsbook = await SharedPreferencesHelper.getSportsbookMode();
 
         if (isSportsbook == true) {
           Get.offAll(() => SportsNavbarScreen());
@@ -327,14 +326,14 @@ class _LandingPageState extends State<LandingPage> {
             Positioned(
               top: 130.h,
               child: Image.asset(
-                'assets/images/logo.jpg',
+                'assets/images/logo_2.jpg',
                 width: 400.w,
                 height: 350.h,
                 fit: BoxFit.contain,
               ),
             ),
             Positioned(
-              top: 415.h,
+              top: 455.h,
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w),
                 child: Text(

@@ -56,7 +56,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('1. Introduction'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'Pickfair ("we", "us", "our") is an informational application that aggregates and displays odds data from third-party platforms such as Kalshi, Polymarket, FanDuel, BetMGM, and DraftKings.\nThe platform compares this data with AI-generated predictions to provide analytical insights.\nBy accessing or using Pickfair, you agree to the terms and practices described in this policy.',
+                'Pickfair AI ("we", "us", "our") is an informational application that aggregates and displays odds data from third-party platforms such as Kalshi, Polymarket, FanDuel, BetMGM, and DraftKings.\nThe platform compares this data with AI-generated predictions to provide analytical insights.\nBy accessing or using Pickfair, you agree to the terms and practices described in this policy.',
               ),
 
               SizedBox(height: 24.h),
@@ -65,7 +65,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('2. Nature of the Service'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'Pickfair is strictly an informational and analytical tool. The application:',
+                'Pickfair AI is strictly an informational and analytical tool. The application:',
               ),
               _buildBulletPoint('Displays odds data from external platforms'),
               _buildBulletPoint('Provides AI-based predictions and comparisons'),
@@ -81,7 +81,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('3. Artificial Intelligence Disclaimer'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'Pickfair uses artificial intelligence models, including GPT-4o mini, to generate predictions and insights.\nAI-generated outputs:',
+                'Pickfair AI uses artificial intelligence models, including GPT-4o mini, to generate predictions and insights.\nAI-generated outputs:',
               ),
               _buildBulletPoint('Are automatically generated'),
               _buildBulletPoint('May be inaccurate, incomplete, or outdated'),
@@ -97,7 +97,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('4. Third-Party Data Disclaimer'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'All odds and related data displayed in Pickfair are obtained from third-party platforms via APIs.\nWe do not:',
+                'All odds and related data displayed in Pickfair AI are obtained from third-party platforms via APIs.\nWe do not:',
               ),
               _buildBulletPoint('Control or influence this data'),
               _buildBulletPoint('Guarantee its accuracy, completeness, or timeliness'),
@@ -112,7 +112,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('5. No Gambling or Financial Activity'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'Pickfair does not involve gambling, betting, or real-money transactions of any kind.\nAll content is provided strictly for informational purposes.',
+                'Pickfair AI does not involve gambling, betting, or real-money transactions of any kind.\nAll content is provided strictly for informational purposes.',
               ),
 
               SizedBox(height: 24.h),
@@ -195,7 +195,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('12. Third-Party Services'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'Pickfair integrates with external platforms such as Kalshi, Polymarket, FanDuel, BetMGM, and DraftKings.\nWe are not responsible for the content, accuracy, or privacy practices of these third-party platforms.',
+                'Pickfair AI integrates with external platforms such as Kalshi, Polymarket, FanDuel, BetMGM, and DraftKings.\nWe are not responsible for the content, accuracy, or privacy practices of these third-party platforms.',
               ),
 
               SizedBox(height: 24.h),
@@ -204,7 +204,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('13. User Responsibilities'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'By using Pickfair, you agree:',
+                'By using Pickfair AI, you agree:',
               ),
               _buildBulletPoint('To use the app only for lawful purposes'),
               _buildBulletPoint('Not to misuse, manipulate, or attempt to disrupt the platform'),
@@ -216,7 +216,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('14. Limitation of Liability'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'Pickfair is provided "as is" without warranties of any kind.\nWe are not liable for:',
+                'Pickfair AI is provided "as is" without warranties of any kind.\nWe are not liable for:',
               ),
               _buildBulletPoint('Any decisions made based on the app\'s data or AI predictions'),
               _buildBulletPoint('Financial or personal losses'),
@@ -228,7 +228,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('15. Children\'s Privacy'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'Pickfair is not intended for users under the age of 13. We do not knowingly collect data from children.',
+                'Pickfair AI is not intended for users under the age of 13. We do not knowingly collect data from children.',
               ),
 
               SizedBox(height: 24.h),
@@ -249,7 +249,7 @@ class TermsPrivacyScreen extends StatelessWidget {
               _buildSectionTitle('17. Updates to This Policy'),
               SizedBox(height: 8.h),
               _buildContentText(
-                'We may update this Terms and Privacy Policy from time to time.\nContinued use of Pickfair after updates indicates acceptance of the revised policy.',
+                'We may update this Terms and Privacy Policy from time to time.\nContinued use of Pickfair AI after updates indicates acceptance of the revised policy.',
               ),
 
               SizedBox(height: 24.h),

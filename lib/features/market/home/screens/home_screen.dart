@@ -68,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      //appBar: CustomAppBar(imageAsset: 'assets/images/name.png'),
+      //appBar: CustomAppBar(imageAsset: 'assets/images/name_2.png'),
       body: const SelectionScreen(),
       // COMMENTED OUT - Old homepage content replaced with SelectionScreen
       // body: Column(

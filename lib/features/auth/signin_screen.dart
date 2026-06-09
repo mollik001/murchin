@@ -24,7 +24,7 @@ class SignInPage extends StatelessWidget {
             padding: EdgeInsets.only(
               left: 30.w,
               right: 30.w,
-              top: 60.h,
+              top: 30.h,
               bottom: 40.h,
             ),
             child: Column(
@@ -33,14 +33,14 @@ class SignInPage extends StatelessWidget {
                 /// Logo
                 Center(
                   child: Image.asset(
-                    'assets/images/name.png',
-                    width: 109.w,
-                    height: 30.w,
+                    'assets/images/name_2.png',
+                    width: 180.w,
+                    height: 85.h,
                     fit: BoxFit.contain,
                   ),
                 ),
 
-                SizedBox(height: 60.h),
+                SizedBox(height: 80.h),
 
                 /// Title
                 Text(
@@ -66,41 +66,6 @@ class SignInPage extends StatelessWidget {
                       fontWeight: FontWeight.w400,
                     ),
                     textAlign: TextAlign.center,
-                  ),
-                ),
-
-                SizedBox(height: 40.h),
-
-                /// Registration Coming Soon Card
-                Container(
-                  padding: EdgeInsets.all(16.w),
-                  decoration: BoxDecoration(
-                    color: AppColors.gray100,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Registration coming soon',
-                        style: AppTextStyles.authSubtitle?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                          fontSize: 16.sp,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 12.h),
-                      Text(
-                        'We\'re currently onboarding users via Google \nsign-in only. '
-                        'Email registration will be available in a future update.',
-                        style: AppTextStyles.bodySmall?.copyWith(
-                          color: const Color(0xff848484),
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14.sp,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
                   ),
                 ),
 
@@ -133,7 +98,7 @@ class SignInPage extends StatelessWidget {
                   );
                 }),
 
-                SizedBox(height: 60.h),
+                SizedBox(height: 40.h),
 
                 /// Divider Section
                 Row(
@@ -158,7 +123,7 @@ class SignInPage extends StatelessWidget {
                   ],
                 ),
 
-                SizedBox(height: 60.h),
+                SizedBox(height: 40.h),
 
                 /// Privacy Text
                 Padding(
@@ -204,7 +169,6 @@ class SignInPage extends StatelessWidget {
                           ],
                         ),
                       ),
-                      SizedBox(height: 60.h),
                     ],
                   ),
                 ),

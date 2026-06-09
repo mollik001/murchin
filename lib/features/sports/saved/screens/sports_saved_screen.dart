@@ -50,7 +50,7 @@ class _SportsSavedScreenState extends State<SportsSavedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: CustomAppBar(imageAsset: 'assets/images/name.png'),
+      appBar: CustomAppBar(imageAsset: 'assets/images/name_2.png'),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Padding(

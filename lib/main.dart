@@ -52,7 +52,7 @@ class MyApp extends StatelessWidget {
       splitScreenMode: true,
       builder: (_, child) {
         return GetMaterialApp(
-          title: 'PickFair',
+          title: 'Pickfair AI',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             // Apply Google Fonts to the entire app

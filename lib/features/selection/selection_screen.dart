@@ -26,9 +26,9 @@ class SelectionScreen extends StatelessWidget {
 
                 /// Logo
                 Image.asset(
-                  'assets/images/name.png',
-                  width: 109.w,
-                  height: 30.h,
+                  'assets/images/name_2.png',
+                  width: 150.w,
+                  height: 42.h,
                   fit: BoxFit.contain,
                 ),
 

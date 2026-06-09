@@ -102,7 +102,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
   final Color draftkingsBgColor = const Color(0xFF218B28);
   final Color betmgmBgColor = const Color(0xFFA79D2C);
 
-  final List<String> platformTabs = ['All Platform', 'Draftkings', 'Fanduel', 'BetMGM'];
+  final List<String> platformTabs = ['All Platforms', 'DraftKings', 'FanDuel', 'BetMGM'];
   final List<String> categoryTabs = ['NBA Odds', 'NBA Finals', 'MLB'];
   int selectedCategoryIndex = 0;
 
@@ -159,7 +159,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: CustomAppBar(imageAsset: 'assets/images/name.png'),
+      appBar: CustomAppBar(imageAsset: 'assets/images/name_2.png'),
       body: Column(
         children: [
           SizedBox(height: 20.h),
@@ -452,7 +452,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
       }
 
       final featuredEvent = events.first;
-      final isFanduel = featuredEvent['marketPlace'] == 'Fanduel';
+      final isFanduel = featuredEvent['marketPlace'] == 'FanDuel';
       final bgColor = isFanduel ? fanduelBgColor : draftkingsBgColor;
 
       return Container(
@@ -513,7 +513,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
                       borderRadius: BorderRadius.circular(4.r),
                     ),
                     child: Text(
-                      isFanduel ? 'Fanduel' : 'Draftkings',
+                      isFanduel ? 'FanDuel' : 'DraftKings',
                       style: AppTextStyles.bodySmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -666,7 +666,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/images/logo.png',
+              'assets/images/logo_2.jpg',
               width: 120.w,
               height: 120.h,
               fit: BoxFit.contain,
@@ -749,7 +749,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
     final defaultTitle = isMlb ? 'MLB Odds 2026' : 'NBA Championship Odds 2026';
 
     if (platform == 1) {
-      // Index 1 = Draftkings
+      // Index 1 = DraftKings
       final events = sportsbookEvents.where((e) => 
         e.bookmark.any((b) => b.marketTitle.toLowerCase() == 'draftkings')
       ).toList();
@@ -764,7 +764,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
         'marketPlace': 'DraftKings',
       }).toList();
     } else if (platform == 2) {
-      // Index 2 = Fanduel
+      // Index 2 = FanDuel
       final events = sportsbookEvents.where((e) => 
         e.bookmark.any((b) => b.marketTitle.toLowerCase() == 'fanduel')
       ).toList();
@@ -776,7 +776,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
         'endDate': e.date,
         'marketPercentage': _getMoneylineForEvent(e, 'FanDuel'),
         'team': _getFavoriteTeam(e, 'FanDuel'),
-        'marketPlace': 'Fanduel',
+        'marketPlace': 'FanDuel',
       }).toList();
     } else if (platform == 3) {
       // Index 3 = BetMGM
@@ -1178,7 +1178,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
                 platformTagBgColor: isFanduel ? AppColors.fanduelColor : (isBetMgm ? AppColors.betmgmColor : AppColors.draftkingsColor),
                 platformTagBorderColor: Colors.black,
                 platform: marketPlace,
-                iconAsset: selectedCategoryIndex == 2 ? 'assets/images/sports.png' : 'assets/images/NBA.png',
+                iconAsset: selectedCategoryIndex == 2 ? 'assets/images/mlb.png' : 'assets/images/NBA.png',
                 isSaved: isSaved,
                 eventId: event.eventId,
                 bookmark: bookmarkData,
@@ -1517,7 +1517,7 @@ class SportsEventsController extends GetxController {
         'marketPercentage': '700',
         'aiPercentage': '850',
         'team': 'Thunder',
-        'marketPlace': 'Fanduel',
+        'marketPlace': 'FanDuel',
       },
       {
         'event_id': 2,
@@ -1527,7 +1527,7 @@ class SportsEventsController extends GetxController {
         'marketPercentage': '600',
         'aiPercentage': '550',
         'team': 'Celtics',
-        'marketPlace': 'Fanduel',
+        'marketPlace': 'FanDuel',
       },
     ]);
   }
@@ -1572,7 +1572,7 @@ class SportsEventsController extends GetxController {
         'marketPercentage': '750',
         'aiPercentage': '800',
         'team': 'Warriors',
-        'marketPlace': 'Draftkings',
+        'marketPlace': 'DraftKings',
       },
       {
         'event_id': 'dk2',
@@ -1582,7 +1582,7 @@ class SportsEventsController extends GetxController {
         'marketPercentage': '650',
         'aiPercentage': '700',
         'team': 'Bucks',
-        'marketPlace': 'Draftkings',
+        'marketPlace': 'DraftKings',
       },
     ]);
   }

@@ -417,7 +417,6 @@ class NbaFinalsOddsController extends GetxController {
       case 'draftkings':
         return _savedDraftkingsEventIds.contains(eventId);
       case 'BetMGM':
-      case 'Betmgm':
       case 'betmgm':
         return _savedBetMgmEventIds.contains(eventId);
       default:
@@ -479,7 +478,6 @@ class NbaFinalsOddsController extends GetxController {
             }
             break;
           case 'BetMGM':
-          case 'Betmgm':
           case 'betmgm':
             if (_savedBetMgmEventIds.contains(eventId)) {
               _savedBetMgmEventIds.remove(eventId);

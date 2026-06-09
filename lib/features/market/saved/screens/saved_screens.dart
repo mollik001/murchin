@@ -52,7 +52,7 @@ class _SavedScreenState extends State<SavedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: CustomAppBar(imageAsset: 'assets/images/name.png'),
+      appBar: CustomAppBar(imageAsset: 'assets/images/name_2.png'),
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(

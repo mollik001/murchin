@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:murchin/const/service/endpoint.dart';
-import 'package:murchin/const/service/shared_preference_helper.dart';
-import 'package:murchin/features/sports/model/nba_finals_odds_model.dart';
+import 'package:murcin/const/service/endpoint.dart';
+import 'package:murcin/const/service/shared_preference_helper.dart';
+import 'package:murcin/features/sports/model/nba_finals_odds_model.dart';
 
 class NbaFinalsOddsController extends GetxController {
   final isLoading = false.obs;
@@ -615,13 +615,6 @@ class NbaFinalsOddsController extends GetxController {
         fetchNbaFinalsOdds('FanDuel'),
         fetchNbaFinalsOdds('DraftKings'),
         fetchNbaFinalsOdds('BetMGM'),
-      ]);
-
-      // Fetch AI predictions for first 5 teams only (for event page display)
-      await Future.wait([
-        fetchAiPredictions('FanDuel'),
-        fetchAiPredictions('DraftKings'),
-        fetchAiPredictions('BetMGM'),
       ]);
 
       // Cache the fresh data

@@ -1,10 +1,10 @@
 // lib/features/sports/home/screens/sports_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/widgets/custom_appbar.dart';
-import 'package:murchin/features/selection/selection_screen.dart';
-import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/widgets/custom_appbar.dart';
+import 'package:murcin/features/selection/selection_screen.dart';
+import 'package:murcin/features/sports/home/controllers/sports_home_controller.dart';
 
 class SportsHomeScreen extends StatefulWidget {
   const SportsHomeScreen({super.key});

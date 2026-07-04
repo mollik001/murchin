@@ -2,12 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/widgets/custom_appbar.dart';
-import 'package:murchin/features/market/home/controllers/home_controller.dart';
-import 'package:murchin/features/market/home/widgets/polymarket_card.dart';
-import 'package:murchin/features/market/home/widgets/kalshi_card.dart';
-import 'package:murchin/features/selection/selection_screen.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/widgets/custom_appbar.dart';
+import 'package:murcin/features/market/home/controllers/home_controller.dart';
+import 'package:murcin/features/market/home/widgets/polymarket_card.dart';
+import 'package:murcin/features/market/home/widgets/kalshi_card.dart';
+import 'package:murcin/features/selection/selection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

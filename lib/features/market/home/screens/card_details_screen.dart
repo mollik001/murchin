@@ -2,11 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/const/widgets/custom_appbar_2.dart';
-import 'package:murchin/const/widgets/custom_button.dart';
-import 'package:murchin/features/market/home/controllers/home_controller.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/widgets/custom_appbar_2.dart';
+import 'package:murcin/const/widgets/custom_button.dart';
+import 'package:murcin/features/market/home/controllers/home_controller.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -436,7 +436,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                 SizedBox(width: 12.w),
                 Expanded(
                   child: Text(
-                    'Pickfair Insights',
+                    'Pickfair AI Insights',
                     style: AppTextStyles.headlineMedium.copyWith(
                       fontWeight: FontWeight.w700,
                       fontSize: 14.sp,

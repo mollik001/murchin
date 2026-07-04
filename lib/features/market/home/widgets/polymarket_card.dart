@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:murchin/features/market/home/controllers/home_controller.dart';
-import 'package:murchin/features/market/home/screens/card_details_screen.dart';
-import 'package:murchin/features/market/home/widgets/custom_card.dart';
+import 'package:murcin/features/market/home/controllers/home_controller.dart';
+import 'package:murcin/features/market/home/screens/card_details_screen.dart';
+import 'package:murcin/features/market/home/widgets/custom_card.dart';
 
 class PolymarketCard extends StatelessWidget {
   final int? eventId;

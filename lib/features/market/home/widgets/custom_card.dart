@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/features/market/home/screens/comparison_card.dart';
+import 'package:murcin/features/market/home/screens/comparison_card.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
 
 class BaseCard extends StatefulWidget {
   final String title;

@@ -2,13 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/const/widgets/custom_appbar.dart';
-import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
-import 'package:murchin/features/sports/home/widgets/fanduel_card.dart';
-import 'package:murchin/features/sports/home/widgets/draftkings_card.dart';
-import 'package:murchin/features/sports/home/widgets/betmgm_card.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/widgets/custom_appbar.dart';
+import 'package:murcin/features/sports/home/controllers/sports_home_controller.dart';
+import 'package:murcin/features/sports/home/widgets/fanduel_card.dart';
+import 'package:murcin/features/sports/home/widgets/draftkings_card.dart';
+import 'package:murcin/features/sports/home/widgets/betmgm_card.dart';
 import 'package:shimmer/shimmer.dart';
 
 class SportsSavedScreen extends StatefulWidget {

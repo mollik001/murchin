@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
-import 'package:murchin/features/sports/home/widgets/sports_comparison_tab.dart';
+import 'package:murcin/features/sports/home/controllers/sports_home_controller.dart';
+import 'package:murcin/features/sports/home/widgets/sports_comparison_tab.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
 
 class SportsBaseCard extends StatelessWidget {
   final String title;
@@ -114,10 +114,14 @@ class SportsBaseCard extends StatelessWidget {
 
                         print('✅ Saving event: $eventId on $platform');
 
+                        final isMlb = iconAsset.toLowerCase().contains('mlb') || 
+                                      title.toUpperCase().contains('MLB');
+
                         // Save event via API
                         final success = await controller.saveEvent(
                           eventId: eventId!,
                           marketPlace: platform,
+                          isMlb: isMlb,
                           title: title,
                           subtitle: subtitle,
                           endDate: date,

@@ -1,4 +1,4 @@
-package com.example.murchin
+package ai.pickfair.murcin
 
 import io.flutter.embedding.android.FlutterActivity
 

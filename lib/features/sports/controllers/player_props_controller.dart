@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:murchin/const/service/endpoint.dart';
-import 'package:murchin/features/sports/model/player_props_model.dart';
+import 'package:murcin/const/service/endpoint.dart';
+import 'package:murcin/features/sports/model/player_props_model.dart';
 
 class PlayerPropsController extends GetxController {
   final isLoading = false.obs;
@@ -386,6 +386,50 @@ class PlayerPropsController extends GetxController {
     }
   }
 
+  /// Fetch AI for a single category (Type 1 or Type 2) - Auto-detects type based on data structure
+  Future<void> fetchAiForSingleCategory({
+    required String category,
+    required List<String> teamNames,
+    bool isMlb = false,
+  }) async {
+    final propsData = _playerProps.value?.getPropsByCategory(category);
+    if (propsData == null || propsData.isEmpty) return;
+
+    // Special handling for MLB Inning Totals: Always Type 1 (split into Over/Under)
+    final bool isInningTotal = isMlb && (category == 'totals_1st_1_innings' || category == 'totals_1st_5_innings');
+
+    if (isInningTotal) {
+      await fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb);
+      return;
+    }
+    
+    // Auto-detect type based on data structure
+    final firstPlayerData = propsData.values.first;
+    
+    // If it's a direct prop (not player mapped) and not an inning total we missed
+    final bool isDirectProp = propsData.containsKey('over') || propsData.containsKey('result');
+
+    if (isDirectProp) {
+      // Direct Props in MLB usually have Over/Under (Type 2) or Single (Type 1)
+      final bool hasUnder = propsData.containsKey('under');
+      if (hasUnder) {
+        // Direct Over/Under (Type 2)
+        await fetchAiForType2PlayerProps(category: category, teamNames: teamNames, isMlb: isMlb);
+      } else {
+        // Single value (Type 1)
+        await fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb);
+      }
+    } else {
+      // Player-Mapped Prop
+      final isType2 = PlayerPropsResponse.hasOverUnder(firstPlayerData);
+      if (isType2) {
+        await fetchAiForType2PlayerProps(category: category, teamNames: teamNames, isMlb: isMlb);
+      } else {
+        await fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb);
+      }
+    }
+  }
+
   /// Fetch AI for all categories (Type 1 + Type 2) - Auto-detects type based on data structure
   Future<void> fetchAiForAllCategories({
     required List<String> teamNames,
@@ -396,43 +440,11 @@ class PlayerPropsController extends GetxController {
     final futures = <Future>[];
 
     for (var category in availableCategories) {
-      final propsData = _playerProps.value?.getPropsByCategory(category);
-      if (propsData == null || propsData.isEmpty) continue;
-
-      // Special handling for MLB Inning Totals: Always Type 1 (split into Over/Under)
-      final bool isInningTotal = isMlb && (category == 'totals_1st_1_innings' || category == 'totals_1st_5_innings');
-
-      if (isInningTotal) {
-        futures.add(fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb));
-        continue;
-      }
-      
-      // Auto-detect type based on data structure
-      final firstPlayerData = propsData.values.first;
-      
-      // If it's a direct prop (not player mapped) and not an inning total we missed
-      final bool isDirectProp = propsData.containsKey('over') || propsData.containsKey('result');
-
-      if (isDirectProp) {
-        // Direct Props in MLB usually have Over/Under (Type 2) or Single (Type 1)
-        final bool hasUnder = propsData.containsKey('under');
-        if (hasUnder) {
-           // We'll treat Direct Over/Under as Type 2 but wrap it
-           // Actually, doc says totals-1st-inning is Type 2 in list API 3-21
-           // but user asked to split them into Type 1 Over/Under players.
-           // I already handled that in the isInningTotal check above.
-        } else {
-          futures.add(fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb));
-        }
-      } else {
-        // Player-Mapped Prop
-        final isType2 = PlayerPropsResponse.hasOverUnder(firstPlayerData);
-        if (isType2) {
-          futures.add(fetchAiForType2PlayerProps(category: category, teamNames: teamNames, isMlb: isMlb));
-        } else {
-          futures.add(fetchAiForPlayerProps(category: category, teamNames: teamNames, isMlb: isMlb));
-        }
-      }
+      futures.add(fetchAiForSingleCategory(
+        category: category,
+        teamNames: teamNames,
+        isMlb: isMlb,
+      ));
     }
 
     if (futures.isNotEmpty) {

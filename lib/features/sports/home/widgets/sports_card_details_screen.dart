@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/features/sports/controllers/ai_prediction_controller.dart';
-import 'package:murchin/features/sports/controllers/player_props_controller.dart';
-import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
-import 'package:murchin/features/sports/model/player_props_model.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/features/sports/controllers/ai_prediction_controller.dart';
+import 'package:murcin/features/sports/controllers/player_props_controller.dart';
+import 'package:murcin/features/sports/home/controllers/sports_home_controller.dart';
+import 'package:murcin/features/sports/model/player_props_model.dart';
 import 'package:shimmer/shimmer.dart';
 
 class SportsCardDetailsScreen extends StatefulWidget {
@@ -120,16 +120,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
         eventId: widget.eventId!,
         platform: widget.platform!,
         isMlb: isMlb,
-      ).then((_) {
-        if (!mounted) return;
-        // Fetch AI for all player props after player props are loaded
-        if (widget.awayTeam != null && widget.homeTeam != null) {
-          _playerPropsController.fetchAiForAllCategories(
-            teamNames: [widget.awayTeam!, widget.homeTeam!],
-            isMlb: isMlb,
-          );
-        }
-      });
+      );
     }
 
     // Always fetch fresh AI predictions when opening event details
@@ -198,10 +189,16 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
 
     final controller = Get.find<SportsHomeController>();
 
+    final isMlb = widget.title.toUpperCase().contains('MLB') || 
+                  (widget.awayTeam?.toUpperCase().contains('MLB') ?? false);
+
+    print('💾 Debug Save - Title: ${widget.title}, AwayTeam: ${widget.awayTeam}, IsMlb Detected: $isMlb');
+
     // Save event via API
     final success = await controller.saveEvent(
       eventId: widget.eventId!,
       marketPlace: widget.platform!,
+      isMlb: isMlb,
       title: widget.title,
       subtitle: '${widget.awayTeam ?? ''} vs ${widget.homeTeam ?? ''}',
       endDate: widget.date,
@@ -248,12 +245,25 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
     super.dispose();
   }
 
-  void _toggleCard(int index) {
+  void _toggleCard(int index, {String? category}) {
     setState(() {
       if (_expandedCards.contains(index)) {
         _expandedCards.remove(index);
       } else {
         _expandedCards.add(index);
+
+        // Fetch AI for this specific category if it's an API card
+        if (category != null && widget.awayTeam != null && widget.homeTeam != null) {
+          final isMlb = widget.title.contains('MLB');
+          // Only fetch on-demand if not already loaded
+          if (!_playerPropsController.isAiLoaded(category)) {
+            _playerPropsController.fetchAiForSingleCategory(
+              category: category,
+              teamNames: [widget.awayTeam!, widget.homeTeam!],
+              isMlb: isMlb,
+            );
+          }
+        }
       }
     });
   }
@@ -521,8 +531,8 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                           Text(
                             'AI Prediction',
                             style: AppTextStyles.bodySmall?.copyWith(
-                              color: const Color(0xff848484),
-                              fontWeight: FontWeight.w500,
+                              color: const Color.fromARGB(255, 97, 96, 96),
+                              fontWeight: FontWeight.w800,
                               fontSize: 12.sp,
                             ),
                           ),
@@ -629,8 +639,8 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                           Text(
                             'AI Prediction',
                             style: AppTextStyles.bodySmall?.copyWith(
-                              color: const Color(0xff848484),
-                              fontWeight: FontWeight.w500,
+                              color: const Color.fromARGB(255, 97, 96, 96),
+                              fontWeight: FontWeight.w800,
                               fontSize: 12.sp,
                             ),
                           ),
@@ -866,7 +876,7 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
       child: Column(
         children: [
           GestureDetector(
-            onTap: () => _toggleCard(index),
+            onTap: () => _toggleCard(index, category: category),
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
               child: Row(

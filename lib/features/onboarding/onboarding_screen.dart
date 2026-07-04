@@ -2,11 +2,11 @@
 // import 'package:flutter_screenutil/flutter_screenutil.dart';
 // import 'package:get/get.dart';
 // import 'package:google_fonts/google_fonts.dart';
-// import 'package:murchin/const/theme/app_color.dart';
-// import 'package:murchin/const/theme/app_theme.dart';
-// import 'package:murchin/const/widgets/custom_button.dart';
-// import 'package:murchin/features/auth/signin_screen.dart';
-// import 'package:murchin/features/onboarding/onboarding_controller.dart';
+// import 'package:murcin/const/theme/app_color.dart';
+// import 'package:murcin/const/theme/app_theme.dart';
+// import 'package:murcin/const/widgets/custom_button.dart';
+// import 'package:murcin/features/auth/signin_screen.dart';
+// import 'package:murcin/features/onboarding/onboarding_controller.dart';
 
 // class LandingPage extends StatefulWidget {
 //   const LandingPage({super.key});
@@ -255,13 +255,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/service/shared_preference_helper.dart';
-import 'package:murchin/features/auth/signin_screen.dart';
-import 'package:murchin/features/market/navbar/market_navbar_screen.dart';
-import 'package:murchin/features/onboarding/onboarding_controller.dart';
-import 'package:murchin/features/sports/navbar/sports_navbar_screen.dart';
-import 'package:murchin/features/selection/selection_screen.dart';
-import 'package:murchin/const/theme/app_theme.dart';
+import 'package:murcin/const/service/shared_preference_helper.dart';
+import 'package:murcin/features/auth/signin_screen.dart';
+import 'package:murcin/features/market/navbar/market_navbar_screen.dart';
+import 'package:murcin/features/onboarding/onboarding_controller.dart';
+import 'package:murcin/features/sports/navbar/sports_navbar_screen.dart';
+import 'package:murcin/features/selection/selection_screen.dart';
+import 'package:murcin/const/theme/app_theme.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -337,7 +337,7 @@ class _LandingPageState extends State<LandingPage> {
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w),
                 child: Text(
-                  'Smarter predictions through\nartificial intelligence.',
+                  'Smarter predictions through\nartificial intelligence',
                   style: AppTextStyles.headlineSmall.copyWith(
                     fontWeight: FontWeight.w600,
                     fontSize: 20.sp,

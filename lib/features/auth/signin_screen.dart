@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/const/widgets/custom_button.dart';
-import 'package:murchin/features/auth/auth_controller.dart';
-import 'package:murchin/features/navbar/navbar_screen.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/widgets/custom_button.dart';
+import 'package:murcin/features/auth/auth_controller.dart';
+import 'package:murcin/features/navbar/navbar_screen.dart';
 
 class SignInPage extends StatelessWidget {
   SignInPage({super.key});

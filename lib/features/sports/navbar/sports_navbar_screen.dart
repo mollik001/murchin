@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/features/sports/home/screens/sports_home_screen.dart';
-import 'package:murchin/features/sports/events/screens/sports_events_screen.dart';
-import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
-import 'package:murchin/features/navbar/navbar_controller.dart';
-import 'package:murchin/features/profile/screens/profile_screen.dart';
-import 'package:murchin/features/sports/saved/screens/sports_saved_screen.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/features/sports/home/screens/sports_home_screen.dart';
+import 'package:murcin/features/sports/events/screens/sports_events_screen.dart';
+import 'package:murcin/features/sports/home/controllers/sports_home_controller.dart';
+import 'package:murcin/features/navbar/navbar_controller.dart';
+import 'package:murcin/features/profile/screens/profile_screen.dart';
+import 'package:murcin/features/sports/saved/screens/sports_saved_screen.dart';
 
 class SportsNavbarScreen extends StatelessWidget {
   SportsNavbarScreen({super.key});

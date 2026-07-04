@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/const/widgets/custom_appbar.dart';
-import 'package:murchin/features/sports/controllers/nba_finals_odds_controller.dart';
-import 'package:murchin/features/sports/events/screens/nba_finals_details_screen.dart';
-import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
-import 'package:murchin/features/sports/home/model/sportsbook_model.dart';
-import 'package:murchin/features/sports/home/widgets/draftkings_card.dart';
-import 'package:murchin/features/sports/home/widgets/fanduel_card.dart';
-import 'package:murchin/features/sports/home/widgets/sports_card_details_screen.dart';
-import 'package:murchin/features/sports/home/widgets/sports_comparison_tab.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/widgets/custom_appbar.dart';
+import 'package:murcin/features/sports/controllers/nba_finals_odds_controller.dart';
+import 'package:murcin/features/sports/events/screens/nba_finals_details_screen.dart';
+import 'package:murcin/features/sports/home/controllers/sports_home_controller.dart';
+import 'package:murcin/features/sports/home/model/sportsbook_model.dart';
+import 'package:murcin/features/sports/home/widgets/draftkings_card.dart';
+import 'package:murcin/features/sports/home/widgets/fanduel_card.dart';
+import 'package:murcin/features/sports/home/widgets/sports_card_details_screen.dart';
+import 'package:murcin/features/sports/home/widgets/sports_comparison_tab.dart';
 
 class SportsEventsScreen extends StatefulWidget {
   const SportsEventsScreen({super.key});
@@ -44,9 +44,10 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
     }
 
     // Fetch data if not already loaded
-    if (sportsController.sportsbookEvents.isEmpty && !sportsController.isLoading.value) {
-      sportsController.fetchSportsbookEvents();
-    }
+    // HIDING NBA sportsbook fetch - only MLB now
+    // if (sportsController.sportsbookEvents.isEmpty && !sportsController.isLoading.value) {
+    //   sportsController.fetchSportsbookEvents();
+    // }
     
     if (sportsController.mlbEvents.isEmpty && !sportsController.isLoading.value) {
       sportsController.fetchMlbEvents();
@@ -67,20 +68,15 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
     if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
         !sportsController.isRefreshing.value) { 
       
-      if (selectedCategoryIndex == 0) { // NBA Odds
-        if (sportsController.nextPageUrl != null) {
-          sportsController.loadMoreSportsbookEvents();
-          _hasShownEndSnackbar = false;
-        }
-      } else if (selectedCategoryIndex == 2) { // MLB
-        if (sportsController.mlbNextPageUrl != null) {
-          sportsController.loadMoreMlbEvents();
-          _hasShownEndSnackbar = false;
-        }
-      }
-      
-      if ((selectedCategoryIndex == 0 && sportsController.nextPageUrl == null) ||
-          (selectedCategoryIndex == 2 && sportsController.mlbNextPageUrl == null)) {
+// MLB section (previously NBA Odds at index 0, MLB now at index 0)
+       if (selectedCategoryIndex == 0) {
+         if (sportsController.mlbNextPageUrl != null) {
+           sportsController.loadMoreMlbEvents();
+           _hasShownEndSnackbar = false;
+         }
+       }
+       
+       if (selectedCategoryIndex == 0 && sportsController.mlbNextPageUrl == null) {
         // Show snackbar only once when reaching end
         if (!_hasShownEndSnackbar && mounted) {
           _hasShownEndSnackbar = true;
@@ -103,15 +99,15 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
   final Color betmgmBgColor = const Color(0xFFA79D2C);
 
   final List<String> platformTabs = ['All Platforms', 'DraftKings', 'FanDuel', 'BetMGM'];
-  final List<String> categoryTabs = ['NBA Odds', 'NBA Finals', 'MLB'];
+  // HIDING NBA sections - only showing MLB for now
+  // final List<String> categoryTabs = ['NBA Odds', 'NBA Finals', 'MLB'];
+  final List<String> categoryTabs = ['MLB'];
   int selectedCategoryIndex = 0;
 
   Widget _buildSearchBar() {
+    // HIDING NBA Finals search bar logic - only MLB now
+    // Original: Hide search bar for NBA Finals category (index 1)
     return Obx(() {
-      // Hide search bar for NBA Finals category
-      if (selectedCategoryIndex == 1) {
-        return const SizedBox.shrink();
-      }
       
       final hasText = sportsController.searchController.text.isNotEmpty;
       final isSearching = sportsController.isSearching.value;
@@ -227,118 +223,54 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
                       // Watch sportsController's selectedPlatform for NBA Odds category
                       final _ = sportsController.selectedPlatform.value;
 
-                      return GetBuilder<NbaFinalsOddsController>(
+return GetBuilder<NbaFinalsOddsController>(
                         builder: (nbaController) {
-                          // Check if NBA Finals category is selected
-                          final isNbaFinalsCategory = selectedCategoryIndex == 1;
-
-                          // Also watch controller's selectedPlatform to trigger rebuilds when platform changes
-                          final currentPlatform = controller.selectedPlatform.value;
-
-                          // For NBA Odds or MLB category, always show featured card at top
-                          if (selectedCategoryIndex == 0 || selectedCategoryIndex == 2) {
-                            // Build cards once and reuse
-                            final cards = _buildSportsbookCards(
-                              events: selectedCategoryIndex == 0 
-                                  ? sportsController.sportsbookEvents 
-                                  : sportsController.mlbEvents,
-                              title: selectedCategoryIndex == 0 
-                                  ? 'NBA Championship Odds 2026' 
-                                  : 'MLB Odds 2026',
-                            );
-
-                            // Check if there are no events to display
-                            if (cards.isEmpty) {
-                              return _buildEmptyState(
-                                message: 'No upcoming events',
-                                subtitle: 'Check back later for new events',
-                              );
-                            }
-
-                            return ListView.builder(
-                              controller: _scrollController,
-                              padding: EdgeInsets.only(left: 20.w, right: 20.w, top: 8.h),
-                              itemCount: cards.length + 1, // +1 for featured card
-                              itemBuilder: (context, index) {
-                                // Featured card always at index 0
-                                if (index == 0) {
-                                  return Padding(
-                                    padding: EdgeInsets.only(bottom: 16.h),
-                                    child: _buildFeaturedCard(),
-                                  );
-                                }
-
-                                // Adjust index for cards (skip featured card)
-                                final cardIndex = index - 1;
-
-                                if (cardIndex < cards.length) {
-                                  return cards[cardIndex];
-                                } else {
-                                  // Loading indicator for pagination
-                                  if (sportsController.isRefreshing.value) {
-                                    return Padding(
-                                      padding: EdgeInsets.all(16.h),
-                                      child: Center(child: CircularProgressIndicator()),
-                                    );
-                                  }
-                                  return SizedBox.shrink();
-                                }
-                              },
-                            );
-                          }
-
-                          // For NBA Finals category
-                          // Check if nbaFinalsController has any odds data loaded
-                          final hasFanDuelOdds = (nbaFinalsController?.getOddsForPlatform('FanDuel').isNotEmpty) ?? false;
-                          final hasDraftKingsOdds = (nbaFinalsController?.getOddsForPlatform('DraftKings').isNotEmpty) ?? false;
-                          final hasBetMgmOdds = (nbaFinalsController?.getOddsForPlatform('BetMGM').isNotEmpty) ?? false;
-
-                          if (nbaFinalsController.isLoading.value &&
-                              !hasFanDuelOdds &&
-                              !hasDraftKingsOdds &&
-                              !hasBetMgmOdds) {
-                            return _buildLoadingState();
-                          }
-
-                          // Empty state for NBA Finals - check controller directly
-                          if (!hasFanDuelOdds &&
-                              !hasDraftKingsOdds &&
-                              !hasBetMgmOdds &&
-                              !nbaFinalsController.isLoading.value) {
-                            return _buildEmptyState(
-                              message: 'No data available',
-                              subtitle: 'Please check back later',
-                              actionLabel: 'Retry',
-                              onAction: () {
-                                nbaFinalsController.fetchNbaFinalsOdds('FanDuel');
-                                nbaFinalsController.fetchNbaFinalsOdds('DraftKings');
-                                nbaFinalsController.fetchNbaFinalsOdds('BetMGM');
-                              },
-                            );
-                          }
-
+                          // For MLB category (previously index 2, now index 0)
+                          // HIDING NBA sections - only MLB shown
                           // Build cards once and reuse
-                          final cards = _buildNbaFinalsCards();
-
-                          return ListView.builder(
-                            controller: _scrollController,
-                            padding: EdgeInsets.only(left: 20.w, right: 20.w, top: 8.h),
-                            itemCount: cards.length,
-                            itemBuilder: (context, index) {
-                              if (index < cards.length) {
-                                return cards[index];
-                              } else {
-                                // Loading indicator for pagination
-                                if (nbaFinalsController.isRefreshing.value) {
-                                  return Padding(
-                                    padding: EdgeInsets.all(16.h),
-                                    child: Center(child: CircularProgressIndicator()),
-                                  );
-                                }
-                                return SizedBox.shrink();
-                              }
-                            },
+                          final cards = _buildSportsbookCards(
+                            events: sportsController.mlbEvents,
+                            title: 'MLB Odds 2026',
                           );
+
+                         // Check if there are no events to display
+                         if (cards.isEmpty) {
+                           return _buildEmptyState(
+                             message: 'No upcoming events',
+                             subtitle: 'Check back later for new events',
+                           );
+                         }
+
+                         return ListView.builder(
+                           controller: _scrollController,
+                           padding: EdgeInsets.only(left: 20.w, right: 20.w, top: 8.h),
+                           itemCount: cards.length + 1, // +1 for featured card
+                           itemBuilder: (context, index) {
+                             // Featured card always at index 0
+                             if (index == 0) {
+                               return Padding(
+                                 padding: EdgeInsets.only(bottom: 16.h),
+                                 child: _buildFeaturedCard(),
+                               );
+                             }
+
+                             // Adjust index for cards (skip featured card)
+                             final cardIndex = index - 1;
+
+                             if (cardIndex < cards.length) {
+                               return cards[cardIndex];
+                             } else {
+                               // Loading indicator for pagination
+                               if (sportsController.isRefreshing.value) {
+                                 return Padding(
+                                   padding: EdgeInsets.all(16.h),
+                                   child: Center(child: CircularProgressIndicator()),
+                                 );
+                               }
+                               return SizedBox.shrink();
+                             }
+                           },
+                         );
                         },
                       );
                     });
@@ -609,7 +541,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
             : (isBetMgm ? AppColors.betmgmColor : AppColors.draftkingsColor),
         platformTagBorderColor: Colors.black,
         platform: marketPlace,
-        iconAsset: 'assets/images/NBA.png',
+        iconAsset: 'assets/images/mlb.png', // Only MLB shown, use MLB icon
         isSaved: isSaved,
         eventId: event.eventId,
         bookmark: null,
@@ -665,12 +597,14 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/images/logo_2.jpg',
-              width: 120.w,
-              height: 120.h,
-              fit: BoxFit.contain,
-              color: AppColors.gray400,
+            Text(
+              'No Events Found',
+              style: AppTextStyles.bodyLarge?.copyWith(
+                color: AppColors.gray400,
+                fontWeight: FontWeight.w700,
+                fontSize: 20.sp,
+              ),
+              textAlign: TextAlign.center,
             ),
             SizedBox(height: 32.h),
             Text(
@@ -720,33 +654,15 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
     );
   }
 
+  /// Get MLB events based on platform selection
+  // NBA Finals category (index 1) and NBA Odds (index 0) sections hidden - only MLB (now index 0)
   List<Map<String, dynamic>> _getCurrentEvents() {
     final platform = controller.selectedPlatform.value;
     print('=== _getCurrentEvents: platform=$platform, category=$selectedCategoryIndex ===');
     
-    // For NBA Finals category, use controller (static data)
-    if (selectedCategoryIndex == 1) {
-      if (platform == 1) {
-        print('Returning ${controller.draftkingsEvents.length} DraftKings NBA Finals events');
-        return controller.draftkingsEvents;
-      } else if (platform == 2) {
-        print('Returning ${controller.events.length} FanDuel NBA Finals events');
-        return controller.events;
-      } else if (platform == 3) {
-        print('Returning ${controller.betmgmEvents.length} BetMGM NBA Finals events');
-        return controller.betmgmEvents;
-      } else {
-        // Index 0 = All Platform
-        final all = [...controller.draftkingsEvents, ...controller.events, ...controller.betmgmEvents];
-        print('Returning ${all.length} All Platform NBA Finals events (DK:${controller.draftkingsEvents.length}, FD:${controller.events.length}, MGM:${controller.betmgmEvents.length})');
-        return all;
-      }
-    }
-    
-    // For NBA Odds (0) or MLB (2) category, use sportsController (paginated data)
-    final isMlb = selectedCategoryIndex == 2;
-    final sportsbookEvents = isMlb ? sportsController.mlbEvents : sportsController.sportsbookEvents;
-    final defaultTitle = isMlb ? 'MLB Odds 2026' : 'NBA Championship Odds 2026';
+    // For MLB category (now at index 0)
+    final sportsbookEvents = sportsController.mlbEvents;
+    final defaultTitle = 'MLB Odds 2026'; // Only MLB shown
 
     if (platform == 1) {
       // Index 1 = DraftKings
@@ -826,11 +742,11 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
       final awayMoneyline = h2hMarket.outcome.awayTeam?.american;
       final homeMoneyline = h2hMarket.outcome.homeTeam?.american;
       
-      // Return the favorite (lower absolute value)
+      // Return the favorite (algebraically lower value)
       if (awayMoneyline != null && homeMoneyline != null) {
         final awayValue = int.tryParse(awayMoneyline) ?? 0;
         final homeValue = int.tryParse(homeMoneyline) ?? 0;
-        return (awayValue.abs() < homeValue.abs() ? awayMoneyline : homeMoneyline).replaceAll('+', '');
+        return (awayValue < homeValue ? awayMoneyline : homeMoneyline).replaceAll('+', '');
       }
       return awayMoneyline?.replaceAll('+', '') ?? homeMoneyline?.replaceAll('+', '') ?? 'N/A';
     } catch (e) {
@@ -855,7 +771,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
       if (awayMoneyline != null && homeMoneyline != null) {
         final awayValue = int.tryParse(awayMoneyline) ?? 0;
         final homeValue = int.tryParse(homeMoneyline) ?? 0;
-        return awayValue.abs() < homeValue.abs() ? event.awayTeam : event.homeTeam;
+        return awayValue < homeValue ? event.awayTeam : event.homeTeam;
       }
       return awayMoneyline != null ? event.awayTeam : event.homeTeam;
     } catch (e) {
@@ -873,11 +789,11 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
       final awayMoneyline = h2hMarket.outcome.awayTeam?.american;
       final homeMoneyline = h2hMarket.outcome.homeTeam?.american;
       
-      // Return the favorite (lower absolute value)
+      // Return the favorite (algebraically lower value)
       if (awayMoneyline != null && homeMoneyline != null) {
         final awayValue = int.tryParse(awayMoneyline) ?? 0;
         final homeValue = int.tryParse(homeMoneyline) ?? 0;
-        return (awayValue.abs() < homeValue.abs() ? awayMoneyline : homeMoneyline).replaceAll('+', '');
+        return (awayValue < homeValue ? awayMoneyline : homeMoneyline).replaceAll('+', '');
       }
       return awayMoneyline?.replaceAll('+', '') ?? homeMoneyline?.replaceAll('+', '') ?? 'N/A';
     } catch (e) {
@@ -898,7 +814,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
       if (awayMoneyline != null && homeMoneyline != null) {
         final awayValue = int.tryParse(awayMoneyline) ?? 0;
         final homeValue = int.tryParse(homeMoneyline) ?? 0;
-        return awayValue.abs() < homeValue.abs() ? event.awayTeam : event.homeTeam;
+        return awayValue < homeValue ? event.awayTeam : event.homeTeam;
       }
       return awayMoneyline != null ? event.awayTeam : event.homeTeam;
     } catch (e) {
@@ -1178,7 +1094,7 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
                 platformTagBgColor: isFanduel ? AppColors.fanduelColor : (isBetMgm ? AppColors.betmgmColor : AppColors.draftkingsColor),
                 platformTagBorderColor: Colors.black,
                 platform: marketPlace,
-                iconAsset: selectedCategoryIndex == 2 ? 'assets/images/mlb.png' : 'assets/images/NBA.png',
+                iconAsset: 'assets/images/mlb.png', // Only MLB shown, so always use MLB icon
                 isSaved: isSaved,
                 eventId: event.eventId,
                 bookmark: bookmarkData,
@@ -1267,10 +1183,14 @@ class _SportsEventsScreenState extends State<SportsEventsScreen> {
 
                       print('✅ Saving event: $eventId on $platform');
 
+                      final isMlb = iconAsset.toLowerCase().contains('mlb') || 
+                                    title.toUpperCase().contains('MLB');
+
                       // Save event via API
                       final success = await sportsHomeController.saveEvent(
                         eventId: eventId,
                         marketPlace: platform,
+                        isMlb: isMlb,
                         title: title,
                         subtitle: subtitle,
                         endDate: date,

@@ -21,8 +21,8 @@ void main() async {
   print('Original image: ${image.width}x${image.height}');
 
   // Make the final image square (1:1 aspect ratio) for best launcher icon appearance
-  // Add equal padding on all sides to center the logo in a square
-  final targetSize = (image.width * 1.2).round(); // 20% larger than width
+  // Add minimal padding to make the logo appear larger
+  final targetSize = (image.width * 1.05).round(); // 5% larger than width
   final newWidth = targetSize;
   final newHeight = targetSize;
 

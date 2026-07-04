@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:murchin/const/service/endpoint.dart';
-import 'package:murchin/const/service/shared_preference_helper.dart';
-import 'package:murchin/features/sports/home/model/sportsbook_model.dart';
+import 'package:murcin/const/service/endpoint.dart';
+import 'package:murcin/const/service/shared_preference_helper.dart';
+import 'package:murcin/features/sports/home/model/sportsbook_model.dart';
 
 class SportsHomeController extends GetxController {
   final selectedPlatform = 0.obs; // 0: All, 1: Fanduel, 2: Draftkings, 3: BetMGM
@@ -172,9 +172,6 @@ class SportsHomeController extends GetxController {
 
           print("Background events loaded with cached AI data!");
           update(); // Notify UI to rebuild
-
-          // Fetch fresh AI data and update cache
-          _fetchAllAiPredictionsAsync(eventsList, isMlb: false);
         } else {
           print("⚠️ No current/upcoming events from API (background) - keeping cached data");
         }
@@ -245,8 +242,6 @@ class SportsHomeController extends GetxController {
 
           print("Background MLB events loaded!");
           update();
-
-          _fetchAllAiPredictionsAsync(eventsList, isMlb: true);
         }
       }
     } catch (e) {
@@ -317,10 +312,7 @@ class SportsHomeController extends GetxController {
           nextPageUrl = sportsbookResponse.next;
           print("Events loaded successfully! (Showing ${eventsList.length} events)");
           
-          // Fetch AI predictions first, then cache everything together
-          await _fetchAllAiPredictionsSync(eventsList, isMlb: false);
-          
-          // Cache the events with AI data
+          // Cache the events (AI will be fetched on-demand in details screen)
           cacheSportsbookEvents();
         } else {
           print("⚠️ No current/upcoming events from API - keeping cached data");
@@ -369,7 +361,6 @@ class SportsHomeController extends GetxController {
           _mlbEvents.assignAll(eventsList);
           mlbNextPageUrl = sportsbookResponse.next;
           
-          await _fetchAllAiPredictionsSync(eventsList, isMlb: true);
           cacheMlbEvents();
         }
         update();
@@ -709,10 +700,10 @@ class SportsHomeController extends GetxController {
             // Calculate implied probabilities as doubles
             final awayProb = awayValue < 0 
                 ? (100 / (1 + (100 / awayValue.abs()))) 
-                : (awayValue / (awayValue + 100));
+                : (10000 / (awayValue + 100));
             final homeProb = homeValue < 0 
                 ? (100 / (1 + (100 / homeValue.abs()))) 
-                : (homeValue / (homeValue + 100));
+                : (10000 / (homeValue + 100));
 
             return {
               'aiPercentage': formattedOdds,
@@ -1267,8 +1258,8 @@ class SportsHomeController extends GetxController {
 
           print("Saved events processed: FD=${_savedFanduelEvents.length}, DK=${_savedDraftkingsEvents.length}, MGM=${_savedBetMgmEvents.length}");
 
-          // Fetch AI predictions for saved events (async, doesn't block UI)
-          _fetchAiForSavedEvents();
+          // Cache saved events
+          cacheSavedEvents();
         } else {
           print("No saved sportsbook events found");
         }
@@ -1656,6 +1647,7 @@ class SportsHomeController extends GetxController {
   Future<bool> saveEvent({
     required String eventId,
     required String marketPlace,
+    bool isMlb = false,
     String? title,
     String? subtitle,
     String? endDate,
@@ -1664,7 +1656,7 @@ class SportsHomeController extends GetxController {
     String? team,
     Map<String, dynamic>? bookmark,
   }) async {
-    print('💾 saveEvent called - eventId: $eventId, marketPlace: $marketPlace');
+    print('💾 saveEvent called - eventId: $eventId, marketPlace: $marketPlace, isMlb: $isMlb');
     print('💾 Current saved IDs - FanDuel: $_savedFanduelEventIds, DraftKings: $_savedDraftkingsEventIds, BetMGM: $_savedBetMgmEventIds');
     
     try {
@@ -1676,19 +1668,32 @@ class SportsHomeController extends GetxController {
       final token = await SharedPreferencesHelper.getAccessToken();
       print("Token: ${token?.substring(0, 20)}...");
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
+      http.Response response;
+      if (isMlb) {
+        var request = http.MultipartRequest('POST', Uri.parse(url));
+        request.headers.addAll({
           'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'event_id': eventId,
-          'market_place': 'SportsBook',
-        }),
-      );
+        });
+        request.fields['event_id'] = eventId;
+        request.fields['market_place'] = 'MLB_SportsBook';
 
-      print("Request Body: {event_id: $eventId, market_place: SportsBook}");
+        final streamedResponse = await request.send();
+        response = await http.Response.fromStream(streamedResponse);
+        print("Request Fields (MLB - Multipart): {event_id: $eventId, market_place: SportsBook}");
+      } else {
+        response = await http.post(
+          Uri.parse(url),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'event_id': eventId,
+            'market_place': 'SportsBook',
+          }),
+        );
+        print("Request Body (NBA): {event_id: $eventId, market_place: SportsBook}");
+      }
       print("Response Status: ${response.statusCode}");
       print("Response Body: ${response.body}");
       print("=====================");

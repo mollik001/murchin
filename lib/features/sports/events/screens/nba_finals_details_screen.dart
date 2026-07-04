@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/service/endpoint.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/features/sports/controllers/nba_finals_odds_controller.dart';
-import 'package:murchin/features/sports/model/nba_finals_odds_model.dart';
+import 'package:murcin/const/service/endpoint.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/features/sports/controllers/nba_finals_odds_controller.dart';
+import 'package:murcin/features/sports/model/nba_finals_odds_model.dart';
 import 'package:shimmer/shimmer.dart';
 
 class NbaFinalsDetailsScreen extends StatefulWidget {

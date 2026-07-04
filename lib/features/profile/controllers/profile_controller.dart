@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:murchin/const/service/endpoint.dart';
-import 'package:murchin/const/service/shared_preference_helper.dart';
-import 'package:murchin/features/auth/signin_screen.dart';
+import 'package:murcin/const/service/endpoint.dart';
+import 'package:murcin/const/service/shared_preference_helper.dart';
+import 'package:murcin/features/auth/signin_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 

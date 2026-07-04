@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:murchin/features/sports/home/controllers/sports_home_controller.dart';
-import 'package:murchin/features/sports/home/widgets/sports_card_details_screen.dart';
-import 'package:murchin/features/sports/home/widgets/sports_base_card.dart';
+import 'package:murcin/features/sports/home/controllers/sports_home_controller.dart';
+import 'package:murcin/features/sports/home/widgets/sports_card_details_screen.dart';
+import 'package:murcin/features/sports/home/widgets/sports_base_card.dart';
 
 class DraftkingsCard extends StatelessWidget {
   final String? eventId;

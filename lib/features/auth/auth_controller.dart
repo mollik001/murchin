@@ -3,11 +3,11 @@ import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
-import 'package:murchin/const/service/endpoint.dart';
-import 'package:murchin/const/service/shared_preference_helper.dart';
-import 'package:murchin/features/market/navbar/market_navbar_screen.dart';
-import 'package:murchin/features/selection/selection_screen.dart';
-import 'package:murchin/features/sports/navbar/sports_navbar_screen.dart';
+import 'package:murcin/const/service/endpoint.dart';
+import 'package:murcin/const/service/shared_preference_helper.dart';
+import 'package:murcin/features/market/navbar/market_navbar_screen.dart';
+import 'package:murcin/features/selection/selection_screen.dart';
+import 'package:murcin/features/sports/navbar/sports_navbar_screen.dart';
 
 class AuthController extends GetxController {
   final FirebaseAuth _auth = FirebaseAuth.instance;

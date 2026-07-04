@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:murchin/features/onboarding/onboarding_screen.dart';
+import 'package:murcin/features/onboarding/onboarding_screen.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -73,5 +73,4 @@ class MyApp extends StatelessWidget {
 
 
 
-// on MLB section, the sportsbook logo need to change into  MLB logo
-// on the sign in page, need to remove the 'Coming soon..' card 
+

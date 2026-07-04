@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:murchin/const/service/endpoint.dart';
+import 'package:murcin/const/service/endpoint.dart';
 
 class AiPredictionController extends GetxController {
   final isLoading = false.obs;

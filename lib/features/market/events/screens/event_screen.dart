@@ -5,11 +5,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/const/widgets/custom_appbar.dart';
-import 'package:murchin/features/market/home/controllers/home_controller.dart';
-import 'package:murchin/features/market/home/screens/card_details_screen.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/widgets/custom_appbar.dart';
+import 'package:murcin/features/market/home/controllers/home_controller.dart';
+import 'package:murcin/features/market/home/screens/card_details_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class EventScreen extends StatefulWidget {

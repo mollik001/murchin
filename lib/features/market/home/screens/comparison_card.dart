@@ -2,8 +2,8 @@
 // Comparison Tab Widget - Centered content
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
 
 class ComparisonTab extends StatelessWidget {
   final String title;

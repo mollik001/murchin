@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "murchin" "\0"
+            VALUE "CompanyName", "ai.pickfair" "\0"
+            VALUE "FileDescription", "murcin" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "murchin" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "murchin.exe" "\0"
-            VALUE "ProductName", "murchin" "\0"
+            VALUE "InternalName", "murcin" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 ai.pickfair. All rights reserved." "\0"
+            VALUE "OriginalFilename", "murcin.exe" "\0"
+            VALUE "ProductName", "murcin" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -5,17 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:murchin/const/service/shared_preference_helper.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/const/widgets/custom_appbar.dart';
-import 'package:murchin/const/widgets/custom_button.dart';
-import 'package:murchin/features/auth/signin_screen.dart';
-import 'package:murchin/features/market/navbar/market_navbar_screen.dart';
-import 'package:murchin/features/profile/controllers/profile_controller.dart';
-import 'package:murchin/features/profile/screens/terms_screen.dart';
-import 'package:murchin/features/selection/selection_screen.dart';
-import 'package:murchin/features/sports/navbar/sports_navbar_screen.dart';
+import 'package:murcin/const/service/shared_preference_helper.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/widgets/custom_appbar.dart';
+import 'package:murcin/const/widgets/custom_button.dart';
+import 'package:murcin/features/auth/signin_screen.dart';
+import 'package:murcin/features/market/navbar/market_navbar_screen.dart';
+import 'package:murcin/features/profile/controllers/profile_controller.dart';
+import 'package:murcin/features/profile/screens/terms_screen.dart';
+import 'package:murcin/features/selection/selection_screen.dart';
+import 'package:murcin/features/sports/navbar/sports_navbar_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

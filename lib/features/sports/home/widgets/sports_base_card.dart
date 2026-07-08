@@ -117,6 +117,19 @@ class SportsBaseCard extends StatelessWidget {
                         final isMlb = iconAsset.toLowerCase().contains('mlb') || 
                                       title.toUpperCase().contains('MLB');
 
+                        // Optimistically mark saved so UI updates immediately
+                        controller.markEventSavedLocally(
+                          eventId: eventId!,
+                          marketPlace: platform,
+                          title: title,
+                          subtitle: subtitle,
+                          endDate: date,
+                          marketPercentage: marketPercentage,
+                          aiPercentage: aiPercentage,
+                          team: team,
+                          bookmark: null,
+                        );
+
                         // Save event via API
                         final success = await controller.saveEvent(
                           eventId: eventId!,
@@ -133,8 +146,8 @@ class SportsBaseCard extends StatelessWidget {
                         print('💾 Save result: $success');
 
                         if (success) {
-                          // Refresh saved events list
-                          await controller.fetchSavedEvents();
+                          // Refresh saved events list in background (keeps local optimistic entry in sync)
+                          controller.fetchSavedEvents();
 
                           Get.snackbar(
                             'Saved',

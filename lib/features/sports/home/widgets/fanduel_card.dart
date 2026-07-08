@@ -152,6 +152,21 @@ class FanduelCard extends StatelessWidget {
         onSaved: onSaved ??
             () {
               if (eventId != null) {
+                // Optimistically mark saved so UI updates immediately
+                controller.markEventSavedLocally(
+                  eventId: eventId!,
+                  marketPlace: platform,
+                  title: title,
+                  subtitle: subtitle,
+                  endDate: date,
+                  marketPercentage: marketPercentage,
+                  aiPercentage: eventRef != null
+                      ? (eventRef!['aiPercentage'] as String?) ?? aiPercentage
+                      : aiPercentage,
+                  team: team,
+                  bookmark: eventRef?['bookmark'] as Map<String, dynamic>?,
+                );
+
                 controller.saveEvent(
                   eventId: eventId!,
                   marketPlace: platform,

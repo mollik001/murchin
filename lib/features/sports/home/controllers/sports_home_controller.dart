@@ -1154,28 +1154,21 @@ class SportsHomeController extends GetxController {
         // Get only sportsbook_events from the response
         final sportsbookEvents = data['sportsbook_events'] as List<dynamic>?;
 
-        // Save current ID sets before clearing (to know which platforms user actually saved)
-        final savedFanduelIds = Set<String>.from(_savedFanduelEventIds);
-        final savedDraftkingsIds = Set<String>.from(_savedDraftkingsEventIds);
-        final savedBetMgmIds = Set<String>.from(_savedBetMgmEventIds);
-
-        // Clear existing saved events
-        _savedFanduelEventIds.clear();
-        _savedDraftkingsEventIds.clear();
-        _savedBetMgmEventIds.clear();
-        _savedFanduelEvents.clear();
-        _savedDraftkingsEvents.clear();
-        _savedBetMgmEvents.clear();
-
-        // Process sportsbook events
+        // Only clear and rebuild from API if sportsbook events were returned
         if (sportsbookEvents != null && sportsbookEvents.isNotEmpty) {
           print("Found ${sportsbookEvents.length} saved sportsbook events");
+
+          _savedFanduelEventIds.clear();
+          _savedDraftkingsEventIds.clear();
+          _savedBetMgmEventIds.clear();
+          _savedFanduelEvents.clear();
+          _savedDraftkingsEvents.clear();
+          _savedBetMgmEvents.clear();
 
           for (var event in sportsbookEvents) {
             final eventId = event['event_id']?.toString();
             if (eventId == null) continue;
 
-            // Process each bookmark (FanDuel, DraftKings, BetMGM)
             final bookmarks = event['bookmark'] as List<dynamic>?;
             if (bookmarks == null) continue;
 
@@ -1183,74 +1176,60 @@ class SportsHomeController extends GetxController {
               final marketPlace = bookmark['market_title'] as String?;
               if (marketPlace == null) continue;
 
-              // Check if user actually saved this platform (using saved ID sets)
-              bool wasActuallySaved = false;
-              switch (marketPlace) {
-                case 'FanDuel':
-                case 'Fanduel':
-                  wasActuallySaved = savedFanduelIds.contains(eventId);
-                  break;
-                case 'DraftKings':
-                case 'Draftkings':
-                  wasActuallySaved = savedDraftkingsIds.contains(eventId);
-                  break;
-                case 'BetMGM':
-                  wasActuallySaved = savedBetMgmIds.contains(eventId);
-                  break;
-              }
-
-              // Only add to saved list if user actually saved this platform
-              if (!wasActuallySaved) continue;
-
-              // Add to appropriate saved set and event list
               print('💾 Adding saved event: eventId=$eventId, marketPlace=$marketPlace, title=${event['title']}');
               switch (marketPlace) {
                 case 'FanDuel':
                 case 'Fanduel':
-                  _savedFanduelEventIds.add(eventId);
-                  _savedFanduelEvents.add({
-                    'event_id': eventId,
-                    'title': event['title'] ?? '',
-                    'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
-                    'endDate': event['date'] ?? '',
-                    'marketPercentage': _getBestMoneyline(bookmark),
-                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'],
-                    'team': event['home_team'] ?? '',
-                    'marketPlace': marketPlace,
-                    'bookmark': bookmark,
-                  });
-                  print('💾 FD event added, event_id=${_savedFanduelEvents.last['event_id']}');
+                  if (!_savedFanduelEventIds.contains(eventId)) {
+                    _savedFanduelEventIds.add(eventId);
+                    _savedFanduelEvents.add({
+                      'event_id': eventId,
+                      'title': event['title'] ?? '',
+                      'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
+                      'endDate': event['date'] ?? '',
+                      'marketPercentage': _getBestMoneyline(bookmark),
+                      'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'],
+                      'team': event['home_team'] ?? '',
+                      'marketPlace': marketPlace,
+                      'bookmark': bookmark,
+                    });
+                    print('💾 FD event added, event_id=${_savedFanduelEvents.last['event_id']}');
+                  }
                   break;
                 case 'DraftKings':
                 case 'Draftkings':
-                  _savedDraftkingsEventIds.add(eventId);
-                  _savedDraftkingsEvents.add({
-                    'event_id': eventId,
-                    'title': event['title'] ?? '',
-                    'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
-                    'endDate': event['date'] ?? '',
-                    'marketPercentage': _getBestMoneyline(bookmark),
-                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'],
-                    'team': event['home_team'] ?? '',
-                    'marketPlace': marketPlace,
-                    'bookmark': bookmark,
-                  });
-                  print('💾 DK event added, event_id=${_savedDraftkingsEvents.last['event_id']}');
+                  if (!_savedDraftkingsEventIds.contains(eventId)) {
+                    _savedDraftkingsEventIds.add(eventId);
+                    _savedDraftkingsEvents.add({
+                      'event_id': eventId,
+                      'title': event['title'] ?? '',
+                      'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
+                      'endDate': event['date'] ?? '',
+                      'marketPercentage': _getBestMoneyline(bookmark),
+                      'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'],
+                      'team': event['home_team'] ?? '',
+                      'marketPlace': marketPlace,
+                      'bookmark': bookmark,
+                    });
+                    print('💾 DK event added, event_id=${_savedDraftkingsEvents.last['event_id']}');
+                  }
                   break;
                 case 'BetMGM':
-                  _savedBetMgmEventIds.add(eventId);
-                  _savedBetMgmEvents.add({
-                    'event_id': eventId,
-                    'title': event['title'] ?? '',
-                    'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
-                    'endDate': event['date'] ?? '',
-                    'marketPercentage': _getBestMoneyline(bookmark),
-                    'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'],
-                    'team': event['home_team'] ?? '',
-                    'marketPlace': marketPlace,
-                    'bookmark': bookmark,
-                  });
-                  print('💾 MGM event added, event_id=${_savedBetMgmEvents.last['event_id']}');
+                  if (!_savedBetMgmEventIds.contains(eventId)) {
+                    _savedBetMgmEventIds.add(eventId);
+                    _savedBetMgmEvents.add({
+                      'event_id': eventId,
+                      'title': event['title'] ?? '',
+                      'subtitle': '${event['away_team'] ?? ''} vs ${event['home_team'] ?? ''}',
+                      'endDate': event['date'] ?? '',
+                      'marketPercentage': _getBestMoneyline(bookmark),
+                      'aiPercentage': bookmark['ai_moneyline_away'] ?? bookmark['ai_moneyline_home'],
+                      'team': event['home_team'] ?? '',
+                      'marketPlace': marketPlace,
+                      'bookmark': bookmark,
+                    });
+                    print('💾 MGM event added, event_id=${_savedBetMgmEvents.last['event_id']}');
+                  }
                   break;
               }
             }
@@ -1261,7 +1240,7 @@ class SportsHomeController extends GetxController {
           // Cache saved events
           cacheSavedEvents();
         } else {
-          print("No saved sportsbook events found");
+          print("No saved sportsbook events found or sportsbook_events key missing, keeping existing local data");
         }
       } else {
         print("Failed to fetch saved events: ${response.statusCode}");
@@ -1679,7 +1658,7 @@ class SportsHomeController extends GetxController {
 
         final streamedResponse = await request.send();
         response = await http.Response.fromStream(streamedResponse);
-        print("Request Fields (MLB - Multipart): {event_id: $eventId, market_place: SportsBook}");
+        print("Request Fields (MLB - Multipart): {event_id: $eventId, market_place: MLB_SportsBook}");
       } else {
         response = await http.post(
           Uri.parse(url),
@@ -1723,6 +1702,7 @@ class SportsHomeController extends GetxController {
               _savedFanduelEventIds.add(eventId);
               // Add to saved events list immediately
               _savedFanduelEvents.add(eventData);
+              _savedFanduelEvents.refresh();
               print('💾 FanDuel IDs now: $_savedFanduelEventIds');
             }
             break;
@@ -1733,6 +1713,7 @@ class SportsHomeController extends GetxController {
               _savedDraftkingsEventIds.add(eventId);
               // Add to saved events list immediately
               _savedDraftkingsEvents.add(eventData);
+              _savedDraftkingsEvents.refresh();
               print('💾 DraftKings IDs now: $_savedDraftkingsEventIds');
             }
             break;
@@ -1742,6 +1723,7 @@ class SportsHomeController extends GetxController {
               _savedBetMgmEventIds.add(eventId);
               // Add to saved events list immediately
               _savedBetMgmEvents.add(eventData);
+              _savedBetMgmEvents.refresh();
               print('💾 BetMGM IDs now: $_savedBetMgmEventIds');
             }
             break;
@@ -1750,7 +1732,7 @@ class SportsHomeController extends GetxController {
         // Update cache
         cacheSavedEvents();
 
-        // Notify GetX listeners to rebuild UI
+        // Notify GetX listeners to rebuild UI with explicit refresh
         print('💾 Calling update() for saved_events');
         update(['saved_events']);
 
@@ -1767,4 +1749,100 @@ class SportsHomeController extends GetxController {
   void saveDraftkingsEvent({required String eventId, required String marketPlace}) {
     saveEvent(eventId: eventId, marketPlace: marketPlace);
   }
+
+  /// Optimistically mark an event as saved locally so UI updates immediately
+  void markEventSavedLocally({
+    required String eventId,
+    required String marketPlace,
+    String? title,
+    String? subtitle,
+    String? endDate,
+    String? marketPercentage,
+    String? aiPercentage,
+    String? team,
+    Map<String, dynamic>? bookmark,
+  }) {
+    final mp = marketPlace;
+
+    // Prepare event data map similar to saveEvent's eventData
+    final eventData = <String, dynamic>{
+      'event_id': eventId,
+      'title': title ?? 'NBA Championship Odds 2026',
+      'subtitle': subtitle ?? '',
+      'endDate': endDate ?? '',
+      'marketPercentage': marketPercentage ?? '',
+      'aiPercentage': aiPercentage,
+      'team': team ?? '',
+      'marketPlace': mp,
+      'bookmark': bookmark ?? {},
+    };
+
+    switch (mp) {
+      case 'FanDuel':
+      case 'Fanduel':
+        if (!_savedFanduelEventIds.contains(eventId)) {
+          _savedFanduelEventIds.add(eventId);
+          _savedFanduelEvents.add(eventData);
+          _savedFanduelEvents.refresh();
+        }
+        break;
+      case 'DraftKings':
+      case 'Draftkings':
+        if (!_savedDraftkingsEventIds.contains(eventId)) {
+          _savedDraftkingsEventIds.add(eventId);
+          _savedDraftkingsEvents.add(eventData);
+          _savedDraftkingsEvents.refresh();
+        }
+        break;
+      case 'BetMGM':
+        if (!_savedBetMgmEventIds.contains(eventId)) {
+          _savedBetMgmEventIds.add(eventId);
+          _savedBetMgmEvents.add(eventData);
+          _savedBetMgmEvents.refresh();
+        }
+        break;
+      default:
+        // Unknown platform - do nothing
+        break;
+    }
+
+    // Cache the updated saved events immediately
+    cacheSavedEvents();
+
+    // Notify non-reactive GetBuilder widgets
+    update(['saved_events']);
+  }
+
+  void removeEventFromSavedLocally({
+    required String eventId,
+    required String marketPlace,
+  }) {
+    final mp = marketPlace;
+
+    switch (mp) {
+      case 'FanDuel':
+      case 'Fanduel':
+        _savedFanduelEventIds.remove(eventId);
+        _savedFanduelEvents.removeWhere((e) => e['event_id'] == eventId);
+        _savedFanduelEvents.refresh();
+        break;
+      case 'DraftKings':
+      case 'Draftkings':
+        _savedDraftkingsEventIds.remove(eventId);
+        _savedDraftkingsEvents.removeWhere((e) => e['event_id'] == eventId);
+        _savedDraftkingsEvents.refresh();
+        break;
+      case 'BetMGM':
+        _savedBetMgmEventIds.remove(eventId);
+        _savedBetMgmEvents.removeWhere((e) => e['event_id'] == eventId);
+        _savedBetMgmEvents.refresh();
+        break;
+      default:
+        // Unknown platform - do nothing
+        break;
+    }
+
+    update(['saved_events']);
+  }
 }
+

@@ -194,6 +194,18 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
 
     print('💾 Debug Save - Title: ${widget.title}, AwayTeam: ${widget.awayTeam}, IsMlb Detected: $isMlb');
 
+    // Optimistically mark saved so UI updates immediately
+    controller.markEventSavedLocally(
+      eventId: widget.eventId!,
+      marketPlace: widget.platform!,
+      title: widget.title,
+      subtitle: '${widget.awayTeam ?? ''} vs ${widget.homeTeam ?? ''}',
+      endDate: widget.date,
+      marketPercentage: widget.marketPercentage,
+      aiPercentage: widget.aiPercentage,
+      team: widget.homeTeam ?? '',
+    );
+
     // Save event via API
     final success = await controller.saveEvent(
       eventId: widget.eventId!,
@@ -212,8 +224,9 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
         _isSaved = true;
       });
 
-      // Refresh saved events list
-      await controller.fetchSavedEvents();
+      // Event is already saved locally via optimistic update
+      // Don't call fetchSavedEvents() as it clears the local data
+      // The saved section will show the event immediately from local cache
 
       Get.snackbar(
         'Saved',
@@ -223,6 +236,12 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
         colorText: Colors.white,
       );
     } else if (mounted) {
+      // Revert optimistic update on failure
+      controller.removeEventFromSavedLocally(
+        eventId: widget.eventId!,
+        marketPlace: widget.platform!,
+      );
+      
       Get.snackbar(
         'Error',
         'Failed to save event',
@@ -531,9 +550,9 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                           Text(
                             'AI Prediction',
                             style: AppTextStyles.bodySmall?.copyWith(
-                              color: const Color.fromARGB(255, 97, 96, 96),
+                              color:  Color(0xff2B2B2B),
                               fontWeight: FontWeight.w800,
-                              fontSize: 12.sp,
+                              fontSize: 14.sp,
                             ),
                           ),
                           const Spacer(),
@@ -573,7 +592,8 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                               style: AppTextStyles.bodySmall?.copyWith(
                                 color: Color(0xff203966),
                                 fontWeight: FontWeight.w600,
-                                fontSize: 12.sp,
+                                fontSize: 14.sp,
+                                
                               ),
                             ),
                           ),
@@ -639,9 +659,9 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                           Text(
                             'AI Prediction',
                             style: AppTextStyles.bodySmall?.copyWith(
-                              color: const Color.fromARGB(255, 97, 96, 96),
+                              color: const Color(0xff2B2B2B),
                               fontWeight: FontWeight.w800,
-                              fontSize: 12.sp,
+                              fontSize: 14.sp,
                             ),
                           ),
                           const Spacer(),

@@ -30,7 +30,15 @@ class AppColors {
   static const Color gray200 = Color(0xFFE9ECEF);
   static const Color gray100 = Color(0xFFF8F9FA);
   
-  // Semantic Colors
+  // Platform Colors
+  static const Color kalshiColor = Color(0xFF28CC95);
+  static const Color kalshiCardBg = Color(0xFF259A2C);
+  static const Color polymarketColor = Color(0xFF585858);
+  
+  // Sportsbook Colors
+  static const Color fanduelColor = Color(0xFF1493FF);
+  static const Color draftkingsColor = Color(0xFF61B50E);
+  static const Color betmgmColor = Color(0xFFB19661);
   static const Color success = Color(0xFF28A745);
   static const Color warning = Color(0xFFFFC107);
   static const Color error = Color(0xFFDC3545);

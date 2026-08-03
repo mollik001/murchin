@@ -1,6 +1,6 @@
 {
-    "name": "murchin",
-    "short_name": "murchin",
+    "name": "Pickfair AI",
+    "short_name": "Pickfair AI",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

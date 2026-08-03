@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:murchin/features/onboarding/onboarding_screen.dart';
+import 'package:murcin/features/onboarding/onboarding_screen.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -17,23 +17,13 @@ void main() async {
   runApp(const MyApp());
 }
 
-// Function to pre-load Google Fontsdo
-
+// Function to pre-load Google Fonts
 Future<void> _preloadGoogleFonts() async {
   try {
-  
     await GoogleFonts.pendingFonts([
-      GoogleFonts.roboto(), // Main font
-      GoogleFonts.inter(),  // Secondary font if used
+      GoogleFonts.roboto(),
+      GoogleFonts.inter(),
     ]);
-    
-    // Alternative method: Load specific font variants
-    await Future.wait([
-      GoogleFonts.robotoTextTheme().bodyLarge,
-      GoogleFonts.robotoTextTheme().headlineLarge,
-      Future.delayed(const Duration(milliseconds: 100)), // Small delay
-    ] as Iterable<Future<dynamic>>);
-    
     print("✅ Google Fonts pre-loaded successfully");
   } catch (e) {
     print("⚠️ Error pre-loading Google Fonts: $e");
@@ -52,7 +42,7 @@ class MyApp extends StatelessWidget {
       splitScreenMode: true,
       builder: (_, child) {
         return GetMaterialApp(
-          title: 'PickFair',
+          title: 'Pickfair AI',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             // Apply Google Fonts to the entire app
@@ -70,3 +60,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+
+
+

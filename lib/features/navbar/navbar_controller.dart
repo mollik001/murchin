@@ -2,7 +2,7 @@
 import 'package:get/get.dart';
 
 class BottomNavbarController extends GetxController {
-  var currentIndex = 0.obs;
+  var currentIndex = 1.obs; // Default to Events page (index 1)
 
   void changeIndex(int index) {
     if (currentIndex.value != index) {
@@ -10,7 +10,7 @@ class BottomNavbarController extends GetxController {
       update(); // Call update to trigger GetBuilder rebuild
     }
   }
-  
+
   @override
   void onInit() {
     super.onInit();

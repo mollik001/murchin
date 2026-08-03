@@ -1,11 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:murchin/const/theme/app_color.dart';
-import 'package:murchin/const/theme/app_theme.dart';
-import 'package:murchin/const/widgets/custom_button.dart';
-import 'package:murchin/features/auth/auth_controller.dart';
-import 'package:murchin/features/navbar/navbar_screen.dart';
+import 'package:murcin/const/theme/app_color.dart';
+import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/widgets/custom_button.dart';
+import 'package:murcin/features/auth/auth_controller.dart';
 
 class SignInPage extends StatelessWidget {
   SignInPage({super.key});
@@ -14,6 +14,8 @@ class SignInPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isIOS = Platform.isIOS;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -24,7 +26,7 @@ class SignInPage extends StatelessWidget {
             padding: EdgeInsets.only(
               left: 30.w,
               right: 30.w,
-              top: 60.h,
+              top: 30.h,
               bottom: 40.h,
             ),
             child: Column(
@@ -33,21 +35,22 @@ class SignInPage extends StatelessWidget {
                 /// Logo
                 Center(
                   child: Image.asset(
-                    'assets/images/name.png',
-                    width: 109.w,
-                    height: 30.w,
+                    'assets/images/name_2.png',
+                    width: 180.w,
+                    height: 85.h,
                     fit: BoxFit.contain,
                   ),
                 ),
 
-                SizedBox(height: 60.h),
+                SizedBox(height: 80.h),
 
                 /// Title
                 Text(
-                  'Welcome to Pickfair',
+                  'Welcome to Pickfair AI',
                   style: AppTextStyles.authSubtitle?.copyWith(
                     fontSize: 24.sp,
                     fontWeight: FontWeight.w700,
+                    color: Colors.black,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -70,44 +73,9 @@ class SignInPage extends StatelessWidget {
 
                 SizedBox(height: 40.h),
 
-                /// Registration Coming Soon Card
-                Container(
-                  padding: EdgeInsets.all(16.w),
-                  decoration: BoxDecoration(
-                    color: AppColors.gray100,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Registration coming soon',
-                        style: AppTextStyles.authSubtitle?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                          fontSize: 16.sp,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 12.h),
-                      Text(
-                        'We\'re currently onboarding users via Google sign-in only. '
-                        'Email registration will be available in a future update.',
-                        style: AppTextStyles.bodySmall?.copyWith(
-                          color: const Color(0xff848484),
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13.sp,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: 40.h),
-
-                /// Continue With Google Text
+                /// Sign-in label
                 Text(
-                  'Continue with Google',
+                  isIOS ? 'Continue with Apple' : 'Continue with Google',
                   style: AppTextStyles.authSubtitle?.copyWith(
                     fontWeight: FontWeight.w700,
                     fontSize: 16.sp,
@@ -116,25 +84,59 @@ class SignInPage extends StatelessWidget {
 
                 SizedBox(height: 24.h),
 
-                /// Google Button
+                /// Platform-specific sign-in button
                 Obx(() {
-                  return CustomButton(
-                    text: authController.isLoading.value ? 'Signing in...' : '',
-                    onPressed: () async {
-                      await authController.signInWithGoogle();
-                    },
-                    icon: Image.asset(
-                      'assets/icons/google.png',
-                      width: 20.w,
-                      height: 20.w,
-                    ),
-                    borderRadius: 30.r,
-                  );
+                  final loading = authController.isLoading.value;
+
+                  if (isIOS) {
+                    // Apple Sign-In button (iOS only) — same look as Google button
+                    return CustomButton(
+                      text: loading ? 'Signing in...' : '',
+                      onPressed: loading ? () {} : () async {
+                        await authController.signInWithApple();
+                      },
+                      icon: loading
+                          ? null
+                          : SizedBox(
+                              width: 20.w,
+                              height: 20.w,
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: Text(
+                                  '', // Apple logo Unicode glyph
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20.sp,
+                                    fontFamily: '-apple-system',
+                                  ),
+                                ),
+                              ),
+                            ),
+                      backgroundColor: Colors.black,
+                      borderRadius: 30.r,
+                    );
+                  } else {
+                    // Google Sign-In button (Android)
+                    return CustomButton(
+                      text: loading ? 'Signing in...' : '',
+                      onPressed: loading ? () {} : () async {
+                        await authController.signInWithGoogle();
+                      },
+                      icon: loading
+                          ? null
+                          : Image.asset(
+                              'assets/icons/google.png',
+                              width: 20.w,
+                              height: 20.w,
+                            ),
+                      borderRadius: 30.r,
+                    );
+                  }
                 }),
 
-                SizedBox(height: 60.h),
+                SizedBox(height: 40.h),
 
-                /// Divider Section
+                /// Divider
                 Row(
                   children: [
                     Expanded(
@@ -143,7 +145,7 @@ class SignInPage extends StatelessWidget {
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16.w),
                       child: Text(
-                        'Secure and private sign in',
+                        'Secure and private sign-in',
                         style: AppTextStyles.authSubtitle?.copyWith(
                           color: AppColors.gray600,
                           fontSize: 13.sp,
@@ -157,7 +159,7 @@ class SignInPage extends StatelessWidget {
                   ],
                 ),
 
-                SizedBox(height: 60.h),
+                SizedBox(height: 40.h),
 
                 /// Privacy Text
                 Padding(
@@ -175,7 +177,7 @@ class SignInPage extends StatelessWidget {
                           children: [
                             const TextSpan(text: 'By clicking the '),
                             TextSpan(
-                              text: '"sign up"',
+                              text: '"sign-up"',
                               style: AppTextStyles.bodySmall?.copyWith(
                                 color: const Color(0xff848484),
                                 fontWeight: FontWeight.w700,
@@ -203,7 +205,6 @@ class SignInPage extends StatelessWidget {
                           ],
                         ),
                       ),
-                      SizedBox(height: 60.h),
                     ],
                   ),
                 ),

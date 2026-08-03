@@ -14,8 +14,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({
     Key? key,
     required this.imageAsset,
-    this.imageWidth = 102.0,
-    this.imageHeight = 27.0,
+    this.imageWidth = 140.0,
+    this.imageHeight = 38.0,
     this.backgroundColor = Colors.transparent,
     this.padding,
     this.centerTitle = true,

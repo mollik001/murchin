@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -5,7 +6,6 @@ import 'package:murcin/const/theme/app_color.dart';
 import 'package:murcin/const/theme/app_theme.dart';
 import 'package:murcin/const/widgets/custom_button.dart';
 import 'package:murcin/features/auth/auth_controller.dart';
-import 'package:murcin/features/navbar/navbar_screen.dart';
 
 class SignInPage extends StatelessWidget {
   SignInPage({super.key});
@@ -14,6 +14,8 @@ class SignInPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isIOS = Platform.isIOS;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -71,9 +73,9 @@ class SignInPage extends StatelessWidget {
 
                 SizedBox(height: 40.h),
 
-                /// Continue With Google Text
+                /// Sign-in label
                 Text(
-                  'Continue with Google',
+                  isIOS ? 'Continue with Apple' : 'Continue with Google',
                   style: AppTextStyles.authSubtitle?.copyWith(
                     fontWeight: FontWeight.w700,
                     fontSize: 16.sp,
@@ -82,25 +84,59 @@ class SignInPage extends StatelessWidget {
 
                 SizedBox(height: 24.h),
 
-                /// Google Button
+                /// Platform-specific sign-in button
                 Obx(() {
-                  return CustomButton(
-                    text: authController.isLoading.value ? 'Signing in...' : '',
-                    onPressed: () async {
-                      await authController.signInWithGoogle();
-                    },
-                    icon: Image.asset(
-                      'assets/icons/google.png',
-                      width: 20.w,
-                      height: 20.w,
-                    ),
-                    borderRadius: 30.r,
-                  );
+                  final loading = authController.isLoading.value;
+
+                  if (isIOS) {
+                    // Apple Sign-In button (iOS only) — same look as Google button
+                    return CustomButton(
+                      text: loading ? 'Signing in...' : '',
+                      onPressed: loading ? () {} : () async {
+                        await authController.signInWithApple();
+                      },
+                      icon: loading
+                          ? null
+                          : SizedBox(
+                              width: 20.w,
+                              height: 20.w,
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: Text(
+                                  '', // Apple logo Unicode glyph
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20.sp,
+                                    fontFamily: '-apple-system',
+                                  ),
+                                ),
+                              ),
+                            ),
+                      backgroundColor: Colors.black,
+                      borderRadius: 30.r,
+                    );
+                  } else {
+                    // Google Sign-In button (Android)
+                    return CustomButton(
+                      text: loading ? 'Signing in...' : '',
+                      onPressed: loading ? () {} : () async {
+                        await authController.signInWithGoogle();
+                      },
+                      icon: loading
+                          ? null
+                          : Image.asset(
+                              'assets/icons/google.png',
+                              width: 20.w,
+                              height: 20.w,
+                            ),
+                      borderRadius: 30.r,
+                    );
+                  }
                 }),
 
                 SizedBox(height: 40.h),
 
-                /// Divider Section
+                /// Divider
                 Row(
                   children: [
                     Expanded(

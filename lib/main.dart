@@ -17,23 +17,13 @@ void main() async {
   runApp(const MyApp());
 }
 
-// Function to pre-load Google Fontsdo
-
+// Function to pre-load Google Fonts
 Future<void> _preloadGoogleFonts() async {
   try {
-  
     await GoogleFonts.pendingFonts([
-      GoogleFonts.roboto(), // Main font
-      GoogleFonts.inter(),  // Secondary font if used
+      GoogleFonts.roboto(),
+      GoogleFonts.inter(),
     ]);
-    
-    // Alternative method: Load specific font variants
-    await Future.wait([
-      GoogleFonts.robotoTextTheme().bodyLarge,
-      GoogleFonts.robotoTextTheme().headlineLarge,
-      Future.delayed(const Duration(milliseconds: 100)), // Small delay
-    ] as Iterable<Future<dynamic>>);
-    
     print("✅ Google Fonts pre-loaded successfully");
   } catch (e) {
     print("⚠️ Error pre-loading Google Fonts: $e");

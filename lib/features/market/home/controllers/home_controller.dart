@@ -1060,9 +1060,10 @@ class HomeController extends GetxController {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final polymarketEvents = data['polymarket_events'] as List<dynamic>?;
+        final polymarketEvents = data['polymarket_events'] as List<dynamic>? ?? [];
+        final kalshiEvents = data['kalshi_events'] as List<dynamic>? ?? [];
 
-        if (polymarketEvents == null || polymarketEvents.isEmpty) {
+        if (polymarketEvents.isEmpty && kalshiEvents.isEmpty) {
           print("No search results found for: $query");
           _searchResults.clear();
           isPageLoading.value = false;
@@ -1071,6 +1072,7 @@ class HomeController extends GetxController {
 
         List<Map<String, dynamic>> tempEvents = [];
 
+        // Parse Polymarket events
         for (var event in polymarketEvents) {
           final outcomes = event['question_outcome'] as List<dynamic>?;
 
@@ -1131,11 +1133,82 @@ class HomeController extends GetxController {
             'optionTitles': optionTitles,
             'marketProbs': marketProbs,
             'aiPercentages': [],
+            'market_place': 'Polymarket',
+          });
+        }
+
+        // Parse Kalshi events
+        for (var event in kalshiEvents) {
+          final outcomes = event['outcomes'] as List<dynamic>?;
+
+          if (event['title'] == null || event['title'].toString().isEmpty)
+            continue;
+          if (outcomes == null || outcomes.isEmpty) continue;
+
+          String highestTeam = '';
+          double highestProb = -1;
+
+          List<String> optionTitles = [];
+          List<double> marketProbs = [];
+
+          if (outcomes.length == 1) {
+            final outcome = outcomes[0];
+            final probYes = double.tryParse(outcome['probability_yes'].toString()) ?? -1;
+            final titleYes = outcome['group_item_title_yes']?.toString() ?? '';
+
+            if (probYes > 0 && probYes < 100 && titleYes.isNotEmpty) {
+              highestTeam = titleYes;
+              highestProb = probYes;
+              optionTitles.add(titleYes);
+              marketProbs.add(probYes);
+            }
+          } else {
+            for (var outcome in outcomes) {
+              final probYes = double.tryParse(outcome['probability_yes'].toString()) ?? -1;
+              final titleYes = outcome['group_item_title_yes']?.toString() ?? '';
+
+              if (probYes <= 0 || probYes >= 100) continue;
+              if (titleYes.isEmpty) continue;
+
+              optionTitles.add(titleYes);
+              marketProbs.add(probYes);
+
+              if (probYes > highestProb) {
+                highestProb = probYes;
+                highestTeam = titleYes;
+              }
+            }
+          }
+
+          if (optionTitles.isEmpty) continue;
+
+          int roundedPercentage = highestProb.floor();
+          if (highestProb - roundedPercentage >= 0.5) {
+            roundedPercentage += 1;
+          }
+
+          final marketPercentage = '${roundedPercentage}%';
+
+          tempEvents.add({
+            'event_id': event['event_ticker'],
+            'event_ticker': event['event_ticker'],
+            'series_ticker': event['series_ticker'] ?? '',
+            'title': event['title'],
+            'imageUrl': event['img_url'] ?? '',
+            'endDate': event['end_date'] ?? '',
+            'team': highestTeam,
+            'marketPercentage': marketPercentage,
+            'aiPercentage': null,
+            'aiExplanation': '',
+            'optionTitles': optionTitles,
+            'marketProbs': marketProbs,
+            'aiPercentages': [],
+            'market_place': 'Kalshi',
           });
         }
 
         _searchResults.assignAll(tempEvents);
-        print("Found ${tempEvents.length} search results for: $query");
+        print("Found ${tempEvents.length} total search results for: $query");
 
         // Fetch AI predictions for search results (limited to first 5)
         int aiFetchCount = 0;
@@ -1549,7 +1622,6 @@ class HomeController extends GetxController {
 
   @override
   void onClose() {
-    searchController.dispose();
     _debounceTimer?.cancel();
     super.onClose();
   }

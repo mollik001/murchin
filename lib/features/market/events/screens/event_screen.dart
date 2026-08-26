@@ -247,8 +247,14 @@ class _EventScreenState extends State<EventScreen> {
             child: Obx(() {
               // Check if there's an active search
               if (homeController.isSearching.value) {
-                // Show search results
-                final searchResults = homeController.events;
+                // Show search results filtered by current platform
+                final allSearchResults = homeController.events;
+                final platform = controller.selectedPlatform.value;
+                final searchResults = allSearchResults.where((e) {
+                  if (platform == 1) return e['market_place'] == 'Polymarket';
+                  if (platform == 2) return e['market_place'] == 'Kalshi';
+                  return true;
+                }).toList();
                 
                 if (searchResults.isEmpty) {
                   return Center(
@@ -262,7 +268,6 @@ class _EventScreenState extends State<EventScreen> {
                             width: 120.w,
                             height: 120.h,
                             fit: BoxFit.contain,
-                            color: AppColors.gray400,
                           ),
                           SizedBox(height: 32.h),
                           Text(
@@ -737,7 +742,6 @@ class _EventScreenState extends State<EventScreen> {
               width: 120.w,
               height: 120.h,
               fit: BoxFit.contain,
-              color: AppColors.gray400,
             ),
             SizedBox(height: 32.h),
             Text(
@@ -1013,12 +1017,18 @@ class EventsController extends GetxController {
   }
 
   void selectPlatform(int index) {
+    if (Get.isRegistered<HomeController>()) {
+      Get.find<HomeController>().clearSearch();
+    }
     selectedPlatform.value = index;
     selectedCategory.value = 'Trending';
     _loadEventsForCurrentSelection();
   }
 
   void selectCategory(String category) {
+    if (Get.isRegistered<HomeController>()) {
+      Get.find<HomeController>().clearSearch();
+    }
     selectedCategory.value = category;
     _loadEventsForCurrentSelection();
   }
@@ -1088,8 +1098,8 @@ class EventsController extends GetxController {
     }
   }
 
-  /// Helper method to check if a date string is today or in the future
-  /// Returns true if the date is today or upcoming, false if it's in the past
+  /// Helper method to check if a date string is today or in the near future (within 1 year)
+  /// Returns true if the date is today or upcoming (max 365 days away), false if it's in the past or far future
   bool _isCurrentOrUpcomingDate(String dateStr) {
     try {
       // Parse the date string (handles ISO 8601 format)
@@ -1099,8 +1109,12 @@ class EventsController extends GetxController {
       // Compare only the date parts (ignore time)
       final eventDateOnly = DateTime(eventDate.year, eventDate.month, eventDate.day);
       final nowDateOnly = DateTime(now.year, now.month, now.day);
+      final maxFutureDate = nowDateOnly.add(const Duration(days: 365));
       
-      return eventDateOnly.isAtSameMomentAs(nowDateOnly) || eventDateOnly.isAfter(nowDateOnly);
+      final isUpcoming = eventDateOnly.isAtSameMomentAs(nowDateOnly) || eventDateOnly.isAfter(nowDateOnly);
+      final isNearTerm = eventDateOnly.isBefore(maxFutureDate);
+      
+      return isUpcoming && isNearTerm;
     } catch (e) {
       // If parsing fails, include the event to be safe
       print("Error parsing date '$dateStr': $e");
@@ -1146,8 +1160,6 @@ class EventsController extends GetxController {
           categoryParam = 'economy';
           break;
         case 'Climate & Science':
-          categoryParam = 'climate_science';
-          break;
         case 'Climate':
           categoryParam = 'climate';
           break;
@@ -1161,7 +1173,7 @@ class EventsController extends GetxController {
           categoryParam = 'financials';
           break;
         case 'Tech & Science':
-          categoryParam = 'tech_science';
+          categoryParam = 'tech';
           break;
         default:
           categoryParam = 'trending';
@@ -1181,6 +1193,8 @@ class EventsController extends GetxController {
         final eventsList = data['results']?['events'];
 
         if (eventsList == null || eventsList.isEmpty) {
+          _events.clear();
+          update();
           isLoading.value = false;
           return;
         }
@@ -1269,6 +1283,9 @@ class EventsController extends GetxController {
         setPolymarketNextPageUrl(category, nextPageUrl);
 
         // NO AI calls here - only fetch AI when user opens detail page
+      } else {
+        _events.clear();
+        update();
       }
     } catch (e) {
       print("Error fetching Polymarket events: $e");
@@ -1297,26 +1314,24 @@ class EventsController extends GetxController {
           categoryParam = 'crypto';
           break;
         case 'Finance':
-          categoryParam = 'finance';
+          categoryParam = 'financials';
           break;
         case 'Geopolitics':
-          categoryParam = 'geopolitics';
+          categoryParam = 'world';
           break;
         case 'Tech':
           categoryParam = 'tech';
           break;
         case 'Culture':
-          categoryParam = 'culture';
+          categoryParam = 'entertainment';
           break;
         case 'World':
           categoryParam = 'world';
           break;
         case 'Economy':
-          categoryParam = 'economy';
+          categoryParam = 'economics';
           break;
         case 'Climate & Science':
-          categoryParam = 'climate_science';
-          break;
         case 'Climate':
           categoryParam = 'climate';
           break;
@@ -1330,7 +1345,7 @@ class EventsController extends GetxController {
           categoryParam = 'financials';
           break;
         case 'Tech & Science':
-          categoryParam = 'tech_science';
+          categoryParam = 'tech';
           break;
         default:
           categoryParam = 'trending';
@@ -1353,6 +1368,8 @@ class EventsController extends GetxController {
         final eventsList = data['results']?['events'];
 
         if (eventsList == null || eventsList.isEmpty) {
+          _kalshiEvents.clear();
+          update();
           isLoading.value = false;
           return;
         }
@@ -1445,6 +1462,9 @@ class EventsController extends GetxController {
         setKalshiNextPageUrl(category, nextPageUrl);
 
         // NO AI calls here - only fetch AI when user opens detail page
+      } else {
+        _kalshiEvents.clear();
+        update();
       }
     } catch (e) {
       print("Error fetching Kalshi events: $e");
@@ -1516,6 +1536,11 @@ class EventsController extends GetxController {
             if (event['title'] == null || event['title'].toString().isEmpty) continue;
             if (outcomes == null || outcomes.isEmpty) continue;
 
+            final endDate = event['end_date']?.toString() ?? '';
+            if (endDate.isNotEmpty && !_isCurrentOrUpcomingDate(endDate)) {
+              continue;
+            }
+
             final validOutcomes = outcomes.where((o) {
               final title = o['group_item_title']?.toString() ?? '';
               final probStr = o['probability']?.toString() ?? '';
@@ -1553,6 +1578,7 @@ class EventsController extends GetxController {
               'event_id': event['event_id'],
               'title': event['title'],
               'slug': event['slug'] ?? '',
+              'imageUrl': event['image_url'] ?? '',
               'endDate': event['end_date'] ?? '',
               'team': highestTeam,
               'marketPercentage': '${roundedPercentage}%',
@@ -1604,6 +1630,11 @@ class EventsController extends GetxController {
             final outcomes = event['outcomes'] as List<dynamic>?;
             if (event['title'] == null || event['title'].toString().isEmpty) continue;
             if (outcomes == null || outcomes.isEmpty) continue;
+
+            final endDate = event['end_date']?.toString() ?? '';
+            if (endDate.isNotEmpty && !_isCurrentOrUpcomingDate(endDate)) {
+              continue;
+            }
 
             String highestTeam = '';
             double highestProb = -1;

@@ -233,19 +233,54 @@ return GetBuilder<NbaFinalsOddsController>(
                             title: 'MLB Odds 2026',
                           );
 
-                         // Check if there are no events to display
-                         if (cards.isEmpty) {
-                           return _buildEmptyState(
-                             message: 'No upcoming events',
-                             subtitle: 'Check back later for new events',
-                           );
-                         }
+                          // Show loading indicator while events are loading
+                          if (sportsController.isLoading.value && sportsController.mlbEvents.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 60.w,
+                                    height: 60.h,
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.primary,
+                                      strokeWidth: 3.w,
+                                    ),
+                                  ),
+                                  SizedBox(height: 24.h),
+                                  Text(
+                                    'Loading events...',
+                                    style: AppTextStyles.bodyLarge?.copyWith(
+                                      color: AppColors.gray600,
+                                      fontSize: 16.sp,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8.h),
+                                  Text(
+                                    'Please wait',
+                                    style: AppTextStyles.bodyMedium?.copyWith(
+                                      color: AppColors.gray500,
+                                      fontSize: 14.sp,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
 
-                         return ListView.builder(
-                           controller: _scrollController,
-                           padding: EdgeInsets.only(left: 20.w, right: 20.w, top: 8.h),
-                           itemCount: cards.length + 1, // +1 for featured card
-                           itemBuilder: (context, index) {
+                          // Check if there are no events to display
+                          if (cards.isEmpty) {
+                            return _buildEmptyState(
+                              message: 'No upcoming events',
+                              subtitle: 'Check back later for new events',
+                            );
+                          }
+
+                          return ListView.builder(
+                            controller: _scrollController,
+                            padding: EdgeInsets.only(left: 20.w, right: 20.w, top: 8.h),
+                            itemCount: cards.length + 1, // +1 for featured card
+                            itemBuilder: (context, index) {
                              // Featured card always at index 0
                              if (index == 0) {
                                return Padding(

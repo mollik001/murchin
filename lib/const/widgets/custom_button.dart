@@ -53,22 +53,24 @@ class CustomButton extends StatelessWidget {
           ),
         ),
         child: icon != null
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  icon!,
-                  SizedBox(width: 8.w),
-                  Text(
-                    text,
-                    style: textStyle ??
-                        AppTextStyles.bodySmall.copyWith(
-                          fontSize: 14.sp, // Slightly smaller font
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white
-                        ),
-                  ),
-                ],
-              )
+            ? (text.trim().isEmpty
+                ? Center(child: icon!)
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      icon!,
+                      SizedBox(width: 8.w),
+                      Text(
+                        text,
+                        style: textStyle ??
+                            AppTextStyles.bodySmall.copyWith(
+                              fontSize: 14.sp, // Slightly smaller font
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white
+                            ),
+                      ),
+                    ],
+                  ))
             : FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(

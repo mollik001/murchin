@@ -3,18 +3,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 import 'package:murcin/features/onboarding/onboarding_screen.dart';
 
-void main() async {
-  // Ensure Flutter is initialized
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Pre-load Google Fonts before runApp
-  await _preloadGoogleFonts();
-  await Firebase.initializeApp();
+void main() {
+  // Run everything inside a single zone so bindings and runApp use the same zone
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  
-  runApp(const MyApp());
+    // Initialize Firebase before any Firebase usage
+    try {
+      await Firebase.initializeApp();
+      print('✅ Firebase initialized');
+    } catch (e, st) {
+      print('❌ Firebase initialization failed: $e\n$st');
+      // Continue — app may still fail if Firebase is required
+    }
+
+    // Pre-load Google Fonts (after Firebase init)
+    await _preloadGoogleFonts();
+
+    // Capture Flutter errors
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      print('FlutterError: ${details.exceptionAsString()}');
+      print(details.stack);
+    };
+
+    runApp(const MyApp());
+  }, (error, stack) {
+    print('Uncaught zone error: $error\n$stack');
+  });
 }
 
 // Function to pre-load Google Fonts

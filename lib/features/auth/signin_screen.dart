@@ -84,54 +84,42 @@ class SignInPage extends StatelessWidget {
 
                 SizedBox(height: 24.h),
 
-                /// Platform-specific sign-in button
+                /// Unified sign-in button (same design for both platforms)
                 Obx(() {
                   final loading = authController.isLoading.value;
 
-                  if (isIOS) {
-                    // Apple Sign-In button (iOS only) — same look as Google button
-                    return CustomButton(
-                      text: loading ? 'Signing in...' : '',
-                      onPressed: loading ? () {} : () async {
-                        await authController.signInWithApple();
-                      },
-                      icon: loading
-                          ? null
-                          : SizedBox(
-                              width: 20.w,
-                              height: 20.w,
-                              child: FittedBox(
-                                fit: BoxFit.contain,
-                                child: Text(
-                                  '', // Apple logo Unicode glyph
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20.sp,
-                                    fontFamily: '-apple-system',
-                                  ),
-                                ),
-                              ),
-                            ),
-                      backgroundColor: Colors.black,
-                      borderRadius: 30.r,
-                    );
-                  } else {
-                    // Google Sign-In button (Android)
-                    return CustomButton(
-                      text: loading ? 'Signing in...' : '',
-                      onPressed: loading ? () {} : () async {
-                        await authController.signInWithGoogle();
-                      },
-                      icon: loading
-                          ? null
+                  final Widget? iconWidget = loading
+                      ? null
+                      : (isIOS
+                          ? Icon(
+                              Icons.apple,
+                              size: 20.w,
+                              color: Colors.white,
+                            )
                           : Image.asset(
                               'assets/icons/google.png',
                               width: 20.w,
                               height: 20.w,
-                            ),
-                      borderRadius: 30.r,
-                    );
-                  }
+                            ));
+
+                  final String buttonText = loading
+                      ? 'Signing in...'
+                      : (isIOS ? '' : 'Continue with Google');
+
+                  return CustomButton(
+                    text: buttonText,
+                    onPressed: loading
+                        ? () {}
+                        : () async {
+                            if (isIOS) {
+                              await authController.signInWithApple();
+                            } else {
+                              await authController.signInWithGoogle();
+                            }
+                          },
+                    icon: iconWidget,
+                    borderRadius: 30.r,
+                  );
                 }),
 
                 SizedBox(height: 40.h),

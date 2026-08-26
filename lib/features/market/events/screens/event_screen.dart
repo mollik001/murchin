@@ -733,7 +733,7 @@ class _EventScreenState extends State<EventScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/images/logo_2.png',
+              'assets/images/logo_2.jpg',
               width: 120.w,
               height: 120.h,
               fit: BoxFit.contain,

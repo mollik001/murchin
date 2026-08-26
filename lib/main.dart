@@ -82,4 +82,10 @@ class MyApp extends StatelessWidget {
 
 
 
+// grep -qxF '/ios/build/' .gitignore || printf "\n/ios/build/\n" >> .gitignore
+// git rm -r --cached ios/build
+// git add .gitignore
+// git commit --amend --no-edit
+// git push origin main
+
 

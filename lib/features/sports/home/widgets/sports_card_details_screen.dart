@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:murcin/const/theme/app_color.dart';
 import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/utils/platform_helper.dart';
 import 'package:murcin/features/sports/controllers/ai_prediction_controller.dart';
 import 'package:murcin/features/sports/controllers/player_props_controller.dart';
 import 'package:murcin/features/sports/home/controllers/sports_home_controller.dart';
@@ -361,28 +362,29 @@ class _SportsCardDetailsScreenState extends State<SportsCardDetailsScreen> {
                               ),
                             ),
                           ),
-                          GestureDetector(
-                            onTap: _toggleSaveEvent,
-                            child: _isSaving
-                              ? SizedBox(
-                                  width: 20.w,
-                                  height: 20.h,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      AppColors.primary,
+                          if (PlatformHelper.isBookmarkEnabled)
+                            GestureDetector(
+                              onTap: _toggleSaveEvent,
+                              child: _isSaving
+                                ? SizedBox(
+                                    width: 20.w,
+                                    height: 20.h,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        AppColors.primary,
+                                      ),
                                     ),
+                                  )
+                                : Image.asset(
+                                    _isSaved
+                                      ? 'assets/icons/bookmark_active.png'
+                                      : 'assets/icons/bookmark.png',
+                                    width: 20.w,
+                                    height: 20.h,
+                                    fit: BoxFit.contain,
                                   ),
-                                )
-                              : Image.asset(
-                                  _isSaved
-                                    ? 'assets/icons/bookmark_active.png'
-                                    : 'assets/icons/bookmark.png',
-                                  width: 20.w,
-                                  height: 20.h,
-                                  fit: BoxFit.contain,
-                                ),
-                          ),
+                            ),
                         ],
                       ),
                       SizedBox(height: 16.h),

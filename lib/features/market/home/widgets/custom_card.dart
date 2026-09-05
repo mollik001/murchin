@@ -5,6 +5,7 @@ import 'package:murcin/features/market/home/screens/comparison_card.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:murcin/const/theme/app_color.dart';
 import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/utils/platform_helper.dart';
 
 class BaseCard extends StatefulWidget {
   final String title;
@@ -108,19 +109,20 @@ class _BaseCardState extends State<BaseCard> {
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: widget.canToggleSave ? _toggleSaved : null,
-                child: Container(
-                  padding: EdgeInsets.all(4.w),
-                  child: Image.asset(
-                    isSaved
-                        ? 'assets/icons/bookmark_active.png'
-                        : 'assets/icons/bookmark.png',
-                    width: 20.w,
-                    height: 20.h,
+              if (PlatformHelper.isBookmarkEnabled)
+                GestureDetector(
+                  onTap: widget.canToggleSave ? _toggleSaved : null,
+                  child: Container(
+                    padding: EdgeInsets.all(4.w),
+                    child: Image.asset(
+                      isSaved
+                          ? 'assets/icons/bookmark_active.png'
+                          : 'assets/icons/bookmark.png',
+                      width: 20.w,
+                      height: 20.h,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           SizedBox(height: 16.h),

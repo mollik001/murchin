@@ -6,6 +6,7 @@ import 'package:murcin/features/sports/home/widgets/sports_comparison_tab.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:murcin/const/theme/app_color.dart';
 import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/utils/platform_helper.dart';
 
 class SportsBaseCard extends StatelessWidget {
   final String title;
@@ -94,7 +95,7 @@ class SportsBaseCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (showBookmark)
+                  if (showBookmark && PlatformHelper.isBookmarkEnabled)
                     GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: () async {

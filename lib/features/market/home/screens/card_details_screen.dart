@@ -6,6 +6,7 @@ import 'package:murcin/const/theme/app_color.dart';
 import 'package:murcin/const/theme/app_theme.dart';
 import 'package:murcin/const/widgets/custom_appbar_2.dart';
 import 'package:murcin/const/widgets/custom_button.dart';
+import 'package:murcin/const/utils/platform_helper.dart';
 import 'package:murcin/features/market/home/controllers/home_controller.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -327,28 +328,29 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: _toggleSaveEvent,
-                child: _isSaving
-                    ? SizedBox(
-                        width: 20.w,
-                        height: 20.h,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primary,
+              if (PlatformHelper.isBookmarkEnabled)
+                GestureDetector(
+                  onTap: _toggleSaveEvent,
+                  child: _isSaving
+                      ? SizedBox(
+                          width: 20.w,
+                          height: 20.h,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
                           ),
+                        )
+                      : Image.asset(
+                          _isSaved
+                              ? 'assets/icons/bookmark_active.png'
+                              : 'assets/icons/bookmark.png',
+                          width: 20.w,
+                          height: 20.h,
+                          fit: BoxFit.contain,
                         ),
-                      )
-                    : Image.asset(
-                        _isSaved
-                            ? 'assets/icons/bookmark_active.png'
-                            : 'assets/icons/bookmark.png',
-                        width: 20.w,
-                        height: 20.h,
-                        fit: BoxFit.contain,
-                      ),
-              ),
+                ),
             ],
           ),
           SizedBox(height: 16.h),

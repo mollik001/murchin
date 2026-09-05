@@ -262,6 +262,7 @@ import 'package:murcin/features/onboarding/onboarding_controller.dart';
 import 'package:murcin/features/sports/navbar/sports_navbar_screen.dart';
 import 'package:murcin/features/selection/selection_screen.dart';
 import 'package:murcin/const/theme/app_theme.dart';
+import 'package:murcin/const/utils/platform_helper.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -283,10 +284,34 @@ class _LandingPageState extends State<LandingPage> {
   Future<void> _checkLoginAndNavigate() async {
     await Future.delayed(const Duration(seconds: 5));
 
+    if (!mounted) return;
+
+    // iOS compliance: Skip sign in restriction completely
+    if (!PlatformHelper.isAuthEnabled) {
+      print("🍎 iOS: Skipping Sign In requirement -> Direct to Home/Selection");
+      String? lastSection =
+          await SharedPreferencesHelper.getLastVisitedSection();
+
+      if (lastSection == 'sports') {
+        Get.offAll(() => SportsNavbarScreen());
+      } else if (lastSection == 'market') {
+        Get.offAll(() => MarketNavbarScreen());
+      } else {
+        bool? isSportsbook = await SharedPreferencesHelper.getSportsbookMode();
+
+        if (isSportsbook == true) {
+          Get.offAll(() => SportsNavbarScreen());
+        } else if (isSportsbook == false) {
+          Get.offAll(() => MarketNavbarScreen());
+        } else {
+          Get.offAll(() => const SelectionScreen());
+        }
+      }
+      return;
+    }
+
     final token = await SharedPreferencesHelper.getAccessToken();
     print(' 🔑 Retrieved Token:-------------------------- $token');
-
-    if (!mounted) return;
 
     if (token != null && token.isNotEmpty) {
       print("✅ Token Found → Navigate To Home");
